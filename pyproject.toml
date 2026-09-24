@@ -4,7 +4,13 @@ version = "0.1.0"
 description = "A lightweight proxy server written in Python."
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "alembic>=1.20.0",
+    "asyncpg>=0.31.0",
+    "greenlet>=3.5.6",
+    "pydantic-settings>=2.15.0",
+    "sqlalchemy>=2.0.54",
+]
 
 [project.scripts]
 proxium = "proxium:main"
