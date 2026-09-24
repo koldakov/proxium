@@ -1,9 +1,9 @@
-from ._base import Base, BaseTimestampModel
+from ._base import BaseModel, BaseTimestampModel
 from ._fields import Hash, HashField
 from ._users import UserModel
 
 __all__ = [
-    "Base",
+    "BaseModel",
     "BaseTimestampModel",
     "Hash",
     "HashField",
