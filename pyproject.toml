@@ -121,6 +121,10 @@ line-ending = "auto"
 # enabled.
 # docstring-code-line-length = "dynamic"
 
+[tool.ruff.lint.flake8-type-checking]
+# SQLAlchemy resolves Mapped[...] annotations at runtime.
+runtime-evaluated-base-classes = ["proxium.db._base.Base"]
+
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
