@@ -6,7 +6,7 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from proxium.core import settings
+from proxium.core import database_settings
 from proxium.db import (
     BaseModel,
     models,  # noqa: F401, do not remove.
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-config.set_main_option("sqlalchemy.url", str(settings.database_url))
+config.set_main_option("sqlalchemy.url", str(database_settings.url))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

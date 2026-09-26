@@ -50,20 +50,60 @@ class ProxySettings(BaseSettings):
 proxy_settings = ProxySettings()
 
 
-class Settings(BaseSettings):
-    database_url: PostgresDsn
+class DatabaseSettings(BaseSettings):
+    """One set for every process: the proxy and the admin each get a pool of this size."""
 
-    proxy: ProxySettings = proxy_settings
+    url: PostgresDsn
+    echo: bool = False
+    pool_size: Annotated[
+        int,
+        Field(
+            ge=1,
+        ),
+    ] = 5
+    # Connections opened on top of `pool_size` under load, closed once returned.
+    pool_max_overflow: Annotated[
+        int,
+        Field(
+            ge=0,
+        ),
+    ] = 10
+    # Seconds to wait for a free connection before giving up.
+    pool_timeout: Annotated[
+        float,
+        Field(
+            gt=0,
+        ),
+    ] = 30.0
+    # Seconds after which a connection is replaced, -1 keeps it forever.
+    pool_recycle: Annotated[
+        int,
+        Field(
+            ge=-1,
+        ),
+    ] = -1
+
+    model_config = SettingsConfigDict(
+        env_prefix="database_",
+    )
 
     @field_validator(
-        "database_url",
+        "url",
         mode="before",
     )
     @classmethod
-    def _fix_database_url(cls, value: Any) -> Any:
+    def _fix_url(cls, value: Any) -> Any:
         if isinstance(value, str):
             return _fix_postgres_url(value)
         return value
+
+
+database_settings = DatabaseSettings()
+
+
+class Settings(BaseSettings):
+    database: DatabaseSettings = database_settings
+    proxy: ProxySettings = proxy_settings
 
 
 settings = Settings()

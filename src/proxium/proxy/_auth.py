@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from ._types import ANONYMOUS, Credentials, Identity, ProxyError
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from collections.abc import Awaitable, Callable, Mapping
 
     from ._types import Session
 
@@ -38,3 +38,28 @@ class AnonymousAuthenticator(Authenticator):
 
     async def authenticate(self, credentials: Credentials | None, session: Session, /) -> Identity:
         return ANONYMOUS
+
+
+class DispatchAuthenticator(Authenticator):
+    """Picks an authenticator by the credentials type, e.g. one for `BasicCredentials`, another for `BearerCredentials`.
+
+    Credentials of a type not in `authenticators`, or none at all, are refused.
+    """
+
+    def __init__(
+        self,
+        authenticators: Mapping[type[Credentials], Authenticator],
+        /,
+    ) -> None:
+        self._authenticators: dict[type[Credentials], Authenticator] = dict(authenticators)
+
+    async def authenticate(self, credentials: Credentials | None, session: Session, /) -> Identity:
+        if credentials is None:
+            raise AuthenticationRequired()
+
+        try:
+            authenticator = self._authenticators[type(credentials)]
+        except KeyError as err:
+            raise AuthenticationRequired() from err
+
+        return await authenticator.authenticate(credentials, session)

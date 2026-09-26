@@ -5,10 +5,14 @@ from typing import TYPE_CHECKING, ClassVar, Final
 
 import uvloop
 
+from proxium.auth import BasicAccountAuthenticator, TokenAccountAuthenticator
 from proxium.core import proxy_settings
+from proxium.db import session_manager
 from proxium.proxy import (
-    AnonymousAuthenticator,
+    BasicCredentials,
+    BearerCredentials,
     DirectConnector,
+    DispatchAuthenticator,
     HttpInbound,
     Listener,
     ListenError,
@@ -59,10 +63,15 @@ class ProxyRunner:
         self._stop: asyncio.Event = asyncio.Event()
 
     def _create_default_profile(self) -> Profile:
-        """Open HTTP proxy going straight to targets. Only for local use: nobody is authenticated."""
+        """HTTP proxy for accounts from the database, going straight to targets."""
         return Profile(
             inbounds=[HttpInbound()],
-            authenticator=AnonymousAuthenticator(),
+            authenticator=DispatchAuthenticator(
+                {
+                    BasicCredentials: BasicAccountAuthenticator(),
+                    BearerCredentials: TokenAccountAuthenticator(),
+                },
+            ),
             connector=DirectConnector(),
             observers=[LoggingObserver()],
         )
@@ -88,6 +97,7 @@ class ProxyRunner:
 
         logger.info("Shutting down, press Ctrl+C again to force")
         await self._server.shutdown(timeout=self._graceful_timeout)
+        await session_manager.close()
 
     def _on_signal(self, callback: Callable[[], object], /) -> None:
         loop = asyncio.get_running_loop()

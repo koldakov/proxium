@@ -26,6 +26,11 @@ cp .env.template .env
 | Variable       | Description                                   |
 |----------------|-----------------------------------------------|
 | `DATABASE_URL` | PostgreSQL URL, e.g. `postgres://user:password@host/db_name` |
+| `DATABASE_ECHO` | Log every SQL query, default `false`. Parameters are always hidden |
+| `DATABASE_POOL_SIZE` | Connections each process keeps open, default `5` |
+| `DATABASE_POOL_MAX_OVERFLOW` | Extra connections under load, default `10` |
+| `DATABASE_POOL_TIMEOUT` | Seconds to wait for a free connection, default `30` |
+| `DATABASE_POOL_RECYCLE` | Seconds after which a connection is replaced, default `-1` (never) |
 | `PROXY_LISTEN` | Addresses to listen on, default `127.0.0.1:8080`, see below |
 | `PROXY_GRACEFUL_TIMEOUT` | Seconds open connections get to finish on shutdown, default `30` |
 | `PROXY_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`, default `INFO` |
@@ -52,6 +57,13 @@ or
 
 ```bash
 uv run --env-file .env python -m proxium
+```
+
+Clients authenticate with proxy accounts from the database, inactive and expired ones are refused:
+
+```bash
+curl -x http://username:password@127.0.0.1:8080 https://example.com                  # basic account
+curl -x http://127.0.0.1:8080 --proxy-header "Proxy-Authorization: Bearer <token>" https://example.com  # token account
 ```
 
 `Ctrl+C` (SIGINT) or SIGTERM stops accepting and waits up to `PROXY_GRACEFUL_TIMEOUT` for open connections.

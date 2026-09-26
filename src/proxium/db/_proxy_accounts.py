@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import VARCHAR, DateTime, ForeignKey
@@ -34,6 +34,15 @@ class ProxyBaseAccountModel(BaseTimestampModel):
         ),
     )
 
+    @property
+    def secret_hash(self) -> Hash:
+        """The stored hash of the secret the client proves itself with."""
+        raise NotImplementedError()
+
+    def is_valid(self) -> bool:
+        """Whether the account may be used now, whatever the credentials."""
+        return self.is_active and (self.expires_at is None or self.expires_at > datetime.now(UTC))
+
     # Relationships on an abstract model must be declared per subclass.
     @declared_attr
     @classmethod
@@ -57,6 +66,10 @@ class BasicProxyAccountModel(ProxyBaseAccountModel):
         HashField(length=255),
     )
 
+    @property
+    def secret_hash(self) -> Hash:
+        return self.password
+
 
 class TokenProxyAccountModel(ProxyBaseAccountModel):
     """Bearer token `<key>.<secret>`. Found by the public `key`, then checked against the hashed `token`.
@@ -79,3 +92,7 @@ class TokenProxyAccountModel(ProxyBaseAccountModel):
     token: Mapped[Hash] = mapped_column(
         HashField(length=255),
     )
+
+    @property
+    def secret_hash(self) -> Hash:
+        return self.token

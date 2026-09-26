@@ -1,4 +1,10 @@
-from ._auth import AnonymousAuthenticator, Authenticate, AuthenticationRequired, Authenticator
+from ._auth import (
+    AnonymousAuthenticator,
+    Authenticate,
+    AuthenticationRequired,
+    Authenticator,
+    DispatchAuthenticator,
+)
 from ._connection import Connection, UnknownProtocol
 from ._connectors import Connector, DirectConnector, TargetTimeout, TargetUnreachable
 from ._guards import AddressGuard, ForbiddenAddress
@@ -37,6 +43,7 @@ __all__ = [
     "Connector",
     "Credentials",
     "DirectConnector",
+    "DispatchAuthenticator",
     "Forbidden",
     "ForbiddenAddress",
     "Host",
