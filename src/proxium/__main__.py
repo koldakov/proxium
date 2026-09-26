@@ -1,2 +1,4 @@
+from .runners import run_proxy
+
 if __name__ == "__main__":
-    pass
+    run_proxy()

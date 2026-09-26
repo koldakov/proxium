@@ -26,18 +26,36 @@ cp .env.template .env
 | Variable       | Description                                   |
 |----------------|-----------------------------------------------|
 | `DATABASE_URL` | PostgreSQL URL, e.g. `postgres://user:password@host/db_name` |
+| `PROXY_LISTEN` | Addresses to listen on, default `127.0.0.1:8080`, see below |
+| `PROXY_GRACEFUL_TIMEOUT` | Seconds open connections get to finish on shutdown, default `30` |
+| `PROXY_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`, default `INFO` |
+
+`PROXY_LISTEN` is a comma-separated list of `host:port` pairs. A host is an IP address, a network or a host name,
+IPv6 goes in brackets. A port may be an inclusive range. Every host listens on every port of its pair:
+
+```bash
+PROXY_LISTEN=127.0.0.1:8080                          # one socket
+PROXY_LISTEN=localhost:8080                          # every address localhost resolves to
+PROXY_LISTEN=0.0.0.0:8080,[::]:8080                  # all IPv4 and IPv6 interfaces
+PROXY_LISTEN=10.0.0.0/29:10000-10999                 # 6 host addresses x 1000 ports
+```
+
+Host names are resolved once, on start.
 
 ## Usage
 
 ```bash
-uv run proxium
+uv run --env-file .env proxium
 ```
 
 or
 
 ```bash
-uv run python -m proxium
+uv run --env-file .env python -m proxium
 ```
+
+`Ctrl+C` (SIGINT) or SIGTERM stops accepting and waits up to `PROXY_GRACEFUL_TIMEOUT` for open connections.
+A second signal stops immediately.
 
 ## Development
 
