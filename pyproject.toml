@@ -124,7 +124,7 @@ line-ending = "auto"
 
 [tool.ruff.lint.flake8-type-checking]
 # SQLAlchemy resolves Mapped[...] annotations at runtime.
-runtime-evaluated-base-classes = ["proxium.db._base.BaseModel"]
+runtime-evaluated-base-classes = ["proxium.db._base.BaseModel", "proxium.db._base.BaseTimestampModel"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
