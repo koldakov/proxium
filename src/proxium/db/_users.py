@@ -8,8 +8,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ._base import BaseTimestampModel
 from ._fields import Hash, HashField
 
-# SQLAlchemy finds relationship targets by name in its registry, a runtime import would be circular.
 if TYPE_CHECKING:
+    # SQLAlchemy finds relationship targets by name in its registry, a runtime import would be circular.
     from ._proxy_accounts import BasicProxyAccountModel, TokenProxyAccountModel  # noqa: TC004
 
 

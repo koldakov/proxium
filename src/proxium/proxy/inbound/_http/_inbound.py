@@ -149,7 +149,8 @@ class HttpAuth:
         try:
             scheme = self._schemes[name.lower()]
         except KeyError:
-            raise BadRequest(f"Unsupported authorization scheme {name!r}.") from None
+            # No name in the message: a header without a scheme puts the bare secret there, and errors get logged.
+            raise BadRequest("Unsupported authorization scheme.") from None
 
         return scheme.parse(param.strip())
 
