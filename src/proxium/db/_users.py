@@ -33,6 +33,10 @@ class UserModel(BaseTimestampModel):
         default=False,
         server_default="false",
     )
+    is_superuser: Mapped[bool] = mapped_column(
+        default=False,
+        server_default="false",
+    )
 
     # Accounts the admin created. passive_deletes leaves them to the database, so its RESTRICT keeps the admin.
     basic_proxy_accounts: Mapped[list[BasicProxyAccountModel]] = relationship(

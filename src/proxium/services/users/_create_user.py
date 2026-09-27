@@ -67,6 +67,7 @@ class CreateUserResponse(BaseSchema):
         ),
     ]
     is_active: bool
+    is_superuser: bool
     created_at: datetime
     updated_at: datetime
 
