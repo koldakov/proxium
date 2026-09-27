@@ -43,10 +43,10 @@ class GetAuthUserTokenService(BaseSessionService[GetAuthUserTokenResponse]):
     def _get_user_statement(self) -> Select[tuple[UserModel]]:
         return select(UserModel).where(UserModel.email == self.data.email, UserModel.is_active.is_(True))
 
-    async def process(self, *args, **kwargs) -> GetAuthUserTokenResponse:
+    async def _get_user(self) -> UserModel:
         result: Result[tuple[UserModel]] = await self.session.execute(self._get_user_statement)
         try:
-            user: UserModel = result.scalars().one()
+            return result.scalars().one()
         except NoResultFound:
             # Hash anyway: a fast 401 would tell that the email doesn't exist or the user is inactive.
             await asyncio.to_thread(self._dummy_password_hash.verify, self.data.password.get_secret_value())
@@ -55,6 +55,8 @@ class GetAuthUserTokenService(BaseSessionService[GetAuthUserTokenResponse]):
                 headers={"WWW-Authenticate": "Bearer"},
             ) from None
 
+    async def process(self, *args, **kwargs) -> GetAuthUserTokenResponse:
+        user: UserModel = await self._get_user()
         # Hashing is slow CPU work, it would stall the loop.
         if not await asyncio.to_thread(user.password.verify, self.data.password.get_secret_value()):
             raise HTTPException(
