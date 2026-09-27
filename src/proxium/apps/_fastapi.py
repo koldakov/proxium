@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Self
 
 from fastapi import FastAPI
 
+from proxium.api import api_router
 from proxium.db import session_manager
 from proxium.utils import metadata
 
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class ProxiumAPI(FastAPI):
-    """Plain FastAPI that closes the database pool on shutdown. Everything else is FastAPI defaults."""
+    """FastAPI with the Proxium routers and the database pool closed on shutdown."""
 
     def __init__(self, **kwargs: Any) -> None:
         kwargs.setdefault("title", metadata["name"])
@@ -24,6 +25,15 @@ class ProxiumAPI(FastAPI):
     async def _lifespan(self, _: Self, /) -> AsyncIterator[None]:
         yield
         await session_manager.close()
+
+    def _setup_routers(self) -> None:
+        self.include_router(api_router)
+
+    def setup(self) -> None:
+        # FastAPI calls it from `__init__`, after the docs routes are added.
+        super().setup()
+
+        self._setup_routers()
 
 
 proxium_api: ProxiumAPI = ProxiumAPI()

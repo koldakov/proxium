@@ -25,6 +25,7 @@ cp .env.template .env
 
 | Variable       | Description                                   |
 |----------------|-----------------------------------------------|
+| `API_SECRET_KEY` | Secret that signs API user tokens, at least 32 characters. Changing it logs everyone out |
 | `DATABASE_URL` | PostgreSQL URL, e.g. `postgres://user:password@host/db_name` |
 | `DATABASE_ECHO` | Log every SQL query, default `false`. Parameters are always hidden |
 | `DATABASE_POOL_SIZE` | Connections each process keeps open, default `5` |

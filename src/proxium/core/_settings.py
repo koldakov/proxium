@@ -1,7 +1,7 @@
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
-from pydantic import Field, PostgresDsn, field_validator
+from pydantic import Field, PostgresDsn, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from ._listen_address import ListenAddress
@@ -101,7 +101,25 @@ class DatabaseSettings(BaseSettings):
 database_settings = DatabaseSettings()
 
 
+class ApiSettings(BaseSettings):
+    # Signs user JWTs. Changing it logs everyone out. HS256 needs at least 32 bytes.
+    secret_key: Annotated[
+        SecretStr,
+        Field(
+            min_length=32,
+        ),
+    ]
+
+    model_config = SettingsConfigDict(
+        env_prefix="api_",
+    )
+
+
+api_settings = ApiSettings()
+
+
 class Settings(BaseSettings):
+    api: ApiSettings = api_settings
     database: DatabaseSettings = database_settings
     proxy: ProxySettings = proxy_settings
 
