@@ -7,7 +7,9 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20.0",
     "asyncpg>=0.31.0",
+    "fastapi>=0.141.1",
     "greenlet>=3.5.6",
+    "hypercorn>=0.18.0",
     "pydantic-settings>=2.15.0",
     "sqlalchemy>=2.0.54",
     "uvloop>=0.22.1",
@@ -15,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 proxium = "proxium.runners:run_proxy"
+proxium-api = "proxium.runners:run_api"
 
 [build-system]
 requires = ["uv_build>=0.11.8,<0.12"]

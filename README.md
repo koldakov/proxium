@@ -69,6 +69,14 @@ curl -x http://127.0.0.1:8080 --proxy-header "Proxy-Authorization: Bearer <token
 `Ctrl+C` (SIGINT) or SIGTERM stops accepting and waits up to `PROXY_GRACEFUL_TIMEOUT` for open connections.
 A second signal stops immediately.
 
+### API
+
+The API is a FastAPI app served by [Hypercorn](https://hypercorn.readthedocs.io/). Extra arguments go to Hypercorn:
+
+```bash
+uv run --env-file .env proxium-api --bind 127.0.0.1:8000
+```
+
 ## Development
 
 Install the git hooks:
