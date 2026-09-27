@@ -19,7 +19,7 @@ def run_api(args: Sequence[str] | None = None) -> int:
     argv: Sequence[str] = args if args is not None else sys.argv[1:]
     return main(
         [
-            "proxium.apps:app",
+            "proxium.api:app",
             "--config=python:proxium.runners._api.hypercorn_config",
             *argv,
         ],

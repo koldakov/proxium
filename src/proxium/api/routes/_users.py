@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from fastapi.security import HTTPAuthorizationCredentials  # noqa: TC002, FastAPI reads signatures at runtime.
 from fastapi_pagination import Page, Params  # noqa: TC002, FastAPI reads signatures at runtime.
 
-from proxium.services.users import (
+from proxium.api.services.users import (
     CreateUserRequest,
     CreateUserResponse,
     CreateUserService,

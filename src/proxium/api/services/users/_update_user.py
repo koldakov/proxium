@@ -1,50 +1,43 @@
-import asyncio
 from datetime import datetime
 from typing import Annotated
 
 from asyncpg import UniqueViolationError
 from fastapi import HTTPException, status
-from pydantic import EmailStr, Field, SecretStr, StringConstraints
+from pydantic import EmailStr, Field, StringConstraints
 from sqlalchemy.exc import IntegrityError
 
-from proxium.db import Hash, UserModel
+from proxium.api.services import BaseUserAuthenticatedService
 from proxium.helpers import BaseSchema
-from proxium.services import BaseSessionService
 
 
-class CreateUserRequest(BaseSchema):
+class UpdateUserRequest(BaseSchema):
+    """Partial update: missing or null fields stay as they are."""
+
     email: Annotated[
-        EmailStr,
+        EmailStr | None,
         Field(
             max_length=255,
         ),
-    ]
+    ] = None
     name: Annotated[
-        str,
+        str | None,
         StringConstraints(
             strip_whitespace=True,
             min_length=1,
             max_length=150,
         ),
-    ]
+    ] = None
     surname: Annotated[
-        str,
+        str | None,
         StringConstraints(
             strip_whitespace=True,
             min_length=1,
             max_length=150,
         ),
-    ]
-    password: Annotated[
-        SecretStr,
-        Field(
-            min_length=8,
-            max_length=128,
-        ),
-    ]
+    ] = None
 
 
-class CreateUserResponse(BaseSchema):
+class UpdateUserResponse(BaseSchema):
     id: int
     email: Annotated[
         EmailStr,
@@ -72,18 +65,12 @@ class CreateUserResponse(BaseSchema):
     updated_at: datetime
 
 
-class CreateUserService(BaseSessionService[CreateUserResponse]):
-    data: CreateUserRequest
+class UpdateUserService(BaseUserAuthenticatedService[UpdateUserResponse]):
+    data: UpdateUserRequest
 
-    async def process(self, *args, **kwargs) -> CreateUserResponse:
-        user: UserModel = UserModel(
-            email=self.data.email,
-            name=self.data.name,
-            surname=self.data.surname,
-            # Hashing is slow CPU work, it would stall the loop.
-            password=await asyncio.to_thread(Hash.create, self.data.password.get_secret_value()),
-        )
-        self.session.add(user)
+    async def process(self, *args, **kwargs) -> UpdateUserResponse:
+        for field, value in self.data.model_dump(exclude_none=True).items():
+            setattr(self.user, field, value)
 
         # Checking the email first would race.
         try:
@@ -96,6 +83,6 @@ class CreateUserService(BaseSessionService[CreateUserResponse]):
                 ) from None
             raise
 
-        # Timestamps come from the database.
-        await self.session.refresh(user)
-        return CreateUserResponse.model_validate(user)
+        # `updated_at` comes from the database.
+        await self.session.refresh(self.user)
+        return UpdateUserResponse.model_validate(self.user)

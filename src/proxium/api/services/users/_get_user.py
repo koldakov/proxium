@@ -6,9 +6,9 @@ from pydantic import EmailStr, Field
 from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
+from proxium.api.services import BaseSessionService
 from proxium.db import UserModel
 from proxium.helpers import BaseSchema
-from proxium.services import BaseSessionService
 
 
 class GetUserResponse(BaseSchema):

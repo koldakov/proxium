@@ -3,9 +3,10 @@ from typing import TYPE_CHECKING, Any, Self
 
 from fastapi import FastAPI
 
-from proxium.api import api_router
 from proxium.db import session_manager
 from proxium.utils import metadata
+
+from .routes import api_router
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator

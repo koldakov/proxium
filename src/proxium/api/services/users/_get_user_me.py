@@ -3,8 +3,8 @@ from typing import Annotated
 
 from pydantic import EmailStr, Field
 
+from proxium.api.services import BaseUserAuthenticatedService
 from proxium.helpers import BaseSchema
-from proxium.services import BaseUserAuthenticatedService
 
 
 class GetUserMeResponse(BaseSchema):

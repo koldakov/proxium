@@ -6,9 +6,9 @@ from fastapi_pagination.ext.sqlalchemy import apaginate
 from pydantic import EmailStr, Field
 from sqlalchemy import Select, or_, select
 
+from proxium.api.services import BaseSessionService
 from proxium.db import UserModel
 from proxium.helpers import BaseSchema
-from proxium.services import BaseSessionService
 
 
 class ListUsersResponse(BaseSchema):

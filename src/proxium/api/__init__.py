@@ -1,12 +1,14 @@
-from fastapi import APIRouter
+from typing import TYPE_CHECKING
 
-from ._tokens import tokens_router
-from ._users import users_router
+from ._app import ProxiumAPI, proxium_api
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
+
+app: FastAPI = proxium_api
 
 __all__ = [
-    "api_router",
+    "ProxiumAPI",
+    "app",
+    "proxium_api",
 ]
-
-api_router: APIRouter = APIRouter(prefix="/api")
-api_router.include_router(tokens_router)
-api_router.include_router(users_router)

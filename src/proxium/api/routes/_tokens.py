@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status
 
-from proxium.services.tokens import (
+from proxium.api.services.tokens import (
     GetAuthUserTokenRequest,
     GetAuthUserTokenResponse,
     GetAuthUserTokenService,

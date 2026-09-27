@@ -7,9 +7,9 @@ from pydantic import EmailStr, Field, SecretStr
 from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
+from proxium.api.services import BaseSessionService, RefreshToken
 from proxium.db import Hash, UserModel
 from proxium.helpers import BaseSchema
-from proxium.services import BaseSessionService, RefreshToken
 
 
 class GetAuthUserTokenRequest(BaseSchema):

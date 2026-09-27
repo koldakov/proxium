@@ -4,9 +4,9 @@ from typing import Annotated
 from fastapi import HTTPException, status
 from pydantic import Field, SecretStr
 
+from proxium.api.services import BaseUserAuthenticatedService
 from proxium.db import Hash
 from proxium.helpers import BaseSchema
-from proxium.services import BaseUserAuthenticatedService
 
 
 class UpdateUserPasswordRequest(BaseSchema):
