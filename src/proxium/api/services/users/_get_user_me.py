@@ -18,14 +18,12 @@ class GetUserMeResponse(BaseSchema):
     name: Annotated[
         str,
         Field(
-            min_length=1,
             max_length=150,
         ),
     ]
     surname: Annotated[
         str,
         Field(
-            min_length=1,
             max_length=150,
         ),
     ]
