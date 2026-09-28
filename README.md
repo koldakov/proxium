@@ -35,6 +35,10 @@ cp .env.template .env
 | `PROXY_LISTEN` | Addresses to listen on, default `127.0.0.1:8080`, see below |
 | `PROXY_GRACEFUL_TIMEOUT` | Seconds open connections get to finish on shutdown, default `30` |
 | `PROXY_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`, default `INFO` |
+| `SUPERUSER_EMAIL` | `createsuperuser`: email, if `--email` isn't passed. Not prompted then |
+| `SUPERUSER_PASSWORD` | `createsuperuser --no-input`: password, there is no flag for it |
+| `SUPERUSER_NAME` | `createsuperuser`: name, if `--name` isn't passed, default blank |
+| `SUPERUSER_SURNAME` | `createsuperuser`: surname, if `--surname` isn't passed, default blank |
 
 `PROXY_LISTEN` is a comma-separated list of `host:port` pairs. A host is an IP address, a network or a host name,
 IPv6 goes in brackets. A port may be an inclusive range. Every host listens on every port of its pair:
@@ -76,6 +80,25 @@ The API is a FastAPI app served by [Hypercorn](https://hypercorn.readthedocs.io/
 
 ```bash
 uv run --env-file .env proxium-api --bind 127.0.0.1:8000
+```
+
+### Management commands
+
+Django-style commands run with `proxium-manage <command>`, `--help` lists them.
+
+Create the first superuser, it prompts for the email and password. Name and surname are blank unless passed
+with `--name`, `--surname` or `SUPERUSER_NAME`, `SUPERUSER_SURNAME`, see [Configuration](#configuration):
+
+```bash
+uv run --env-file .env proxium-manage createsuperuser
+uv run --env-file .env proxium-manage createsuperuser --email admin@example.com --name Ivan
+```
+
+Without prompts, e.g. in scripts, the password comes only from `SUPERUSER_PASSWORD`, the email from `--email` or
+`SUPERUSER_EMAIL`:
+
+```bash
+SUPERUSER_PASSWORD=... uv run --env-file .env proxium-manage createsuperuser --no-input --email admin@example.com
 ```
 
 ## Development

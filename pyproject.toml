@@ -21,6 +21,7 @@ dependencies = [
 [project.scripts]
 proxium = "proxium.runners:run_proxy"
 proxium-api = "proxium.runners:run_api"
+proxium-manage = "proxium.runners:run_manage"
 
 [build-system]
 requires = ["uv_build>=0.11.8,<0.12"]

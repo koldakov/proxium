@@ -6,10 +6,12 @@ from ._settings import (
     DatabaseSettings,
     ProxySettings,
     Settings,
+    SuperuserSettings,
     api_settings,
     database_settings,
     proxy_settings,
     settings,
+    superuser_settings,
 )
 
 __all__ = [
@@ -19,9 +21,11 @@ __all__ = [
     "LogLevel",
     "ProxySettings",
     "Settings",
+    "SuperuserSettings",
     "api_settings",
     "database_settings",
     "hasher",
     "proxy_settings",
     "settings",
+    "superuser_settings",
 ]

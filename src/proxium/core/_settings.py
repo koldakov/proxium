@@ -1,7 +1,7 @@
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
-from pydantic import Field, PostgresDsn, SecretStr, field_validator
+from pydantic import EmailStr, Field, PostgresDsn, SecretStr, StringConstraints, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from ._listen_address import ListenAddress
@@ -118,10 +118,67 @@ class ApiSettings(BaseSettings):
 api_settings = ApiSettings()
 
 
+class SuperuserSettings(BaseSettings):
+    """`proxium-manage createsuperuser` input. A flag wins over its variable.
+
+    Validated on assignment too: the command checks flags and prompts against the same limits.
+    """
+
+    email: (
+        Annotated[
+            EmailStr,
+            Field(
+                max_length=255,
+            ),
+        ]
+        | None
+    ) = None
+    # Read only with --no-input.
+    password: (
+        Annotated[
+            SecretStr,
+            Field(
+                min_length=8,
+                max_length=128,
+            ),
+        ]
+        | None
+    ) = None
+    name: (
+        Annotated[
+            str,
+            StringConstraints(
+                strip_whitespace=True,
+                max_length=150,
+            ),
+        ]
+        | None
+    ) = None
+    surname: (
+        Annotated[
+            str,
+            StringConstraints(
+                strip_whitespace=True,
+                max_length=150,
+            ),
+        ]
+        | None
+    ) = None
+
+    model_config = SettingsConfigDict(
+        env_prefix="superuser_",
+        validate_assignment=True,
+    )
+
+
+superuser_settings = SuperuserSettings()
+
+
 class Settings(BaseSettings):
     api: ApiSettings = api_settings
     database: DatabaseSettings = database_settings
     proxy: ProxySettings = proxy_settings
+    superuser: SuperuserSettings = superuser_settings
 
 
 settings = Settings()
