@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from fastapi_pagination import Page, Params
+from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import apaginate
 from pydantic import EmailStr, Field
 from sqlalchemy import Select, or_, select
@@ -39,7 +39,6 @@ class ListUsersResponse(BaseSchema):
 
 
 class ListUsersService(BaseSessionService[Page[ListUsersResponse]]):
-    params: Params
     # Matches email, name or surname, case-insensitive.
     query: Annotated[
         str | None,
@@ -67,6 +66,4 @@ class ListUsersService(BaseSessionService[Page[ListUsersResponse]]):
         return await apaginate(
             self.session,
             self._users_statement,
-            self.params,
-            transformer=lambda users: [ListUsersResponse.model_validate(user) for user in users],
         )

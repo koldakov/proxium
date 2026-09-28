@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.security import HTTPAuthorizationCredentials  # noqa: TC002, FastAPI reads signatures at runtime.
-from fastapi_pagination import Page, Params  # noqa: TC002, FastAPI reads signatures at runtime.
+from fastapi_pagination import Page  # noqa: TC002, FastAPI reads signatures at runtime.
 
 from proxium.api.services.users import (
     CreateUserRequest,
@@ -69,7 +69,6 @@ async def create_user(data: CreateUserRequest) -> CreateUserResponse:
     },
 )
 async def list_users(
-    params: Annotated[Params, Depends()],
     query: Annotated[
         str | None,
         Query(
@@ -80,7 +79,7 @@ async def list_users(
     ] = None,
 ) -> Page[ListUsersResponse]:
     """List users, newest first."""
-    service: ListUsersService = ListUsersService(params=params, query=query)
+    service: ListUsersService = ListUsersService(query=query)
     return await service()
 
 

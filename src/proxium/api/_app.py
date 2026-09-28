@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, Self
 
 from fastapi import FastAPI
+from fastapi_pagination import add_pagination
 
 from proxium.db import session_manager
 from proxium.utils import metadata
@@ -30,11 +31,16 @@ class ProxiumAPI(FastAPI):
     def _setup_routers(self) -> None:
         self.include_router(api_router)
 
+    def _setup_pagination(self) -> None:
+        # Resolves `page`/`size` for routes returning `Page[...]`, `apaginate` picks them up.
+        add_pagination(self)
+
     def setup(self) -> None:
         # FastAPI calls it from `__init__`, after the docs routes are added.
         super().setup()
 
         self._setup_routers()
+        self._setup_pagination()
 
 
 proxium_api: ProxiumAPI = ProxiumAPI()
