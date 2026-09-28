@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 
 # Splits a token into the public key and the secret: `<key>.<secret>`.
 TOKEN_SEPARATOR: Final[str] = "."  # noqa: S105, a separator, not a secret.
+# Starts every key, so a Proxium token is recognizable at a glance, e.g. by secret scanners.
+TOKEN_PREFIX: Final[str] = "pxm_"  # noqa: S105, a prefix, not a secret.
 
 
 class AccountAuthenticationError(Exception):

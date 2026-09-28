@@ -1,4 +1,5 @@
 from ._authenticators import (
+    TOKEN_PREFIX,
     TOKEN_SEPARATOR,
     BaseAccountAuthenticator,
     BasicAccountAuthenticator,
@@ -6,6 +7,7 @@ from ._authenticators import (
 )
 
 __all__ = [
+    "TOKEN_PREFIX",
     "TOKEN_SEPARATOR",
     "BaseAccountAuthenticator",
     "BasicAccountAuthenticator",
