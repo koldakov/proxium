@@ -64,12 +64,21 @@ or
 uv run --env-file .env python -m proxium
 ```
 
+Every port speaks HTTP and SOCKS5, the protocol is detected by the first byte of the connection.
 Clients authenticate with proxy accounts from the database, inactive and expired ones are refused:
 
 ```bash
 curl -x http://username:password@127.0.0.1:8080 https://example.com                  # basic account
 curl -x http://127.0.0.1:8080 --proxy-header "Proxy-Authorization: Bearer <token>" https://example.com  # token account
+curl -x socks5h://username:password@127.0.0.1:8080 https://example.com                # basic account over SOCKS5
 ```
+
+HTTP supports CONNECT tunnels and plain HTTP forwarding. SOCKS5 supports only CONNECT, with IPv4, IPv6 and domain
+targets, and only basic accounts: the protocol has username/password authentication but no tokens.
+Use `socks5h://` so the proxy resolves domains, with `socks5://` curl resolves them itself.
+
+SOCKS5 clients may also connect without credentials, the authenticator decides whether to let them in.
+The default one refuses them, like HTTP requests without `Proxy-Authorization`.
 
 `Ctrl+C` (SIGINT) or SIGTERM stops accepting and waits up to `PROXY_GRACEFUL_TIMEOUT` for open connections.
 A second signal stops immediately.

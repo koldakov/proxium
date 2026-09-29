@@ -28,7 +28,7 @@ from ._types import (
     Request,
     Session,
 )
-from .inbound import BadRequest, HttpInbound, Inbound
+from .inbound import BadRequest, HttpInbound, Inbound, Socks5Inbound
 
 __all__ = [
     "ANONYMOUS",
@@ -65,6 +65,7 @@ __all__ = [
     "ProxyServer",
     "Request",
     "Session",
+    "Socks5Inbound",
     "Stream",
     "TargetTimeout",
     "TargetUnreachable",

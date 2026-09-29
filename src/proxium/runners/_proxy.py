@@ -19,6 +19,7 @@ from proxium.proxy import (
     LoggingObserver,
     Profile,
     ProxyServer,
+    Socks5Inbound,
 )
 
 if TYPE_CHECKING:
@@ -63,9 +64,12 @@ class ProxyRunner:
         self._stop: asyncio.Event = asyncio.Event()
 
     def _create_default_profile(self) -> Profile:
-        """HTTP proxy for accounts from the database, going straight to targets."""
+        """HTTP and SOCKS5 proxy for accounts from the database, going straight to targets."""
         return Profile(
-            inbounds=[HttpInbound()],
+            inbounds=[
+                HttpInbound(),
+                Socks5Inbound(),
+            ],
             authenticator=DispatchAuthenticator(
                 {
                     BasicCredentials: BasicAccountAuthenticator(),
