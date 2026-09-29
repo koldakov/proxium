@@ -8,7 +8,14 @@ from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.db import BasicProxyAccountModel, ProxyBaseAccountModel, TokenProxyAccountModel, session_manager
-from proxium.proxy import AuthenticationRequired, Authenticator, BasicCredentials, BearerCredentials, Identity
+from proxium.proxy import (
+    AuthenticationRequired,
+    Authenticator,
+    BasicCredentials,
+    BearerCredentials,
+    CredentialsExpired,
+    Identity,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy import Result, Select
@@ -63,13 +70,17 @@ class BaseAccountAuthenticator[M: ProxyBaseAccountModel](Authenticator, ABC):
         except AccountNotFoundError as err:
             raise AuthenticationRequired() from err
 
-        if not account.is_valid():
+        if not account.is_active:
             raise AuthenticationRequired()
 
         # Hashing is slow CPU work, it would stall every other connection on the loop.
         # Still paid on every connection: cache successful checks once Redis is in.
         if not await asyncio.to_thread(account.secret_hash.verify, secret):
             raise AuthenticationRequired()
+
+        # After the secret: only the owner may learn the account exists and has expired.
+        if account.is_expired():
+            raise CredentialsExpired()
 
         return self._identity(account)
 

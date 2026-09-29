@@ -8,7 +8,7 @@ from http.client import HTTP_PORT
 from typing import TYPE_CHECKING, ClassVar, Final
 from urllib.parse import urlsplit
 
-from proxium.proxy._auth import AuthenticationRequired
+from proxium.proxy._auth import AuthenticationRequired, CredentialsExpired
 from proxium.proxy._connectors import (
     TargetTimeout,
     TargetUnreachable,
@@ -58,6 +58,11 @@ DEFAULT_STATUSES: Final[Mapping[type[ProxyError], HTTPStatus]] = {
     TargetUnreachable: HTTPStatus.BAD_GATEWAY,
     TargetTimeout: HTTPStatus.GATEWAY_TIMEOUT,
     ProxyError: HTTPStatus.INTERNAL_SERVER_ERROR,
+}
+
+# Reason phrases instead of the standard ones, looked up like statuses. Clients show them, e.g. `curl -v`.
+DEFAULT_REASONS: Final[Mapping[type[ProxyError], str]] = {
+    CredentialsExpired: "Credentials Expired",
 }
 
 
@@ -206,12 +211,14 @@ class HttpInbound(Inbound):
         reject_nonstandard_methods: bool = False,
         auth: HttpAuth = DEFAULT_HTTP_AUTH,
         statuses: Mapping[type[ProxyError], HTTPStatus] = DEFAULT_STATUSES,
+        reasons: Mapping[type[ProxyError], str] = DEFAULT_REASONS,
     ) -> None:
         self._max_head_size: int = max_head_size
         # Off by default: a proxy normally leaves methods to the target.
         self._reject_nonstandard_methods: bool = reject_nonstandard_methods
         self._auth: HttpAuth = auth
         self._statuses: dict[type[ProxyError], HTTPStatus] = dict(statuses)
+        self._reasons: dict[type[ProxyError], str] = dict(reasons)
 
     def detect(self, head: bytes, /) -> bool:
         # Every HTTP method starts with an uppercase letter.
@@ -253,7 +260,12 @@ class HttpInbound(Inbound):
         headers = [("Content-Length", "0"), ("Connection", "close")]
         if isinstance(error, AuthenticationRequired):
             headers += self._auth.challenges()
-        stream.write(ResponseHead(status=self._status_for(error), headers=tuple(headers)).encode())
+        head = ResponseHead(
+            status=self._status_for(error),
+            reason=self._reason_for(error),
+            headers=tuple(headers),
+        )
+        stream.write(head.encode())
         await stream.drain()
 
     def _status_for(self, error: ProxyError, /) -> HTTPStatus:
@@ -261,4 +273,11 @@ class HttpInbound(Inbound):
         return next(
             (self._statuses[cls] for cls in type(error).__mro__ if cls in self._statuses),
             HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
+
+    def _reason_for(self, error: ProxyError, /) -> str | None:
+        """Reason of the closest error class in the table, None for the standard phrase."""
+        return next(
+            (self._reasons[cls] for cls in type(error).__mro__ if cls in self._reasons),
+            None,
         )

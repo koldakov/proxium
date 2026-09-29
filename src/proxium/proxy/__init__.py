@@ -3,6 +3,7 @@ from ._auth import (
     Authenticate,
     AuthenticationRequired,
     Authenticator,
+    CredentialsExpired,
     DispatchAuthenticator,
 )
 from ._connection import Connection, UnknownProtocol
@@ -42,6 +43,7 @@ __all__ = [
     "Connection",
     "Connector",
     "Credentials",
+    "CredentialsExpired",
     "DirectConnector",
     "DispatchAuthenticator",
     "Forbidden",

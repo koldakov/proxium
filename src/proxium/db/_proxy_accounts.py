@@ -39,9 +39,8 @@ class ProxyBaseAccountModel(BaseTimestampModel):
         """The stored hash of the secret the client proves itself with."""
         raise NotImplementedError()
 
-    def is_valid(self) -> bool:
-        """Whether the account may be used now, whatever the credentials."""
-        return self.is_active and (self.expires_at is None or self.expires_at > datetime.now(UTC))
+    def is_expired(self) -> bool:
+        return self.expires_at is not None and self.expires_at <= datetime.now(UTC)
 
     # Relationships on an abstract model must be declared per subclass.
     @declared_attr

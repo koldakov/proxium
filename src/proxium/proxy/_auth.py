@@ -18,6 +18,10 @@ class AuthenticationRequired(ProxyError):
     pass
 
 
+class CredentialsExpired(AuthenticationRequired):
+    """The credentials are right but expired. Raise only after checking the secret, or it reveals the account exists."""
+
+
 class Authenticator(ABC):
     """Turns client credentials into an identity. Where they are checked is up to the implementation.
 
@@ -27,7 +31,7 @@ class Authenticator(ABC):
 
     @abstractmethod
     async def authenticate(self, credentials: Credentials | None, session: Session, /) -> Identity:
-        """Return the identity or raise `AuthenticationRequired`.
+        """Return the identity or raise `AuthenticationRequired`, `CredentialsExpired` for expired ones.
 
         `session` tells who connects and where, e.g. to let in whitelisted client IPs without credentials.
         """
