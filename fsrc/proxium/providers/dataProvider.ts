@@ -1,4 +1,4 @@
-import type { DataProvider, Identifier, RaRecord } from 'react-admin'
+import type { DataProvider, DeleteParams, Identifier, RaRecord } from 'react-admin'
 
 import { httpClient as defaultHttpClient, type HttpClient } from './httpClient'
 
@@ -72,9 +72,17 @@ export const createDataProvider = (
       await httpClient(resourceUrl(resource, id, 'revoke'), { method: 'POST' })
     },
 
+    // No content in the response: react-admin gets the record it already had.
+    delete: async <RecordType extends RaRecord>(
+      resource: string,
+      { id, previousData }: DeleteParams<RecordType>,
+    ) => {
+      await httpClient(resourceUrl(resource, id), { method: 'DELETE' })
+      return { data: previousData as RecordType }
+    },
+
     getManyReference: unsupported('getManyReference'),
     updateMany: unsupported('updateMany'),
-    delete: unsupported('delete'),
     deleteMany: unsupported('deleteMany'),
   }
 }

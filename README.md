@@ -77,8 +77,31 @@ HTTP supports CONNECT tunnels and plain HTTP forwarding. SOCKS5 supports only CO
 targets, and only basic accounts: the protocol has username/password authentication but no tokens.
 Use `socks5h://` so the proxy resolves domains, with `socks5://` curl resolves them itself.
 
-SOCKS5 clients may also connect without credentials, the authenticator decides whether to let them in.
-The default one refuses them, like HTTP requests without `Proxy-Authorization`.
+### Trusted networks
+
+Clients from trusted networks use the proxy without credentials, over HTTP and SOCKS5 alike. There are none by
+default, so everyone needs an account. Add them in the admin UI or with the API (`/api/trusted-networks`), e.g.
+`192.168.0.0/16` for a local network or `10.0.0.5` for a single address. Add only networks you control: anyone in
+them gets in.
+
+```bash
+curl -x http://127.0.0.1:8080 https://example.com         # from a trusted network
+curl -x socks5h://127.0.0.1:8080 https://example.com
+```
+
+Networks are checked on every new connection, so new connections follow changes right away. Clients connected
+right now keep their open connections until they close: removing a network doesn't cut them off at once.
+
+A client that sends credentials is checked as an account even from a trusted network.
+
+Networks may nest, e.g. `10.0.0.0/8` for the office and `10.1.2.3` for a CI server inside it. The narrowest
+active one names the client in logs, e.g. `network:10.1.2.3/32`, and turning off one keeps the other working.
+The admin UI lists the networks containing the one being edited and the ones inside it, page by page, and
+tells how many keep trusting the addresses of a network being deleted. `/0` trusts the whole internet: the admin UI
+asks to confirm saving it and warns while one is active.
+
+`/api/trusted-networks` filters: `contains=<network>` for networks that contain it, `within=<network>` for ones
+inside it, `isActive=true|false`, `prefixLength=<n>`, e.g. `?isActive=true&prefixLength=0` for ones open to everyone.
 
 `Ctrl+C` (SIGINT) or SIGTERM stops accepting and waits up to `PROXY_GRACEFUL_TIMEOUT` for open connections.
 A second signal stops immediately.

@@ -4,10 +4,16 @@ import type { ResourceProps } from 'react-admin'
 import type { MenuNode } from '../components/GroupedMenu'
 import { basicProxyAccounts } from './basicProxyAccounts'
 import { tokenProxyAccounts } from './tokenProxyAccounts'
+import { trustedNetworks } from './trustedNetworks'
 import { users } from './users'
 
 // The admin registry: a new section is one more entry here and in the menu.
-export const resources: ResourceProps[] = [basicProxyAccounts, tokenProxyAccounts, users]
+export const resources: ResourceProps[] = [
+  basicProxyAccounts,
+  tokenProxyAccounts,
+  trustedNetworks,
+  users,
+]
 
 // The sidebar, in order.
 export const menu: MenuNode[] = [
@@ -19,5 +25,6 @@ export const menu: MenuNode[] = [
       { resource: tokenProxyAccounts.name, label: 'Token' },
     ],
   },
+  trustedNetworks.name,
   users.name,
 ]
