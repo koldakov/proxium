@@ -14,6 +14,7 @@ from proxium.proxy import (
     BasicCredentials,
     BearerCredentials,
     CredentialsExpired,
+    CredentialsRevoked,
     Identity,
 )
 
@@ -70,15 +71,15 @@ class BaseAccountAuthenticator[M: ProxyBaseAccountModel](Authenticator, ABC):
         except AccountNotFoundError as err:
             raise AuthenticationRequired() from err
 
-        if not account.is_active:
-            raise AuthenticationRequired()
-
         # Hashing is slow CPU work, it would stall every other connection on the loop.
         # Still paid on every connection: cache successful checks once Redis is in.
         if not await asyncio.to_thread(account.secret_hash.verify, secret):
             raise AuthenticationRequired()
 
-        # After the secret: only the owner may learn the account exists and has expired.
+        # After the secret: only the owner may learn the account exists and is revoked or expired.
+        # Revoked first: it's final, expiry is only a date.
+        if not account.is_active:
+            raise CredentialsRevoked()
         if account.is_expired():
             raise CredentialsExpired()
 

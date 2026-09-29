@@ -8,7 +8,7 @@ from http.client import HTTP_PORT
 from typing import TYPE_CHECKING, ClassVar, Final
 from urllib.parse import urlsplit
 
-from proxium.proxy._auth import AuthenticationRequired, CredentialsExpired
+from proxium.proxy._auth import AuthenticationRequired, CredentialsExpired, CredentialsRevoked
 from proxium.proxy._connectors import (
     TargetTimeout,
     TargetUnreachable,
@@ -63,6 +63,7 @@ DEFAULT_STATUSES: Final[Mapping[type[ProxyError], HTTPStatus]] = {
 # Reason phrases instead of the standard ones, looked up like statuses. Clients show them, e.g. `curl -v`.
 DEFAULT_REASONS: Final[Mapping[type[ProxyError], str]] = {
     CredentialsExpired: "Credentials Expired",
+    CredentialsRevoked: "Credentials Revoked",
 }
 
 
