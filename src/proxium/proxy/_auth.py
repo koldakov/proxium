@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from ._types import ANONYMOUS, Credentials, Identity, ProxyError
 
@@ -48,22 +48,36 @@ class AnonymousAuthenticator(Authenticator):
         return ANONYMOUS
 
 
+class DenyAllAuthenticator(Authenticator):
+    """Lets no one in, e.g. clients without credentials when only accounts may connect."""
+
+    async def authenticate(self, credentials: Credentials | None, session: Session, /) -> Identity:
+        raise AuthenticationRequired()
+
+
+_DENY_ALL_AUTHENTICATOR: Final[DenyAllAuthenticator] = DenyAllAuthenticator()
+
+
 class DispatchAuthenticator(Authenticator):
     """Picks an authenticator by the credentials type, e.g. one for `BasicCredentials`, another for `BearerCredentials`.
 
-    Credentials of a type not in `authenticators`, or none at all, are refused.
+    Credentials of a type not in `authenticators` are refused. Clients without credentials go to `without_credentials`,
+    refused by default. Pass e.g. one that lets in trusted networks.
     """
 
     def __init__(
         self,
         authenticators: Mapping[type[Credentials], Authenticator],
         /,
+        *,
+        without_credentials: Authenticator = _DENY_ALL_AUTHENTICATOR,
     ) -> None:
         self._authenticators: dict[type[Credentials], Authenticator] = dict(authenticators)
+        self._without_credentials: Authenticator = without_credentials
 
     async def authenticate(self, credentials: Credentials | None, session: Session, /) -> Identity:
         if credentials is None:
-            raise AuthenticationRequired()
+            return await self._without_credentials.authenticate(None, session)
 
         try:
             authenticator = self._authenticators[type(credentials)]
