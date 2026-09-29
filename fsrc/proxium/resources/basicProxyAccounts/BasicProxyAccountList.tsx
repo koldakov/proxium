@@ -1,6 +1,8 @@
-import { BooleanField, DataTable, DateField, List, ReferenceField, SearchInput } from 'react-admin'
+import { BooleanField, DataTable, DateField, List, ReferenceField } from 'react-admin'
 
-const filters = [<SearchInput key="query" source="query" alwaysOn />]
+import { QuerySearchInput } from '../../components/QuerySearchInput'
+
+const filters = [<QuerySearchInput key="query" source="query" alwaysOn />]
 
 export const BasicProxyAccountList = () => (
   <List filters={filters} exporter={false}>
