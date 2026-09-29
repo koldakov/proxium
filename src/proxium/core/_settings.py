@@ -109,10 +109,28 @@ class ApiSettings(BaseSettings):
             min_length=32,
         ),
     ]
+    # Browser origins allowed to call the API, e.g. the frontend dev server.
+    cors_origins: Annotated[
+        list[str],
+        NoDecode,
+        Field(
+            default_factory=list,
+        ),
+    ]
 
     model_config = SettingsConfigDict(
         env_prefix="api_",
     )
+
+    @field_validator(
+        "cors_origins",
+        mode="before",
+    )
+    @classmethod
+    def _split_cors_origins(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
 
 
 api_settings = ApiSettings()
