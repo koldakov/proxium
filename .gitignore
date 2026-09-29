@@ -115,3 +115,11 @@ pids/*.pid
 
 
 .DS_Store
+
+# Node #
+node_modules
+dist
+dist-ssr
+*.local
+npm-debug.log*
+.DS_Store
