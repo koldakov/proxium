@@ -3,6 +3,7 @@ import { Create, type RaRecord, SimpleForm, TextInput, required, useRedirect } f
 
 import { AwareDateTimeInput } from '../../components/AwareDateTimeInput'
 import { SecretDialog } from '../../components/SecretDialog'
+import { future } from '../../components/validators'
 
 export const TokenProxyAccountCreate = () => {
   const redirect = useRedirect()
@@ -14,7 +15,12 @@ export const TokenProxyAccountCreate = () => {
       <Create mutationOptions={{ onSuccess: setCreated }}>
         <SimpleForm>
           <TextInput source="name" validate={required()} />
-          <AwareDateTimeInput source="expiresAt" label="Expires" helperText="Empty: never" />
+          <AwareDateTimeInput
+            source="expiresAt"
+            label="Expires"
+            helperText="Empty: never"
+            validate={future()}
+          />
         </SimpleForm>
       </Create>
       {created !== null && (

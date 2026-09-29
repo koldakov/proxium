@@ -37,7 +37,7 @@ token_proxy_accounts_router: APIRouter = APIRouter(
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": "The body is malformed, e.g. the name is empty.",
+            "description": "The body is malformed, e.g. the name is empty or `expiresAt` is in the past.",
         },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "description": "Unexpected server error.",

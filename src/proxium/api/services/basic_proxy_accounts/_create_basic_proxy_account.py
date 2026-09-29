@@ -1,9 +1,9 @@
 import asyncio
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
-from pydantic import AwareDatetime, Field, StringConstraints
+from pydantic import AwareDatetime, Field, StringConstraints, field_validator
 
 from proxium.api.services import BaseUserAuthenticatedService
 from proxium.auth import USERNAME_PREFIX
@@ -24,6 +24,14 @@ class CreateBasicProxyAccountRequest(BaseSchema):
     ]
     # Never expires when null.
     expires_at: AwareDatetime | None = None
+
+    @field_validator("expires_at")
+    @classmethod
+    def _check_expires_at(cls, value: datetime | None) -> datetime | None:
+        # Expiry is immutable: an account born expired could never be used.
+        if value is not None and value <= datetime.now(UTC):
+            raise ValueError("Must be in the future.")
+        return value
 
 
 class CreateBasicProxyAccountResponse(BaseSchema):
