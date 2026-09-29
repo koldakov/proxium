@@ -6,6 +6,7 @@ export const BasicProxyAccountList = () => (
   <List filters={filters} exporter={false}>
     <DataTable rowClick="show" bulkActionButtons={false}>
       <DataTable.Col source="id" disableSort />
+      <DataTable.Col source="name" disableSort />
       <DataTable.Col source="username" disableSort />
       <DataTable.Col source="isActive" label="Active" field={BooleanField} disableSort />
       <DataTable.Col source="expiresAt" label="Expires" disableSort>

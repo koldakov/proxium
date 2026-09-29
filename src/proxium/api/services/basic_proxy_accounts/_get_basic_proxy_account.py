@@ -13,13 +13,14 @@ from proxium.helpers import BaseSchema
 
 class GetBasicProxyAccountResponse(BaseSchema):
     id: int
-    username: Annotated[
+    name: Annotated[
         str,
         Field(
             min_length=1,
             max_length=255,
         ),
     ]
+    username: str
     is_active: bool
     expires_at: datetime | None
     created_by_id: int

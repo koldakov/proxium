@@ -2,24 +2,13 @@ import type { DataProvider, Identifier, RaRecord } from 'react-admin'
 
 import { httpClient as defaultHttpClient, type HttpClient } from './httpClient'
 
-export interface UpdatePasswordParams {
+export interface RevokeParams {
   id: Identifier
-  password: string
-}
-
-export interface UpdateTokenParams {
-  id: Identifier
-}
-
-export interface UpdateTokenResult {
-  key: string
-  token: string
 }
 
 /** CRUD plus the actions some resources have on top of it. */
 export interface ProxiumDataProvider extends DataProvider {
-  updatePassword: (resource: string, params: UpdatePasswordParams) => Promise<void>
-  updateToken: (resource: string, params: UpdateTokenParams) => Promise<UpdateTokenResult>
+  revoke: (resource: string, params: RevokeParams) => Promise<void>
 }
 
 const unsupported = (method: string) => (): never => {
@@ -79,16 +68,8 @@ export const createDataProvider = (
       return { data: json }
     },
 
-    updatePassword: async (resource, { id, password }) => {
-      await httpClient(resourceUrl(resource, id, 'password'), {
-        method: 'PUT',
-        body: JSON.stringify({ password }),
-      })
-    },
-
-    updateToken: async (resource, { id }) => {
-      const { json } = await httpClient(resourceUrl(resource, id, 'token'), { method: 'POST' })
-      return json
+    revoke: async (resource, { id }) => {
+      await httpClient(resourceUrl(resource, id, 'revoke'), { method: 'POST' })
     },
 
     getManyReference: unsupported('getManyReference'),

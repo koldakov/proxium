@@ -9,13 +9,13 @@ import {
   TopToolbar,
 } from 'react-admin'
 
-import { UpdateTokenButton } from './UpdateTokenButton'
+import { RevokeButton } from '../../components/RevokeButton'
 
 export const TokenProxyAccountShow = () => (
   <Show
     actions={
       <TopToolbar>
-        <UpdateTokenButton />
+        <RevokeButton />
         <EditButton />
       </TopToolbar>
     }

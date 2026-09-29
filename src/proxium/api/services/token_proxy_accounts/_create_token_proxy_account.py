@@ -3,10 +3,7 @@ import secrets
 from datetime import datetime
 from typing import Annotated
 
-from asyncpg import UniqueViolationError
-from fastapi import HTTPException, status
 from pydantic import AwareDatetime, Field, StringConstraints
-from sqlalchemy.exc import IntegrityError
 
 from proxium.api.services import BaseUserAuthenticatedService
 from proxium.auth import TOKEN_PREFIX, TOKEN_SEPARATOR
@@ -23,7 +20,6 @@ class CreateTokenProxyAccountRequest(BaseSchema):
             max_length=255,
         ),
     ]
-    is_active: bool = True
     # Never expires when null.
     expires_at: AwareDatetime | None = None
 
@@ -58,22 +54,12 @@ class CreateTokenProxyAccountService(BaseUserAuthenticatedService[CreateTokenPro
             key=key,
             # Hashing is slow CPU work, it would stall the loop.
             token=await asyncio.to_thread(Hash.create, token),
-            is_active=self.data.is_active,
             expires_at=self.data.expires_at,
             created_by_id=self.user.id,
         )
         self.session.add(account)
-
-        # Checking the name first would race. A random key clash is too unlikely to tell apart.
-        try:
-            await self.session.commit()
-        except IntegrityError as err:
-            if err.orig.sqlstate == UniqueViolationError.sqlstate:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Name is already taken.",
-                ) from None
-            raise
+        # A random key clash is too unlikely to tell apart.
+        await self.session.commit()
 
         # Timestamps come from the database.
         await self.session.refresh(account)

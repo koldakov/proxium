@@ -14,10 +14,18 @@ if TYPE_CHECKING:
 
 
 class ProxyBaseAccountModel(BaseTimestampModel):
-    """A proxy client. Each auth method has its own table."""
+    """A proxy client. Each auth method has its own table.
+
+    Credentials are immutable: only `name` changes. A new login means a new account, the old one gets revoked.
+    """
 
     __abstract__ = True
 
+    # A label for people, not unique and never used to authenticate.
+    name: Mapped[str] = mapped_column(
+        VARCHAR(length=255),
+    )
+    # False once revoked, never back.
     is_active: Mapped[bool] = mapped_column(
         default=True,
         server_default="true",
@@ -53,7 +61,7 @@ class ProxyBaseAccountModel(BaseTimestampModel):
 
 
 class BasicProxyAccountModel(ProxyBaseAccountModel):
-    """Username and password, e.g. HTTP Basic or SOCKS5."""
+    """Username and password, e.g. HTTP Basic or SOCKS5. Both are generated, like an access key id and its secret."""
 
     __tablename__ = "basic_proxy_accounts"
 
@@ -79,10 +87,6 @@ class TokenProxyAccountModel(ProxyBaseAccountModel):
     __tablename__ = "token_proxy_accounts"
 
     # Tells tokens apart in logs and the admin, the token itself is never shown again.
-    name: Mapped[str] = mapped_column(
-        VARCHAR(length=255),
-        unique=True,
-    )
     key: Mapped[str] = mapped_column(
         VARCHAR(length=32),
         unique=True,

@@ -1,4 +1,4 @@
-import AutorenewIcon from '@mui/icons-material/Autorenew'
+import BlockIcon from '@mui/icons-material/Block'
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
@@ -11,49 +11,44 @@ import {
   useResourceContext,
 } from 'react-admin'
 
-import { SecretDialog } from '../../components/SecretDialog'
-import type { ProxiumDataProvider } from '../../providers'
+import type { ProxiumDataProvider } from '../providers'
 
-export const UpdateTokenButton = () => {
+/** Revokes the proxy account in context for good. Hidden once revoked. */
+export const RevokeButton = () => {
   const record = useRecordContext()
   const resource = useResourceContext()
   const dataProvider = useDataProvider<ProxiumDataProvider>()
   const notify = useNotify()
   const refresh = useRefresh()
   const [confirming, setConfirming] = useState(false)
-  const [token, setToken] = useState<string | null>(null)
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => dataProvider.updateToken(resource!, { id: record!.id }),
-    onSuccess: (result) => {
+    mutationFn: () => dataProvider.revoke(resource!, { id: record!.id }),
+    onSuccess: () => {
       setConfirming(false)
-      setToken(result.token)
-      // The key changes with the token.
+      notify('Revoked', { type: 'success' })
       refresh()
     },
     onError: (error: Error) => notify(error.message, { type: 'error' }),
   })
 
-  if (record === undefined) {
+  if (record === undefined || !record.isActive) {
     return null
   }
 
   return (
     <>
-      <Button label="Regenerate token" onClick={() => setConfirming(true)}>
-        <AutorenewIcon />
+      <Button label="Revoke" color="error" onClick={() => setConfirming(true)}>
+        <BlockIcon />
       </Button>
       <Confirm
         isOpen={confirming}
         loading={isPending}
-        title="Regenerate token"
-        content="The current token stops working right away."
+        title="Revoke"
+        content="The credentials stop working right away and can't be restored."
         onConfirm={() => mutate()}
         onClose={() => setConfirming(false)}
       />
-      {token !== null && (
-        <SecretDialog title="New token" secret={token} onClose={() => setToken(null)} />
-      )}
     </>
   )
 }

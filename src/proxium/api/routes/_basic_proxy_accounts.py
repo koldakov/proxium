@@ -12,8 +12,7 @@ from proxium.api.services.basic_proxy_accounts import (
     GetBasicProxyAccountService,
     ListBasicProxyAccountsResponse,
     ListBasicProxyAccountsService,
-    UpdateBasicProxyAccountPasswordRequest,
-    UpdateBasicProxyAccountPasswordService,
+    RevokeBasicProxyAccountService,
     UpdateBasicProxyAccountRequest,
     UpdateBasicProxyAccountResponse,
     UpdateBasicProxyAccountService,
@@ -32,16 +31,13 @@ basic_proxy_accounts_router: APIRouter = APIRouter(
     status_code=status.HTTP_201_CREATED,
     responses={
         status.HTTP_201_CREATED: {
-            "description": "The created account.",
+            "description": "The created account with its generated credentials. The password is shown only once.",
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
-        status.HTTP_409_CONFLICT: {
-            "description": "Username is already taken.",
-        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": "The body is malformed, e.g. the username has a colon or the password is too short.",
+            "description": "The body is malformed, e.g. the name is empty.",
         },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "description": "Unexpected server error.",
@@ -52,7 +48,7 @@ async def create_basic_proxy_account(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     data: CreateBasicProxyAccountRequest,
 ) -> CreateBasicProxyAccountResponse:
-    """Create a username and password proxy account, owned by the logged-in user."""
+    """Create a username and password proxy account, owned by the logged-in user. Both are generated."""
     service: CreateBasicProxyAccountService = CreateBasicProxyAccountService(token=credentials.credentials, data=data)
     return await service()
 
@@ -80,7 +76,7 @@ async def list_basic_proxy_accounts(
     query: Annotated[
         str | None,
         Query(
-            description="Search by username.",
+            description="Search by name or username.",
             min_length=1,
             max_length=255,
         ),
@@ -137,9 +133,6 @@ async def get_basic_proxy_account(
         status.HTTP_404_NOT_FOUND: {
             "description": "Account not found.",
         },
-        status.HTTP_409_CONFLICT: {
-            "description": "Username is already taken.",
-        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "The account id is not an integer or the body is malformed.",
         },
@@ -153,7 +146,7 @@ async def update_basic_proxy_account(
     account_id: int,
     data: UpdateBasicProxyAccountRequest,
 ) -> UpdateBasicProxyAccountResponse:
-    """Update a username and password proxy account. Only the given fields change, the password has its own endpoint."""
+    """Rename a username and password proxy account. The credentials are immutable."""
     service: UpdateBasicProxyAccountService = UpdateBasicProxyAccountService(
         token=credentials.credentials,
         id=account_id,
@@ -162,12 +155,12 @@ async def update_basic_proxy_account(
     return await service()
 
 
-@basic_proxy_accounts_router.put(
-    "/{account_id}/password",
+@basic_proxy_accounts_router.post(
+    "/{account_id}/revoke",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_204_NO_CONTENT: {
-            "description": "The password is changed.",
+            "description": "The account is revoked, its credentials stop working for good.",
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
@@ -176,22 +169,20 @@ async def update_basic_proxy_account(
             "description": "Account not found.",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": "The account id is not an integer or the password is too short.",
+            "description": "The account id is not an integer.",
         },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "description": "Unexpected server error.",
         },
     },
 )
-async def update_basic_proxy_account_password(
+async def revoke_basic_proxy_account(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     account_id: int,
-    data: UpdateBasicProxyAccountPasswordRequest,
 ) -> None:
-    """Set a new password for a username and password proxy account."""
-    service: UpdateBasicProxyAccountPasswordService = UpdateBasicProxyAccountPasswordService(
+    """Revoke a username and password proxy account. Irreversible, create a new account instead."""
+    service: RevokeBasicProxyAccountService = RevokeBasicProxyAccountService(
         token=credentials.credentials,
         id=account_id,
-        data=data,
     )
     return await service()

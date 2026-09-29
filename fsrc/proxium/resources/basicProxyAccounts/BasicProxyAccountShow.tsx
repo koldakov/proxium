@@ -9,19 +9,20 @@ import {
   TopToolbar,
 } from 'react-admin'
 
-import { UpdatePasswordButton } from './UpdatePasswordButton'
+import { RevokeButton } from '../../components/RevokeButton'
 
 export const BasicProxyAccountShow = () => (
   <Show
     actions={
       <TopToolbar>
-        <UpdatePasswordButton />
+        <RevokeButton />
         <EditButton />
       </TopToolbar>
     }
   >
     <SimpleShowLayout>
       <TextField source="id" />
+      <TextField source="name" />
       <TextField source="username" />
       <BooleanField source="isActive" label="Active" />
       <DateField source="expiresAt" label="Expires" showTime emptyText="Never" />

@@ -5,14 +5,11 @@ from ._create_basic_proxy_account import (
 )
 from ._get_basic_proxy_account import GetBasicProxyAccountResponse, GetBasicProxyAccountService
 from ._list_basic_proxy_accounts import ListBasicProxyAccountsResponse, ListBasicProxyAccountsService
+from ._revoke_basic_proxy_account import RevokeBasicProxyAccountService
 from ._update_basic_proxy_account import (
     UpdateBasicProxyAccountRequest,
     UpdateBasicProxyAccountResponse,
     UpdateBasicProxyAccountService,
-)
-from ._update_basic_proxy_account_password import (
-    UpdateBasicProxyAccountPasswordRequest,
-    UpdateBasicProxyAccountPasswordService,
 )
 
 __all__ = [
@@ -23,8 +20,7 @@ __all__ = [
     "GetBasicProxyAccountService",
     "ListBasicProxyAccountsResponse",
     "ListBasicProxyAccountsService",
-    "UpdateBasicProxyAccountPasswordRequest",
-    "UpdateBasicProxyAccountPasswordService",
+    "RevokeBasicProxyAccountService",
     "UpdateBasicProxyAccountRequest",
     "UpdateBasicProxyAccountResponse",
     "UpdateBasicProxyAccountService",

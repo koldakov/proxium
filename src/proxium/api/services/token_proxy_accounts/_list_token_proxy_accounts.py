@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import apaginate
 from pydantic import Field
-from sqlalchemy import Select, select
+from sqlalchemy import Select, or_, select
 
 from proxium.api.services import BaseUserAuthenticatedService
 from proxium.db import TokenProxyAccountModel
@@ -28,7 +28,7 @@ class ListTokenProxyAccountsResponse(BaseSchema):
 
 
 class ListTokenProxyAccountsService(BaseUserAuthenticatedService[Page[ListTokenProxyAccountsResponse]]):
-    # Matches name, case-insensitive.
+    # Matches name or key, case-insensitive.
     query: Annotated[
         str | None,
         Field(
@@ -43,7 +43,12 @@ class ListTokenProxyAccountsService(BaseUserAuthenticatedService[Page[ListTokenP
             TokenProxyAccountModel.id.desc(),
         )
         if self.query is not None:
-            statement = statement.where(TokenProxyAccountModel.name.icontains(self.query, autoescape=True))
+            statement = statement.where(
+                or_(
+                    TokenProxyAccountModel.name.icontains(self.query, autoescape=True),
+                    TokenProxyAccountModel.key.icontains(self.query, autoescape=True),
+                ),
+            )
 
         return statement
 

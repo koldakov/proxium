@@ -12,11 +12,10 @@ from proxium.api.services.token_proxy_accounts import (
     GetTokenProxyAccountService,
     ListTokenProxyAccountsResponse,
     ListTokenProxyAccountsService,
+    RevokeTokenProxyAccountService,
     UpdateTokenProxyAccountRequest,
     UpdateTokenProxyAccountResponse,
     UpdateTokenProxyAccountService,
-    UpdateTokenProxyAccountTokenResponse,
-    UpdateTokenProxyAccountTokenService,
 )
 
 from ._security import bearer_scheme
@@ -36,9 +35,6 @@ token_proxy_accounts_router: APIRouter = APIRouter(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
-        },
-        status.HTTP_409_CONFLICT: {
-            "description": "Name is already taken.",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "The body is malformed, e.g. the name is empty.",
@@ -80,7 +76,7 @@ async def list_token_proxy_accounts(
     query: Annotated[
         str | None,
         Query(
-            description="Search by name.",
+            description="Search by name or key.",
             min_length=1,
             max_length=255,
         ),
@@ -137,9 +133,6 @@ async def get_token_proxy_account(
         status.HTTP_404_NOT_FOUND: {
             "description": "Account not found.",
         },
-        status.HTTP_409_CONFLICT: {
-            "description": "Name is already taken.",
-        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "The account id is not an integer or the body is malformed.",
         },
@@ -153,7 +146,7 @@ async def update_token_proxy_account(
     account_id: int,
     data: UpdateTokenProxyAccountRequest,
 ) -> UpdateTokenProxyAccountResponse:
-    """Update a bearer token proxy account. Only the given fields change, the token has its own endpoint."""
+    """Rename a bearer token proxy account. The token is immutable."""
     service: UpdateTokenProxyAccountService = UpdateTokenProxyAccountService(
         token=credentials.credentials,
         id=account_id,
@@ -163,11 +156,11 @@ async def update_token_proxy_account(
 
 
 @token_proxy_accounts_router.post(
-    "/{account_id}/token",
-    status_code=status.HTTP_200_OK,
+    "/{account_id}/revoke",
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_200_OK: {
-            "description": "The new token, shown only once. The old one stops working.",
+        status.HTTP_204_NO_CONTENT: {
+            "description": "The account is revoked, its token stops working for good.",
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
@@ -183,12 +176,12 @@ async def update_token_proxy_account(
         },
     },
 )
-async def update_token_proxy_account_token(
+async def revoke_token_proxy_account(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     account_id: int,
-) -> UpdateTokenProxyAccountTokenResponse:
-    """Issue a new token for a bearer token proxy account."""
-    service: UpdateTokenProxyAccountTokenService = UpdateTokenProxyAccountTokenService(
+) -> None:
+    """Revoke a bearer token proxy account. Irreversible, create a new account instead."""
+    service: RevokeTokenProxyAccountService = RevokeTokenProxyAccountService(
         token=credentials.credentials,
         id=account_id,
     )

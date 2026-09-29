@@ -27,6 +27,8 @@ if TYPE_CHECKING:
 TOKEN_SEPARATOR: Final[str] = "."  # noqa: S105, a separator, not a secret.
 # Starts every key, so a Proxium token is recognizable at a glance, e.g. by secret scanners.
 TOKEN_PREFIX: Final[str] = "pxm_"  # noqa: S105, a prefix, not a secret.
+# Starts every generated basic username, so it's told apart from a token key.
+USERNAME_PREFIX: Final[str] = "pxu_"
 
 
 class AccountAuthenticationError(Exception):
@@ -152,8 +154,8 @@ class TokenAccountAuthenticator(BaseAccountAuthenticator[TokenProxyAccountModel]
         return statement, credentials.token
 
     def _identity(self, account: TokenProxyAccountModel, /) -> Identity:
-        # The name, never the token: the subject gets logged.
+        # The key, never the token: the subject gets logged. Names aren't unique.
         return Identity(
-            subject=f"token:{account.name}",
+            subject=f"token:{account.key}",
             claims={"account_id": account.id},
         )

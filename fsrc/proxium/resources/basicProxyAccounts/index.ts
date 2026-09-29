@@ -14,5 +14,5 @@ export const basicProxyAccounts: ResourceProps = {
   show: BasicProxyAccountShow,
   edit: BasicProxyAccountEdit,
   create: BasicProxyAccountCreate,
-  recordRepresentation: 'username',
+  recordRepresentation: 'name',
 }

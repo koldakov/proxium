@@ -5,14 +5,11 @@ from ._create_token_proxy_account import (
 )
 from ._get_token_proxy_account import GetTokenProxyAccountResponse, GetTokenProxyAccountService
 from ._list_token_proxy_accounts import ListTokenProxyAccountsResponse, ListTokenProxyAccountsService
+from ._revoke_token_proxy_account import RevokeTokenProxyAccountService
 from ._update_token_proxy_account import (
     UpdateTokenProxyAccountRequest,
     UpdateTokenProxyAccountResponse,
     UpdateTokenProxyAccountService,
-)
-from ._update_token_proxy_account_token import (
-    UpdateTokenProxyAccountTokenResponse,
-    UpdateTokenProxyAccountTokenService,
 )
 
 __all__ = [
@@ -23,9 +20,8 @@ __all__ = [
     "GetTokenProxyAccountService",
     "ListTokenProxyAccountsResponse",
     "ListTokenProxyAccountsService",
+    "RevokeTokenProxyAccountService",
     "UpdateTokenProxyAccountRequest",
     "UpdateTokenProxyAccountResponse",
     "UpdateTokenProxyAccountService",
-    "UpdateTokenProxyAccountTokenResponse",
-    "UpdateTokenProxyAccountTokenService",
 ]

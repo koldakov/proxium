@@ -1,14 +1,12 @@
-import { BooleanInput, Edit, SimpleForm, TextInput, required } from 'react-admin'
+import { Edit, SimpleForm, TextInput, required } from 'react-admin'
 
-import { AwareDateTimeInput } from '../../components/AwareDateTimeInput'
 import { NoDeleteToolbar } from '../../components/NoDeleteToolbar'
 
+// Only the name changes, the token is immutable.
 export const TokenProxyAccountEdit = () => (
   <Edit redirect="show" mutationMode="pessimistic">
     <SimpleForm toolbar={<NoDeleteToolbar />}>
       <TextInput source="name" validate={required()} />
-      <BooleanInput source="isActive" label="Active" />
-      <AwareDateTimeInput source="expiresAt" label="Expires" helperText="Empty: never" />
     </SimpleForm>
   </Edit>
 )

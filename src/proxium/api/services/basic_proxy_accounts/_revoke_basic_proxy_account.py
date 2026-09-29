@@ -1,31 +1,15 @@
-import asyncio
-from typing import Annotated
-
 from fastapi import HTTPException, status
-from pydantic import Field, SecretStr
 from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import BasicProxyAccountModel, Hash
-from proxium.helpers import BaseSchema
+from proxium.db import BasicProxyAccountModel
 
 
-class UpdateBasicProxyAccountPasswordRequest(BaseSchema):
-    """Set by the admin, the old password isn't asked."""
+class RevokeBasicProxyAccountService(BaseUserAuthenticatedService[None]):
+    """Stop the credentials for good, e.g. after a leak. There is no way back, create a new account instead."""
 
-    password: Annotated[
-        SecretStr,
-        Field(
-            min_length=8,
-            max_length=128,
-        ),
-    ]
-
-
-class UpdateBasicProxyAccountPasswordService(BaseUserAuthenticatedService[None]):
     id: int
-    data: UpdateBasicProxyAccountPasswordRequest
 
     @property
     def _get_account_statement(self) -> Select[tuple[BasicProxyAccountModel]]:
@@ -41,6 +25,5 @@ class UpdateBasicProxyAccountPasswordService(BaseUserAuthenticatedService[None])
                 detail="Account not found.",
             ) from None
 
-        # Hashing is slow CPU work, it would stall the loop.
-        account.password = await asyncio.to_thread(Hash.create, self.data.password.get_secret_value())
+        account.is_active = False
         await self.session.commit()

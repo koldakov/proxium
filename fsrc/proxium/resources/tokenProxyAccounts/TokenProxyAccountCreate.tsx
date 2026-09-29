@@ -1,13 +1,5 @@
 import { useState } from 'react'
-import {
-  BooleanInput,
-  Create,
-  type RaRecord,
-  SimpleForm,
-  TextInput,
-  required,
-  useRedirect,
-} from 'react-admin'
+import { Create, type RaRecord, SimpleForm, TextInput, required, useRedirect } from 'react-admin'
 
 import { AwareDateTimeInput } from '../../components/AwareDateTimeInput'
 import { SecretDialog } from '../../components/SecretDialog'
@@ -22,14 +14,13 @@ export const TokenProxyAccountCreate = () => {
       <Create mutationOptions={{ onSuccess: setCreated }}>
         <SimpleForm>
           <TextInput source="name" validate={required()} />
-          <BooleanInput source="isActive" label="Active" defaultValue />
           <AwareDateTimeInput source="expiresAt" label="Expires" helperText="Empty: never" />
         </SimpleForm>
       </Create>
       {created !== null && (
         <SecretDialog
           title="Token"
-          secret={created.token}
+          values={[{ label: 'Token', value: created.token, secret: true }]}
           onClose={() => redirect('show', 'token-proxy-accounts', created.id)}
         />
       )}
