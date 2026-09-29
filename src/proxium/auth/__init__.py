@@ -5,6 +5,7 @@ from ._authenticators import (
     BaseAccountAuthenticator,
     BasicAccountAuthenticator,
     TokenAccountAuthenticator,
+    TrustedNetworkAuthenticator,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "BaseAccountAuthenticator",
     "BasicAccountAuthenticator",
     "TokenAccountAuthenticator",
+    "TrustedNetworkAuthenticator",
 ]

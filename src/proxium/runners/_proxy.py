@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, ClassVar, Final
 
 import uvloop
 
-from proxium.auth import BasicAccountAuthenticator, TokenAccountAuthenticator
+from proxium.auth import BasicAccountAuthenticator, TokenAccountAuthenticator, TrustedNetworkAuthenticator
 from proxium.core import proxy_settings
 from proxium.db import session_manager
 from proxium.proxy import (
@@ -64,7 +64,7 @@ class ProxyRunner:
         self._stop: asyncio.Event = asyncio.Event()
 
     def _create_default_profile(self) -> Profile:
-        """HTTP and SOCKS5 proxy for accounts from the database, going straight to targets."""
+        """HTTP and SOCKS5 proxy for accounts and trusted networks from the database, going straight to targets."""
         return Profile(
             inbounds=[
                 HttpInbound(),
@@ -75,6 +75,7 @@ class ProxyRunner:
                     BasicCredentials: BasicAccountAuthenticator(),
                     BearerCredentials: TokenAccountAuthenticator(),
                 },
+                without_credentials=TrustedNetworkAuthenticator(),
             ),
             connector=DirectConnector(),
             observers=[LoggingObserver()],
