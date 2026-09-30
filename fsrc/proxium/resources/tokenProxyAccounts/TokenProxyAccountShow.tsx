@@ -6,6 +6,7 @@ import { ExpiresField } from '../../components/ExpiresField'
 import { ProxyAccountHeader } from '../../components/ProxyAccountHeader'
 import { RevokeButton } from '../../components/RevokeButton'
 import { ShowSection } from '../../components/ShowSection'
+import { TrafficSection } from '../../components/TrafficSection'
 
 export const TokenProxyAccountShow = () => (
   <Show
@@ -38,6 +39,9 @@ export const TokenProxyAccountShow = () => (
               <ExpiresField source="expiresAt" />
             </Labeled>
           </ShowSection>
+        </Grid>
+        <Grid size={12}>
+          <TrafficSection />
         </Grid>
         <Grid size={12}>
           <ShowSection title="History">

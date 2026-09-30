@@ -21,6 +21,9 @@ export const DeleteConfirmContent = () => {
   return (
     <Stack spacing={1}>
       <Typography>New connections from this network will need a password.</Typography>
+      <Typography>
+        A network with traffic can't be deleted: its history is kept, turn it off instead.
+      </Typography>
       {containing > 0 && (
         <Typography>
           Its addresses stay trusted through {countNetworks(containing, 'active')} containing it.

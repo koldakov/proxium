@@ -6,9 +6,22 @@ export interface RevokeParams {
   id: Identifier
 }
 
+// UTC days as `YYYY-MM-DD`, both inclusive. All time without them.
+export interface TrafficTotalParams {
+  id: Identifier
+  since?: string
+  until?: string
+}
+
+export interface TrafficTotal {
+  bytesSent: number
+  bytesReceived: number
+}
+
 /** CRUD plus the actions some resources have on top of it. */
 export interface ProxiumDataProvider extends DataProvider {
   revoke: (resource: string, params: RevokeParams) => Promise<void>
+  getTrafficTotal: (resource: string, params: TrafficTotalParams) => Promise<TrafficTotal>
 }
 
 const unsupported = (method: string) => (): never => {
@@ -70,6 +83,14 @@ export const createDataProvider = (
 
     revoke: async (resource, { id }) => {
       await httpClient(resourceUrl(resource, id, 'revoke'), { method: 'POST' })
+    },
+
+    getTrafficTotal: async (resource, { id, ...range }) => {
+      const query = new URLSearchParams(
+        Object.entries(range).filter((entry): entry is [string, string] => entry[1] !== undefined),
+      )
+      const { json } = await httpClient(`${resourceUrl(resource, id, 'traffic', 'total')}?${query}`)
+      return json
     },
 
     // No content in the response: react-admin gets the record it already had.
