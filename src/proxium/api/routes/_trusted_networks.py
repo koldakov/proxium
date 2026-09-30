@@ -173,6 +173,9 @@ async def update_trusted_network(
         status.HTTP_404_NOT_FOUND: {
             "description": "Network not found.",
         },
+        status.HTTP_409_CONFLICT: {
+            "description": "The network has traffic: its history is kept, turn the network off instead.",
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "The network id is not an integer.",
         },
@@ -185,7 +188,7 @@ async def delete_trusted_network(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     network_id: int,
 ) -> None:
-    """Delete a trusted network. Open connections from it are never cut."""
+    """Delete a trusted network without traffic. Open connections from it are never cut."""
     service: DeleteTrustedNetworkService = DeleteTrustedNetworkService(
         token=credentials.credentials,
         id=network_id,
