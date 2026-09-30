@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from ._auth import Authenticator
+    from ._authenticators import Authenticator
     from ._connectors import Connector
     from ._observers import Observer
     from ._policies import Policy

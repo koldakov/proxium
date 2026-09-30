@@ -2,7 +2,7 @@ import ipaddress
 from enum import IntEnum, StrEnum
 from typing import TYPE_CHECKING, Final
 
-from proxium.proxy._auth import AuthenticationRequired
+from proxium.proxy._authenticators import AuthenticationRequired
 from proxium.proxy._connectors import (
     TargetTimeout,
     TargetUnreachable,
@@ -23,7 +23,7 @@ from proxium.proxy.inbound._base import (
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from proxium.proxy._auth import Authenticate
+    from proxium.proxy._authenticators import Authenticate
     from proxium.proxy._stream import Stream
 
 VERSION: Final[int] = 0x05

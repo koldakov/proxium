@@ -2,18 +2,15 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from ipaddress import IPv4Address, IPv6Address, ip_address
 from typing import TYPE_CHECKING, Final
 
-from sqlalchemy import func, literal, select
-from sqlalchemy.dialects.postgresql import INET
+from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.db import (
+    BaseProxyAccountModel,
     BasicProxyAccountModel,
-    ProxyBaseAccountModel,
     TokenProxyAccountModel,
-    TrustedNetworkModel,
     session_manager,
 )
 from proxium.proxy import (
@@ -39,35 +36,23 @@ TOKEN_PREFIX: Final[str] = "pxm_"  # noqa: S105, a prefix, not a secret.
 USERNAME_PREFIX: Final[str] = "pxu_"
 
 
-class AccountAuthenticationError(Exception):
-    """Why an account check failed. Local: `authenticate` turns it into `AuthenticationRequired`, it never leaves."""
+class ProxyAccountAuthenticationError(Exception):
+    """Why a proxy account check failed. Local: `authenticate` turns it into `AuthenticationRequired`."""
 
 
-class UnsupportedCredentialsError(AccountAuthenticationError):
+class UnsupportedCredentialsError(ProxyAccountAuthenticationError):
     """The credentials are of a type this authenticator doesn't handle."""
 
 
-class MalformedCredentialsError(AccountAuthenticationError):
+class MalformedCredentialsError(ProxyAccountAuthenticationError):
     """The credentials are of the right type but not in the expected format."""
 
 
-class AccountNotFoundError(AccountAuthenticationError):
-    """No account matches the credentials."""
+class ProxyAccountNotFoundError(ProxyAccountAuthenticationError):
+    """No proxy account matches the credentials."""
 
 
-class NetworkAuthenticationError(Exception):
-    """Why a trusted network check failed. Local: `authenticate` turns it into `AuthenticationRequired`."""
-
-
-class UnknownClientError(NetworkAuthenticationError):
-    """The client address is unknown or not an IP, so it can't be in a network."""
-
-
-class UntrustedNetworkError(NetworkAuthenticationError):
-    """No active trusted network contains the client address."""
-
-
-class BaseAccountAuthenticator[M: ProxyBaseAccountModel](Authenticator, ABC):
+class BaseProxyAccountAuthenticator[M: BaseProxyAccountModel](Authenticator, ABC):
     """Checks credentials against proxy accounts in the database: the secret, `is_active` and `expires_at`.
 
     Subclasses tell how to find the account, the account knows its secret hash.
@@ -80,7 +65,7 @@ class BaseAccountAuthenticator[M: ProxyBaseAccountModel](Authenticator, ABC):
         try:
             return result.scalars().one()
         except NoResultFound as err:
-            raise AccountNotFoundError() from err
+            raise ProxyAccountNotFoundError() from err
 
     async def authenticate(self, credentials: Credentials | None, proxy_session: Session, /) -> Identity:
         try:
@@ -90,7 +75,7 @@ class BaseAccountAuthenticator[M: ProxyBaseAccountModel](Authenticator, ABC):
 
         try:
             account: M = await self._get_account(statement)
-        except AccountNotFoundError as err:
+        except ProxyAccountNotFoundError as err:
             raise AuthenticationRequired() from err
 
         # Hashing is slow CPU work, it would stall every other connection on the loop.
@@ -120,7 +105,7 @@ class BaseAccountAuthenticator[M: ProxyBaseAccountModel](Authenticator, ABC):
         pass
 
 
-class BasicAccountAuthenticator(BaseAccountAuthenticator[BasicProxyAccountModel]):
+class BasicProxyAccountAuthenticator(BaseProxyAccountAuthenticator[BasicProxyAccountModel]):
     """Username and password from `BasicProxyAccountModel`."""
 
     def _get_lookup_statement(
@@ -148,7 +133,7 @@ class BasicAccountAuthenticator(BaseAccountAuthenticator[BasicProxyAccountModel]
         )
 
 
-class TokenAccountAuthenticator(BaseAccountAuthenticator[TokenProxyAccountModel]):
+class TokenProxyAccountAuthenticator(BaseProxyAccountAuthenticator[TokenProxyAccountModel]):
     """Bearer token `<key>.<secret>` from `TokenProxyAccountModel`: found by the key, the whole token is verified."""
 
     def _get_lookup_statement(
@@ -178,64 +163,4 @@ class TokenAccountAuthenticator(BaseAccountAuthenticator[TokenProxyAccountModel]
         return Identity(
             subject=f"token:{account.key}",
             claims={"account_id": account.id},
-        )
-
-
-class TrustedNetworkAuthenticator(Authenticator):
-    """Lets in clients without credentials from active `TrustedNetworkModel` networks, refuses the rest.
-
-    Looked up on every connection, so changes apply to new connections at once. Open ones are never cut.
-    """
-
-    def _get_client_ip(self, proxy_session: Session, /) -> IPv4Address | IPv6Address:
-        if proxy_session.client is None:
-            raise UnknownClientError()
-
-        # A link-local IPv6 peer comes with a zone, e.g. `fe80::1%eth0`, the database knows no zones.
-        host = proxy_session.client.host.partition("%")[0]
-        try:
-            ip = ip_address(host)
-        except ValueError as err:
-            raise UnknownClientError() from err
-
-        # A dual-stack socket shows IPv4 clients as ::ffff:10.0.0.1, networks are stored as IPv4.
-        if isinstance(ip, IPv6Address):
-            return ip.ipv4_mapped or ip
-        return ip
-
-    def _get_network_statement(self, ip: IPv4Address | IPv6Address, /) -> Select[tuple[TrustedNetworkModel]]:
-        # The narrowest network first: the identity names the most specific one.
-        return (
-            select(TrustedNetworkModel)
-            .where(
-                TrustedNetworkModel.is_active.is_(True),
-                TrustedNetworkModel.network.op(">>=")(literal(ip, INET())),
-            )
-            .order_by(func.masklen(TrustedNetworkModel.network).desc())
-            .limit(1)
-        )
-
-    async def _get_network(self, ip: IPv4Address | IPv6Address, /) -> TrustedNetworkModel:
-        async with session_manager.session() as session:
-            result: Result[tuple[TrustedNetworkModel]] = await session.execute(self._get_network_statement(ip))
-
-        try:
-            return result.scalars().one()
-        except NoResultFound as err:
-            raise UntrustedNetworkError() from err
-
-    async def authenticate(self, credentials: Credentials | None, proxy_session: Session, /) -> Identity:
-        try:
-            ip = self._get_client_ip(proxy_session)
-        except UnknownClientError as err:
-            raise AuthenticationRequired() from err
-
-        try:
-            network = await self._get_network(ip)
-        except UntrustedNetworkError as err:
-            raise AuthenticationRequired() from err
-
-        return Identity(
-            subject=f"network:{network.network}",
-            claims={"trusted_network_id": network.id},
         )

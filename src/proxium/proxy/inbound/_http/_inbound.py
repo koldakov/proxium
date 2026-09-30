@@ -8,7 +8,7 @@ from http.client import HTTP_PORT
 from typing import TYPE_CHECKING, ClassVar, Final
 from urllib.parse import urlsplit
 
-from proxium.proxy._auth import AuthenticationRequired, CredentialsExpired, CredentialsRevoked
+from proxium.proxy._authenticators import AuthenticationRequired, CredentialsExpired, CredentialsRevoked
 from proxium.proxy._connectors import (
     TargetTimeout,
     TargetUnreachable,
@@ -36,7 +36,7 @@ from ._head import (
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from proxium.proxy._auth import Authenticate
+    from proxium.proxy._authenticators import Authenticate
     from proxium.proxy._stream import Stream
 
 

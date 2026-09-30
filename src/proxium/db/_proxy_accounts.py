@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from ._users import UserModel
 
 
-class ProxyBaseAccountModel(BaseTimestampModel):
+class BaseProxyAccountModel(BaseTimestampModel):
     """A proxy client. Each auth method has its own table.
 
     Credentials are immutable: only `name` changes. A new login means a new account, the old one gets revoked.
@@ -60,7 +60,7 @@ class ProxyBaseAccountModel(BaseTimestampModel):
         )
 
 
-class BasicProxyAccountModel(ProxyBaseAccountModel):
+class BasicProxyAccountModel(BaseProxyAccountModel):
     """Username and password, e.g. HTTP Basic or SOCKS5. Both are generated, like an access key id and its secret."""
 
     __tablename__ = "basic_proxy_accounts"
@@ -78,7 +78,7 @@ class BasicProxyAccountModel(ProxyBaseAccountModel):
         return self.password
 
 
-class TokenProxyAccountModel(ProxyBaseAccountModel):
+class TokenProxyAccountModel(BaseProxyAccountModel):
     """Bearer token `<key>.<secret>`. Found by the public `key`, then checked against the hashed `token`.
 
     A salted hash can't be looked up by value, hence the key.

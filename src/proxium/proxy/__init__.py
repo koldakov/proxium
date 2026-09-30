@@ -1,4 +1,4 @@
-from ._auth import (
+from ._authenticators import (
     AnonymousAuthenticator,
     Authenticate,
     AuthenticationRequired,

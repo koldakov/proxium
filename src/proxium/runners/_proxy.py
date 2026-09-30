@@ -5,7 +5,11 @@ from typing import TYPE_CHECKING, ClassVar, Final
 
 import uvloop
 
-from proxium.auth import BasicAccountAuthenticator, TokenAccountAuthenticator, TrustedNetworkAuthenticator
+from proxium.auth import (
+    BasicProxyAccountAuthenticator,
+    TokenProxyAccountAuthenticator,
+    TrustedNetworkAuthenticator,
+)
 from proxium.core import proxy_settings
 from proxium.db import session_manager
 from proxium.proxy import (
@@ -72,8 +76,8 @@ class ProxyRunner:
             ],
             authenticator=DispatchAuthenticator(
                 {
-                    BasicCredentials: BasicAccountAuthenticator(),
-                    BearerCredentials: TokenAccountAuthenticator(),
+                    BasicCredentials: BasicProxyAccountAuthenticator(),
+                    BearerCredentials: TokenProxyAccountAuthenticator(),
                 },
                 without_credentials=TrustedNetworkAuthenticator(),
             ),

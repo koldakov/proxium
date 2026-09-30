@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from proxium.proxy._types import ProxyError, Request
 
 if TYPE_CHECKING:
-    from proxium.proxy._auth import Authenticate
+    from proxium.proxy._authenticators import Authenticate
     from proxium.proxy._stream import Stream
 
 
