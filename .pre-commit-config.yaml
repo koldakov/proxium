@@ -35,3 +35,27 @@ repos:
         args:
           - --install-types
           - --non-interactive
+
+  # The admin UI, with the tools pinned in fsrc: run `npm install` there first.
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: fsrc/node_modules/.bin/prettier --write --ignore-unknown
+        language: system
+        files: ^fsrc/
+        exclude: ^fsrc/package-lock\.json$
+        types: [text]
+      - id: eslint
+        name: eslint
+        entry: fsrc/node_modules/.bin/eslint --fix
+        language: system
+        files: ^fsrc/
+        types_or: [javascript, jsx, ts, tsx]
+      - id: tsc
+        name: tsc
+        entry: npm --prefix fsrc run typecheck
+        language: system
+        files: ^fsrc/
+        types_or: [ts, tsx]
+        pass_filenames: false
