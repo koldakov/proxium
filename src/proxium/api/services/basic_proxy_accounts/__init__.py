@@ -4,6 +4,16 @@ from ._create_basic_proxy_account import (
     CreateBasicProxyAccountService,
 )
 from ._get_basic_proxy_account import GetBasicProxyAccountResponse, GetBasicProxyAccountService
+from ._get_basic_proxy_account_traffic_total import (
+    GetBasicProxyAccountTrafficTotalRequest,
+    GetBasicProxyAccountTrafficTotalResponse,
+    GetBasicProxyAccountTrafficTotalService,
+)
+from ._list_basic_proxy_account_traffic import (
+    ListBasicProxyAccountTrafficRequest,
+    ListBasicProxyAccountTrafficResponse,
+    ListBasicProxyAccountTrafficService,
+)
 from ._list_basic_proxy_accounts import ListBasicProxyAccountsResponse, ListBasicProxyAccountsService
 from ._revoke_basic_proxy_account import RevokeBasicProxyAccountService
 from ._update_basic_proxy_account import (
@@ -18,6 +28,12 @@ __all__ = [
     "CreateBasicProxyAccountService",
     "GetBasicProxyAccountResponse",
     "GetBasicProxyAccountService",
+    "GetBasicProxyAccountTrafficTotalRequest",
+    "GetBasicProxyAccountTrafficTotalResponse",
+    "GetBasicProxyAccountTrafficTotalService",
+    "ListBasicProxyAccountTrafficRequest",
+    "ListBasicProxyAccountTrafficResponse",
+    "ListBasicProxyAccountTrafficService",
     "ListBasicProxyAccountsResponse",
     "ListBasicProxyAccountsService",
     "RevokeBasicProxyAccountService",
