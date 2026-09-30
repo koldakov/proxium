@@ -11,7 +11,13 @@ from proxium.auth import (
     TrustedNetworkAuthenticator,
 )
 from proxium.core import proxy_settings
-from proxium.db import session_manager
+from proxium.db import (
+    BasicProxyAccountTrafficModel,
+    TokenProxyAccountTrafficModel,
+    TrustedNetworkTrafficModel,
+    session_manager,
+)
+from proxium.observers import TrafficObserver
 from proxium.proxy import (
     BasicCredentials,
     BearerCredentials,
@@ -52,6 +58,14 @@ class ProxyRunner:
         log_level: LogLevel = proxy_settings.log_level,
     ) -> None:
         self._log_level: LogLevel = log_level
+        # Needs the loop to flush, so the runner starts and closes it.
+        self._traffic_observer: TrafficObserver = TrafficObserver(
+            [
+                BasicProxyAccountTrafficModel,
+                TokenProxyAccountTrafficModel,
+                TrustedNetworkTrafficModel,
+            ],
+        )
         profile = self._create_default_profile()
         self._graceful_timeout: float = graceful_timeout
         self._listeners: list[Listener] = [
@@ -68,7 +82,10 @@ class ProxyRunner:
         self._stop: asyncio.Event = asyncio.Event()
 
     def _create_default_profile(self) -> Profile:
-        """HTTP and SOCKS5 proxy for accounts and trusted networks from the database, going straight to targets."""
+        """HTTP and SOCKS5 proxy for accounts and trusted networks from the database, going straight to targets.
+
+        Their traffic is counted in the database.
+        """
         return Profile(
             inbounds=[
                 HttpInbound(),
@@ -82,7 +99,10 @@ class ProxyRunner:
                 without_credentials=TrustedNetworkAuthenticator(),
             ),
             connector=DirectConnector(),
-            observers=[LoggingObserver()],
+            observers=[
+                LoggingObserver(),
+                self._traffic_observer,
+            ],
         )
 
     def run(self) -> None:
@@ -97,6 +117,7 @@ class ProxyRunner:
 
     async def _serve(self) -> None:
         self._on_signal(self._stop.set)
+        self._traffic_observer.start()
         await self._server.update(self._listeners)
         await self._stop.wait()
 
@@ -106,6 +127,8 @@ class ProxyRunner:
 
         logger.info("Shutting down, press Ctrl+C again to force")
         await self._server.shutdown(timeout=self._graceful_timeout)
+        # After the shutdown: closed connections have counted their last bytes.
+        await self._traffic_observer.close()
         await session_manager.close()
 
     def _on_signal(self, callback: Callable[[], object], /) -> None:

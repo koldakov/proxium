@@ -129,7 +129,7 @@ class BasicProxyAccountAuthenticator(BaseProxyAccountAuthenticator[BasicProxyAcc
     def _identity(self, account: BasicProxyAccountModel, /) -> Identity:
         return Identity(
             subject=f"basic:{account.username}",
-            claims={"account_id": account.id},
+            claims={"basic_proxy_account_id": account.id},
         )
 
 
@@ -162,5 +162,5 @@ class TokenProxyAccountAuthenticator(BaseProxyAccountAuthenticator[TokenProxyAcc
         # The key, never the token: the subject gets logged. Names aren't unique.
         return Identity(
             subject=f"token:{account.key}",
-            claims={"account_id": account.id},
+            claims={"token_proxy_account_id": account.id},
         )
