@@ -92,7 +92,9 @@ curl -x socks5h://127.0.0.1:8080 https://example.com
 Networks are checked on every new connection, so new connections follow changes right away. Clients connected
 right now keep their open connections until they close: removing a network doesn't cut them off at once.
 
-A client that sends credentials is checked as an account even from a trusted network.
+A client that sends credentials is checked as an account even from a trusted network. The trusted network
+authenticator itself refuses any credentials, since it can't check them: registered for a credentials kind by
+mistake, it doesn't let in any password.
 
 Networks may nest, e.g. `10.0.0.0/8` for the office and `10.1.2.3` for a CI server inside it. The narrowest
 active one names the client in logs, e.g. `network:10.1.2.3/32`, and turning off one keeps the other working.

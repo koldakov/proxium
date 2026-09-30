@@ -20,6 +20,10 @@ class TrustedNetworkAuthenticationError(Exception):
     """Why a trusted network check failed. Local: `authenticate` turns it into `AuthenticationRequired`."""
 
 
+class UnexpectedCredentialsError(TrustedNetworkAuthenticationError):
+    """The client sent credentials: this authenticator can't check them, so it doesn't let them through."""
+
+
 class UnknownClientError(TrustedNetworkAuthenticationError):
     """The client address is unknown or not an IP, so it can't be in a network."""
 
@@ -71,7 +75,17 @@ class TrustedNetworkAuthenticator(Authenticator):
         except NoResultFound as err:
             raise UntrustedNetworkError() from err
 
+    def _check_no_credentials(self, credentials: Credentials | None, /) -> None:
+        # Registered for a credentials kind by mistake, it would let in any password from a trusted network.
+        if credentials is not None:
+            raise UnexpectedCredentialsError()
+
     async def authenticate(self, credentials: Credentials | None, proxy_session: Session, /) -> Identity:
+        try:
+            self._check_no_credentials(credentials)
+        except UnexpectedCredentialsError as err:
+            raise AuthenticationRequired() from err
+
         try:
             ip = self._get_client_ip(proxy_session)
         except UnknownClientError as err:
