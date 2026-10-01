@@ -117,6 +117,13 @@ class ApiSettings(BaseSettings):
             default_factory=list,
         ),
     ]
+    # IPs in one outgoing IP pool at most, a /24 by default.
+    outgoing_pool_max_size: Annotated[
+        int,
+        Field(
+            ge=1,
+        ),
+    ] = 256
 
     model_config = SettingsConfigDict(
         env_prefix="api_",

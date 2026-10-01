@@ -8,7 +8,7 @@ from sqlalchemy import Select, String, cast, func, literal, or_, select
 from sqlalchemy.dialects.postgresql import CIDR
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import TrustedNetworkModel
+from proxium.db import OutgoingMode, TrustedNetworkModel
 from proxium.helpers import BaseSchema
 
 
@@ -48,6 +48,7 @@ class ListTrustedNetworksResponse(BaseSchema):
     ]
     network: IPvAnyNetwork
     is_active: bool
+    outgoing_mode: OutgoingMode
     created_by_id: int
     created_at: datetime
 

@@ -7,7 +7,7 @@ from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import TrustedNetworkModel
+from proxium.db import OutgoingMode, TrustedNetworkModel
 from proxium.helpers import BaseSchema
 
 
@@ -22,6 +22,7 @@ class GetTrustedNetworkResponse(BaseSchema):
     ]
     network: IPvAnyNetwork
     is_active: bool
+    outgoing_mode: OutgoingMode
     created_by_id: int
     created_at: datetime
     updated_at: datetime

@@ -7,7 +7,7 @@ from pydantic import Field
 from sqlalchemy import Select, or_, select
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import BasicProxyAccountModel
+from proxium.db import BasicProxyAccountModel, OutgoingMode
 from proxium.helpers import BaseSchema
 
 
@@ -23,6 +23,7 @@ class ListBasicProxyAccountsResponse(BaseSchema):
     username: str
     is_active: bool
     expires_at: datetime | None
+    outgoing_mode: OutgoingMode
     created_by_id: int
     created_at: datetime
 

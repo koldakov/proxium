@@ -1,3 +1,4 @@
+from ._add_trusted_network_outgoing_ip import AddTrustedNetworkOutgoingIPService
 from ._create_trusted_network import (
     CreateTrustedNetworkRequest,
     CreateTrustedNetworkResponse,
@@ -10,6 +11,15 @@ from ._get_trusted_network_traffic_total import (
     GetTrustedNetworkTrafficTotalResponse,
     GetTrustedNetworkTrafficTotalService,
 )
+from ._list_trusted_network_available_outgoing_ips import (
+    ListTrustedNetworkAvailableOutgoingIPsRequest,
+    ListTrustedNetworkAvailableOutgoingIPsResponse,
+    ListTrustedNetworkAvailableOutgoingIPsService,
+)
+from ._list_trusted_network_outgoing_ips import (
+    ListTrustedNetworkOutgoingIPsResponse,
+    ListTrustedNetworkOutgoingIPsService,
+)
 from ._list_trusted_network_traffic import (
     ListTrustedNetworkTrafficRequest,
     ListTrustedNetworkTrafficResponse,
@@ -20,6 +30,7 @@ from ._list_trusted_networks import (
     ListTrustedNetworksResponse,
     ListTrustedNetworksService,
 )
+from ._remove_trusted_network_outgoing_ip import RemoveTrustedNetworkOutgoingIPService
 from ._update_trusted_network import (
     UpdateTrustedNetworkRequest,
     UpdateTrustedNetworkResponse,
@@ -27,6 +38,7 @@ from ._update_trusted_network import (
 )
 
 __all__ = [
+    "AddTrustedNetworkOutgoingIPService",
     "CreateTrustedNetworkRequest",
     "CreateTrustedNetworkResponse",
     "CreateTrustedNetworkService",
@@ -36,12 +48,18 @@ __all__ = [
     "GetTrustedNetworkTrafficTotalRequest",
     "GetTrustedNetworkTrafficTotalResponse",
     "GetTrustedNetworkTrafficTotalService",
+    "ListTrustedNetworkAvailableOutgoingIPsRequest",
+    "ListTrustedNetworkAvailableOutgoingIPsResponse",
+    "ListTrustedNetworkAvailableOutgoingIPsService",
+    "ListTrustedNetworkOutgoingIPsResponse",
+    "ListTrustedNetworkOutgoingIPsService",
     "ListTrustedNetworkTrafficRequest",
     "ListTrustedNetworkTrafficResponse",
     "ListTrustedNetworkTrafficService",
     "ListTrustedNetworksRequest",
     "ListTrustedNetworksResponse",
     "ListTrustedNetworksService",
+    "RemoveTrustedNetworkOutgoingIPService",
     "UpdateTrustedNetworkRequest",
     "UpdateTrustedNetworkResponse",
     "UpdateTrustedNetworkService",

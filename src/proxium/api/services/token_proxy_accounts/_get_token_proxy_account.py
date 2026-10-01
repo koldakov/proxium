@@ -7,7 +7,7 @@ from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import TokenProxyAccountModel
+from proxium.db import OutgoingMode, TokenProxyAccountModel
 from proxium.helpers import BaseSchema
 
 
@@ -23,6 +23,7 @@ class GetTokenProxyAccountResponse(BaseSchema):
     key: str
     is_active: bool
     expires_at: datetime | None
+    outgoing_mode: OutgoingMode
     created_by_id: int
     created_at: datetime
     updated_at: datetime
