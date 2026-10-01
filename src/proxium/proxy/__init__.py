@@ -9,8 +9,18 @@ from ._authenticators import (
     DispatchAuthenticator,
 )
 from ._connection import Connection, UnknownProtocol
-from ._connectors import Connector, DirectConnector, TargetTimeout, TargetUnreachable
-from ._guards import AddressGuard, ForbiddenAddress
+from ._connectors import (
+    SYSTEM_SOURCE,
+    Connector,
+    DirectConnector,
+    ListenerSourceSelector,
+    SourceSelector,
+    SourceUnavailable,
+    SystemSourceSelector,
+    TargetTimeout,
+    TargetUnreachable,
+)
+from ._guards import AddressGuard, ForbiddenAddress, IPAddress
 from ._observers import LoggingObserver, Observer
 from ._policies import Forbidden, Policy
 from ._profiles import Listener, Profile, Timeouts
@@ -33,6 +43,7 @@ from .inbound import BadRequest, HttpInbound, Inbound, Socks5Inbound
 
 __all__ = [
     "ANONYMOUS",
+    "SYSTEM_SOURCE",
     "Address",
     "AddressGuard",
     "AnonymousAuthenticator",
@@ -55,10 +66,12 @@ __all__ = [
     "Host",
     "Hostname",
     "HttpInbound",
+    "IPAddress",
     "Identity",
     "Inbound",
     "ListenError",
     "Listener",
+    "ListenerSourceSelector",
     "LoggingObserver",
     "Observer",
     "Policy",
@@ -68,7 +81,10 @@ __all__ = [
     "Request",
     "Session",
     "Socks5Inbound",
+    "SourceSelector",
+    "SourceUnavailable",
     "Stream",
+    "SystemSourceSelector",
     "TargetTimeout",
     "TargetUnreachable",
     "Timeouts",

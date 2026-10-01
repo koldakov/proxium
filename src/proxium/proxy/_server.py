@@ -110,4 +110,9 @@ class ProxyServer:
             await client.close()
             return
 
-        await Connection(profile, client, Session(client=client.peer, listener=address)).run()
+        session = Session(
+            client=client.peer,
+            listener=address,
+            local=client.local,
+        )
+        await Connection(profile, client, session).run()

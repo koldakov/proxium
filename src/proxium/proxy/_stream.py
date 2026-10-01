@@ -35,6 +35,15 @@ class Stream:
         host, port, *_ = peername
         return Address(host, port)
 
+    @property
+    def local(self) -> Address | None:
+        """This side's address, None if the socket was gone before it could be read."""
+        sockname = self._writer.get_extra_info("sockname")
+        if sockname is None:
+            return None
+        host, port, *_ = sockname
+        return Address(host, port)
+
     async def peek(self, n: int, /) -> bytes:
         """The next `n` bytes, left in the buffer for the next read."""
         while len(self._buffer) < n:
