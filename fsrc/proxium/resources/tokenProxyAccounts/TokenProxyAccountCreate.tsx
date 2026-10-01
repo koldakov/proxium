@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Create, type RaRecord, SimpleForm, TextInput, required, useRedirect } from 'react-admin'
 
 import { AwareDateTimeInput } from '../../components/AwareDateTimeInput'
+import { OutgoingModeInput } from '../../components/OutgoingModeInput'
 import { SecretDialog } from '../../components/SecretDialog'
 import { future } from '../../components/validators'
 
@@ -13,7 +14,7 @@ export const TokenProxyAccountCreate = () => {
   return (
     <>
       <Create mutationOptions={{ onSuccess: setCreated }}>
-        <SimpleForm>
+        <SimpleForm defaultValues={{ outgoingMode: 'system' }}>
           <TextInput source="name" validate={required()} />
           <AwareDateTimeInput
             source="expiresAt"
@@ -21,6 +22,7 @@ export const TokenProxyAccountCreate = () => {
             helperText="Empty: never"
             validate={future()}
           />
+          <OutgoingModeInput />
         </SimpleForm>
       </Create>
       {created !== null && (

@@ -7,7 +7,7 @@ export const TrustedNetworkCreate = () => (
   <>
     <TrustedNetworksWarning />
     <Create redirect="list">
-      <TrustedNetworkForm defaultValues={{ isActive: true }} />
+      <TrustedNetworkForm defaultValues={{ isActive: true, outgoingMode: 'system' }} />
     </Create>
   </>
 )

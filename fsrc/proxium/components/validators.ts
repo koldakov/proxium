@@ -35,3 +35,14 @@ export const ipNetwork = () => (value: string | null) => {
   }
   return undefined
 }
+
+/** An IPv4 or IPv6 address the way the API takes it. Empty passes. */
+export const ipAddress = () => (value: string | null) => {
+  if (!value) {
+    return undefined
+  }
+  const valid = value.includes(':')
+    ? ipaddr.IPv6.isValid(value)
+    : ipaddr.IPv4.isValidFourPartDecimal(value)
+  return valid ? undefined : 'Must be an address like 203.0.113.10 or 2001:db8::10'
+}

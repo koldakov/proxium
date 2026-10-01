@@ -13,6 +13,12 @@ export interface TrafficTotalParams {
   until?: string
 }
 
+// An IP in the outgoing IP pool of the record `id`.
+export interface OutgoingPoolParams {
+  id: Identifier
+  outgoingIpId: Identifier
+}
+
 export interface TrafficTotal {
   bytesSent: number
   bytesReceived: number
@@ -22,6 +28,8 @@ export interface TrafficTotal {
 export interface ProxiumDataProvider extends DataProvider {
   revoke: (resource: string, params: RevokeParams) => Promise<void>
   getTrafficTotal: (resource: string, params: TrafficTotalParams) => Promise<TrafficTotal>
+  addToOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
+  removeFromOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
 }
 
 const unsupported = (method: string) => (): never => {
@@ -91,6 +99,16 @@ export const createDataProvider = (
       )
       const { json } = await httpClient(`${resourceUrl(resource, id, 'traffic', 'total')}?${query}`)
       return json
+    },
+
+    addToOutgoingPool: async (resource, { id, outgoingIpId }) => {
+      await httpClient(resourceUrl(resource, id, 'outgoing-ips', outgoingIpId), { method: 'PUT' })
+    },
+
+    removeFromOutgoingPool: async (resource, { id, outgoingIpId }) => {
+      await httpClient(resourceUrl(resource, id, 'outgoing-ips', outgoingIpId), {
+        method: 'DELETE',
+      })
     },
 
     // No content in the response: react-admin gets the record it already had.

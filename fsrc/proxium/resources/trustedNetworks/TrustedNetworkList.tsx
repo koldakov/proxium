@@ -1,5 +1,14 @@
-import { BooleanField, DataTable, DateField, List, ReferenceField, TextInput } from 'react-admin'
+import {
+  BooleanField,
+  DataTable,
+  DateField,
+  List,
+  ReferenceField,
+  SelectField,
+  TextInput,
+} from 'react-admin'
 
+import { OUTGOING_MODES } from '../../components/outgoing'
 import { QuerySearchInput } from '../../components/QuerySearchInput'
 import { ipNetwork } from '../../components/validators'
 import { OpenToEveryoneAlert } from './OpenToEveryoneAlert'
@@ -22,6 +31,9 @@ export const TrustedNetworkList = () => (
         <DataTable.Col source="name" disableSort />
         <DataTable.Col source="network" disableSort />
         <DataTable.Col source="isActive" label="Active" field={BooleanField} disableSort />
+        <DataTable.Col source="outgoingMode" label="Outgoing IP" disableSort>
+          <SelectField source="outgoingMode" choices={OUTGOING_MODES} />
+        </DataTable.Col>
         <DataTable.Col source="createdById" label="Created by" disableSort>
           <ReferenceField source="createdById" reference="users" link="show" />
         </DataTable.Col>

@@ -1,5 +1,6 @@
 import { BooleanInput, FormDataConsumer, TextInput, required } from 'react-admin'
 
+import { OutgoingModeInput } from '../../components/OutgoingModeInput'
 import { ipNetwork } from '../../components/validators'
 import { TypedEveryoneAlert } from './OpenToEveryoneAlert'
 import { OverlapsSection } from './OverlapsSection'
@@ -22,5 +23,6 @@ export const TrustedNetworkInputs = () => (
       )}
     </FormDataConsumer>
     <BooleanInput source="isActive" label="Active" />
+    <OutgoingModeInput />
   </>
 )

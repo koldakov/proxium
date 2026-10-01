@@ -1,8 +1,19 @@
 import { Grid, Stack, Typography } from '@mui/material'
-import { DateField, EditButton, Labeled, ReferenceField, Show, TopToolbar } from 'react-admin'
+import {
+  DateField,
+  EditButton,
+  Labeled,
+  ReferenceField,
+  SelectField,
+  Show,
+  TopToolbar,
+  WithRecord,
+} from 'react-admin'
 
 import { CopyableField } from '../../components/CopyableField'
 import { ExpiresField } from '../../components/ExpiresField'
+import { OUTGOING_MODES } from '../../components/outgoing'
+import { OutgoingPoolSection } from '../../components/OutgoingPoolSection'
 import { ProxyAccountHeader } from '../../components/ProxyAccountHeader'
 import { RevokeButton } from '../../components/RevokeButton'
 import { ShowSection } from '../../components/ShowSection'
@@ -40,6 +51,23 @@ export const BasicProxyAccountShow = () => (
             </Labeled>
           </ShowSection>
         </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <ShowSection title="Outgoing">
+            <Labeled label="Outgoing IP">
+              <SelectField source="outgoingMode" choices={OUTGOING_MODES} />
+            </Labeled>
+          </ShowSection>
+        </Grid>
+        <WithRecord
+          render={(record) =>
+            // Only while the account goes out through it: otherwise the pool is unused.
+            record.outgoingMode === 'pool' && (
+              <Grid size={12}>
+                <OutgoingPoolSection />
+              </Grid>
+            )
+          }
+        />
         <Grid size={12}>
           <TrafficSection />
         </Grid>
