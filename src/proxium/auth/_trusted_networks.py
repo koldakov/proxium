@@ -7,11 +7,18 @@ from sqlalchemy import func, literal, select
 from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.exc import NoResultFound
 
-from proxium.db import TrustedNetworkModel, session_manager
+from proxium.db import (
+    OutgoingIPModel,
+    OutgoingMode,
+    TrustedNetworkModel,
+    TrustedNetworkOutgoingIPModel,
+    session_manager,
+)
 from proxium.proxy import AuthenticationRequired, Authenticator, Identity
+from proxium.selectors import outgoing_claims
 
 if TYPE_CHECKING:
-    from sqlalchemy import Result, Select
+    from sqlalchemy import Result, Row, ScalarSelect, Select
 
     from proxium.proxy import Credentials, Session
 
@@ -54,10 +61,33 @@ class TrustedNetworkAuthenticator(Authenticator):
             return ip.ipv4_mapped or ip
         return ip
 
-    def _get_network_statement(self, ip: IPv4Address | IPv6Address, /) -> Select[tuple[TrustedNetworkModel]]:
-        # The narrowest network first: the identity names the most specific one.
+    @property
+    def _get_pool_ip_statement(self) -> ScalarSelect[IPv4Address | IPv6Address]:
+        # A random IP of the pool, picked in the database so the pool is never loaded. NULL unless the pool is in use.
         return (
-            select(TrustedNetworkModel)
+            select(OutgoingIPModel.ip)
+            .join(
+                TrustedNetworkOutgoingIPModel,
+                TrustedNetworkOutgoingIPModel.outgoing_ip_id == OutgoingIPModel.id,
+            )
+            .where(
+                TrustedNetworkOutgoingIPModel.trusted_network_id == TrustedNetworkModel.id,
+                TrustedNetworkModel.outgoing_mode == OutgoingMode.POOL,
+            )
+            .order_by(func.random())
+            .limit(1)
+            .correlate(TrustedNetworkModel)
+            .scalar_subquery()
+        )
+
+    def _get_network_statement(
+        self,
+        ip: IPv4Address | IPv6Address,
+        /,
+    ) -> Select[tuple[TrustedNetworkModel, IPv4Address | IPv6Address | None]]:
+        # The narrowest network first: the identity names the most specific one. The pool IP in the same query.
+        return (
+            select(TrustedNetworkModel, self._get_pool_ip_statement)
             .where(
                 TrustedNetworkModel.is_active.is_(True),
                 TrustedNetworkModel.network.op(">>=")(literal(ip, INET())),
@@ -66,12 +96,19 @@ class TrustedNetworkAuthenticator(Authenticator):
             .limit(1)
         )
 
-    async def _get_network(self, ip: IPv4Address | IPv6Address, /) -> TrustedNetworkModel:
+    async def _get_network(
+        self,
+        ip: IPv4Address | IPv6Address,
+        /,
+    ) -> Row[tuple[TrustedNetworkModel, IPv4Address | IPv6Address | None]]:
+        """The network and a random IP of its pool, None unless it goes out through the pool."""
         async with session_manager.session() as session:
-            result: Result[tuple[TrustedNetworkModel]] = await session.execute(self._get_network_statement(ip))
+            result: Result[tuple[TrustedNetworkModel, IPv4Address | IPv6Address | None]] = await session.execute(
+                self._get_network_statement(ip),
+            )
 
         try:
-            return result.scalars().one()
+            return result.one()
         except NoResultFound as err:
             raise UntrustedNetworkError() from err
 
@@ -92,11 +129,15 @@ class TrustedNetworkAuthenticator(Authenticator):
             raise AuthenticationRequired() from err
 
         try:
-            network = await self._get_network(ip)
+            row = await self._get_network(ip)
         except UntrustedNetworkError as err:
             raise AuthenticationRequired() from err
+        network, pool_ip = row
 
         return Identity(
             subject=f"network:{network.network}",
-            claims={"trusted_network_id": network.id},
+            claims={
+                "trusted_network_id": network.id,
+                **outgoing_claims(network.outgoing_mode, ip=pool_ip),
+            },
         )

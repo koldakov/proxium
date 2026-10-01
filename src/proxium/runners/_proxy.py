@@ -31,6 +31,7 @@ from proxium.proxy import (
     ProxyServer,
     Socks5Inbound,
 )
+from proxium.selectors import OutgoingSourceSelector
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -84,7 +85,7 @@ class ProxyRunner:
     def _create_default_profile(self) -> Profile:
         """HTTP and SOCKS5 proxy for accounts and trusted networks from the database, going straight to targets.
 
-        Their traffic is counted in the database.
+        Each goes out from the IP its account or network says. Their traffic is counted in the database.
         """
         return Profile(
             inbounds=[
@@ -98,7 +99,9 @@ class ProxyRunner:
                 },
                 without_credentials=TrustedNetworkAuthenticator(),
             ),
-            connector=DirectConnector(),
+            connector=DirectConnector(
+                source=OutgoingSourceSelector(),
+            ),
             observers=[
                 LoggingObserver(),
                 self._traffic_observer,
