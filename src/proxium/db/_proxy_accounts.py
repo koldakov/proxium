@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from ._base import BaseTimestampModel
 from ._fields import Hash, HashField
+from ._outgoing_ips import OutgoingMode, outgoing_mode_column
 
 if TYPE_CHECKING:
     from ._users import UserModel
@@ -34,6 +35,8 @@ class BaseProxyAccountModel(BaseTimestampModel):
     expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
     )
+    # Which IP the proxy connects to targets from. `pool` needs a non-empty pool, the other modes ignore it.
+    outgoing_mode: Mapped[OutgoingMode] = outgoing_mode_column()
     # The admin who created the account. An admin with accounts can't be deleted, deactivate them instead.
     created_by_id: Mapped[int] = mapped_column(
         ForeignKey(

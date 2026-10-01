@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import CIDR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ._base import BaseTimestampModel
+from ._outgoing_ips import OutgoingMode, outgoing_mode_column
 
 if TYPE_CHECKING:
     # SQLAlchemy finds relationship targets by name in its registry, a runtime import would be circular.
@@ -33,6 +34,8 @@ class TrustedNetworkModel(BaseTimestampModel):
         default=True,
         server_default="true",
     )
+    # Which IP the proxy connects to targets from. `pool` needs a non-empty pool, the other modes ignore it.
+    outgoing_mode: Mapped[OutgoingMode] = outgoing_mode_column()
     # The admin who added the network. An admin with networks can't be deleted.
     created_by_id: Mapped[int] = mapped_column(
         ForeignKey(
