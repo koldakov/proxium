@@ -26,6 +26,7 @@ cp .env.template .env
 | Variable       | Description                                   |
 |----------------|-----------------------------------------------|
 | `API_SECRET_KEY` | Secret that signs API user tokens, at least 32 characters. Changing it logs everyone out |
+| `API_OUTGOING_POOL_MAX_SIZE` | IPs in one outgoing IP pool at most, default `256` |
 | `DATABASE_URL` | PostgreSQL URL, e.g. `postgres://user:password@host/db_name` |
 | `DATABASE_ECHO` | Log every SQL query, default `false`. Parameters are always hidden |
 | `DATABASE_POOL_SIZE` | Connections each process keeps open, default `5` |
@@ -104,6 +105,36 @@ asks to confirm saving it and warns while one is active.
 
 `/api/trusted-networks` filters: `contains=<network>` for networks that contain it, `within=<network>` for ones
 inside it, `isActive=true|false`, `prefixLength=<n>`, e.g. `?isActive=true&prefixLength=0` for ones open to everyone.
+
+### Outgoing IPs
+
+On a server with several IPs, each account and trusted network picks the one sites see, its outgoing mode:
+
+- `system`, the default: the OS picks, usually the main IP of the server.
+- `listener`: the IP the client connected to. A client of `203.0.113.11:8080` goes out from `203.0.113.11`, so
+  listen on every IP, e.g. `PROXY_LISTEN=203.0.113.8/29:8080`. It works on `0.0.0.0` too.
+- `pool`: a random IP of the account's pool, picked anew for every connection. A pool of one IP is a dedicated IP.
+
+First add the server's IPs under Outgoing IPs in the admin UI. Then pick the mode on the account or trusted
+network form: for `pool`, the IPs of the pool go right under it, on creating too. Later the pool is edited on the
+account's page or the network's form, and changes apply to new connections at once.
+
+A pool takes IPs of one family, IPv4 or IPv6: an IPv4 IP can't reach IPv6-only sites and back, so a mixed pool
+would fail at random. The admin offers only the IPs a pool can take. A pool in use keeps at least one IP, switch
+the mode first to empty it. An IP in a pool can't be deleted, and an IP's address can change only within its
+family. A pool holds up to `API_OUTGOING_POOL_MAX_SIZE` IPs.
+
+The proxy binds the outgoing socket to the IP before connecting, so the IP must be on the server's interfaces,
+e.g. `ip addr add 203.0.113.11/32 dev eth0`, and routed to it. Nothing checks that on saving, the API may run on
+another host: a connection from an IP that isn't there fails with "not on this host or loopback" in the log, and
+so does one from loopback, e.g. `listener` on `127.0.0.1`. Nothing falls back to another IP. Behind cloud NAT,
+use the private IPs the public ones map to. IPs of different providers need policy routing (`ip rule`) in the OS.
+
+Check an account with a site that shows the caller's IP:
+
+```bash
+curl -x http://USERNAME:PASSWORD@127.0.0.1:8080 https://ifconfig.me
+```
 
 `Ctrl+C` (SIGINT) or SIGTERM stops accepting and waits up to `PROXY_GRACEFUL_TIMEOUT` for open connections.
 A second signal stops immediately.
