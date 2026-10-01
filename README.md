@@ -23,23 +23,26 @@ Settings are read from environment variables. Copy the template and fill it in:
 cp .env.template .env
 ```
 
-| Variable       | Description                                   |
-|----------------|-----------------------------------------------|
-| `API_SECRET_KEY` | Secret that signs API user tokens, at least 32 characters. Changing it logs everyone out |
-| `API_OUTGOING_POOL_MAX_SIZE` | IPs in one outgoing IP pool at most, default `256` |
+### Common
+
+Read by the proxy, the API and the management commands.
+
+| Variable | Description |
+|---|---|
 | `DATABASE_URL` | PostgreSQL URL, e.g. `postgres://user:password@host/db_name` |
 | `DATABASE_ECHO` | Log every SQL query, default `false`. Parameters are always hidden |
 | `DATABASE_POOL_SIZE` | Connections each process keeps open, default `5` |
 | `DATABASE_POOL_MAX_OVERFLOW` | Extra connections under load, default `10` |
 | `DATABASE_POOL_TIMEOUT` | Seconds to wait for a free connection, default `30` |
 | `DATABASE_POOL_RECYCLE` | Seconds after which a connection is replaced, default `-1` (never) |
+
+### Proxy
+
+| Variable | Description |
+|---|---|
 | `PROXY_LISTEN` | Addresses to listen on, default `127.0.0.1:8080`, see below |
 | `PROXY_GRACEFUL_TIMEOUT` | Seconds open connections get to finish on shutdown, default `30` |
 | `PROXY_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`, default `INFO` |
-| `SUPERUSER_EMAIL` | `createsuperuser`: email, if `--email` isn't passed. Not prompted then |
-| `SUPERUSER_PASSWORD` | `createsuperuser --no-input`: password, there is no flag for it |
-| `SUPERUSER_NAME` | `createsuperuser`: name, if `--name` isn't passed, default blank |
-| `SUPERUSER_SURNAME` | `createsuperuser`: surname, if `--surname` isn't passed, default blank |
 
 `PROXY_LISTEN` is a comma-separated list of `host:port` pairs. A host is an IP address, a network or a host name,
 IPv6 goes in brackets. A port may be an inclusive range. Every host listens on every port of its pair:
@@ -52,6 +55,23 @@ PROXY_LISTEN=10.0.0.0/29:10000-10999                 # 6 host addresses x 1000 p
 ```
 
 Host names are resolved once, on start.
+
+### API
+
+| Variable | Description |
+|---|---|
+| `API_SECRET_KEY` | Secret that signs API user tokens, at least 32 characters. Changing it logs everyone out |
+| `API_CORS_ORIGINS` | Comma-separated browser origins allowed to call the API, e.g. the admin dev server. Empty blocks all |
+| `API_OUTGOING_POOL_MAX_SIZE` | IPs in one outgoing IP pool at most, default `256` |
+
+### Management commands
+
+| Variable | Description |
+|---|---|
+| `SUPERUSER_EMAIL` | `createsuperuser`: email, if `--email` isn't passed. Not prompted then |
+| `SUPERUSER_PASSWORD` | `createsuperuser --no-input`: password, there is no flag for it |
+| `SUPERUSER_NAME` | `createsuperuser`: name, if `--name` isn't passed, default blank |
+| `SUPERUSER_SURNAME` | `createsuperuser`: surname, if `--surname` isn't passed, default blank |
 
 ## Usage
 
