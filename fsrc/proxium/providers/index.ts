@@ -9,6 +9,9 @@ import { refreshTokens } from './tokens'
 export type { Me } from './authProvider'
 export type {
   OutgoingPoolParams,
+  PasswordChange,
+  Profile,
+  ProfileChanges,
   ProxiumDataProvider,
   Settings,
   TrafficTotal,

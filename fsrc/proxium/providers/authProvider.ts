@@ -104,8 +104,10 @@ export const createAuthProvider = (
       }
     },
 
+    // Not cached: the profile page changes the name, react-admin refetches it after.
     getIdentity: async () => {
-      const { id, name, surname, email } = await getMe()
+      const { json } = await httpClient(`${apiUrl}/api/users/me`)
+      const { id, name, surname, email } = json as Me
       const fullName = [name, surname].filter(Boolean).join(' ')
       return { id, fullName: fullName || email }
     },

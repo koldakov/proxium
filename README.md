@@ -249,7 +249,9 @@ own, so a user can see accounts and networks without their traffic.
   always allowed. Only superusers make superusers or change them.
 - Nobody deactivates themselves or takes their own superuser status away.
 - An inactive user can't log in. A change of permissions or activity applies to the user's next request, the
-  admin UI shows it within a minute.
+  admin UI shows it within a minute or at the first refused action.
+- Everyone changes their own name, surname and password under Profile in the user menu, no permission needed.
+  The email is the login: only a user with `users.change` changes it.
 
 The admin UI hides what the user may not do: sections, buttons, the outgoing pool without access to outgoing IPs.
 

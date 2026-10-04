@@ -34,6 +34,24 @@ export interface TrafficTotal {
   bytesReceived: number
 }
 
+// The logged-in user. The email is the login, only an admin changes it.
+export interface Profile {
+  id: number
+  email: string
+  name: string
+  surname: string
+}
+
+export interface ProfileChanges {
+  name: string
+  surname: string
+}
+
+export interface PasswordChange {
+  oldPassword: string
+  newPassword: string
+}
+
 // Timeouts and the cache TTL in seconds. Networks in CIDR notation, a bare address is taken as /32 or /128.
 export interface Settings {
   guardAllow: string[]
@@ -51,6 +69,10 @@ export interface ProxiumDataProvider extends DataProvider {
   getTrafficTotal: (resource: string, params: TrafficTotalParams) => Promise<TrafficTotal>
   addToOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
   removeFromOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
+  // The logged-in user's own record, no permission needed.
+  getProfile: () => Promise<Profile>
+  updateProfile: (data: ProfileChanges) => Promise<Profile>
+  updatePassword: (data: PasswordChange) => Promise<void>
   // Every permission code, e.g. `trusted_networks.view`. Not paged.
   listPermissions: () => Promise<string[]>
   // One record, not a resource: no id, no list.
@@ -146,6 +168,26 @@ export const createDataProvider = (
     removeFromOutgoingPool: async (resource, { id, outgoingIpId }) => {
       await httpClient(resourceUrl(resource, id, 'outgoing-ips', outgoingIpId), {
         method: 'DELETE',
+      })
+    },
+
+    getProfile: async () => {
+      const { json } = await httpClient(resourceUrl('users', 'me'))
+      return json
+    },
+
+    updateProfile: async (data) => {
+      const { json } = await httpClient(resourceUrl('users', 'me'), {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      })
+      return json
+    },
+
+    updatePassword: async (data) => {
+      await httpClient(resourceUrl('users', 'me', 'password'), {
+        method: 'PUT',
+        body: JSON.stringify(data),
       })
     },
 

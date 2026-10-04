@@ -1,10 +1,12 @@
 import polyglotI18nProvider from 'ra-i18n-polyglot'
 import englishMessages from 'ra-language-english'
 import type { ReactNode } from 'react'
-import { Admin, CustomRoutes, Layout, Resource } from 'react-admin'
+import { Admin, AppBar, CustomRoutes, Layout, Resource } from 'react-admin'
 import { Route } from 'react-router-dom'
 
+import { AppUserMenu } from './components/AppUserMenu'
 import { GroupedMenu } from './components/GroupedMenu'
+import { PROFILE_PATH, ProfilePage } from './pages/profile'
 import { SettingsPage, settingsLink } from './pages/settings'
 import { authProvider, dataProvider, queryClient } from './providers'
 import { menu, resources } from './resources'
@@ -20,8 +22,12 @@ const i18nProvider = polyglotI18nProvider(
 
 const AppMenu = () => <GroupedMenu nodes={menu} />
 
+const AppAppBar = () => <AppBar userMenu={<AppUserMenu profilePath={PROFILE_PATH} />} />
+
 const AppLayout = ({ children }: { children: ReactNode }) => (
-  <Layout menu={AppMenu}>{children}</Layout>
+  <Layout menu={AppMenu} appBar={AppAppBar}>
+    {children}
+  </Layout>
 )
 
 const App = () => (
@@ -39,6 +45,7 @@ const App = () => (
     ))}
     <CustomRoutes>
       <Route path={settingsLink.to} element={<SettingsPage />} />
+      <Route path={PROFILE_PATH} element={<ProfilePage />} />
     </CustomRoutes>
   </Admin>
 )
