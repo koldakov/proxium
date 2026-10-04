@@ -9,6 +9,14 @@ from ._outgoing_ips import (
     TokenProxyAccountOutgoingIPModel,
     TrustedNetworkOutgoingIPModel,
 )
+from ._permissions import (
+    BaseUserLinkModel,
+    GroupModel,
+    GroupPermissionModel,
+    Permission,
+    UserGroupModel,
+    UserPermissionModel,
+)
 from ._proxy_accounts import BaseProxyAccountModel, BasicProxyAccountModel, TokenProxyAccountModel
 from ._session import SessionClosedError, SessionManager, session_manager
 from ._settings import SettingsModel
@@ -27,16 +35,20 @@ __all__ = [
     "BaseProxyAccountModel",
     "BaseTimestampModel",
     "BaseTrafficModel",
+    "BaseUserLinkModel",
     "BasicProxyAccountModel",
     "BasicProxyAccountOutgoingIPModel",
     "BasicProxyAccountTrafficModel",
     "CertificateModel",
     "Encrypted",
     "EncryptedField",
+    "GroupModel",
+    "GroupPermissionModel",
     "Hash",
     "HashField",
     "OutgoingIPModel",
     "OutgoingMode",
+    "Permission",
     "SessionClosedError",
     "SessionManager",
     "SettingsModel",
@@ -46,6 +58,8 @@ __all__ = [
     "TrustedNetworkModel",
     "TrustedNetworkOutgoingIPModel",
     "TrustedNetworkTrafficModel",
+    "UserGroupModel",
     "UserModel",
+    "UserPermissionModel",
     "session_manager",
 ]

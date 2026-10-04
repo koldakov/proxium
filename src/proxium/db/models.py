@@ -5,6 +5,7 @@ from ._outgoing_ips import (
     TokenProxyAccountOutgoingIPModel,
     TrustedNetworkOutgoingIPModel,
 )
+from ._permissions import GroupModel, GroupPermissionModel, UserGroupModel, UserPermissionModel
 from ._proxy_accounts import BasicProxyAccountModel, TokenProxyAccountModel
 from ._settings import SettingsModel
 from ._traffic import BasicProxyAccountTrafficModel, TokenProxyAccountTrafficModel, TrustedNetworkTrafficModel
@@ -16,6 +17,8 @@ __all__ = [
     "BasicProxyAccountOutgoingIPModel",
     "BasicProxyAccountTrafficModel",
     "CertificateModel",
+    "GroupModel",
+    "GroupPermissionModel",
     "OutgoingIPModel",
     "SettingsModel",
     "TokenProxyAccountModel",
@@ -24,5 +27,7 @@ __all__ = [
     "TrustedNetworkModel",
     "TrustedNetworkOutgoingIPModel",
     "TrustedNetworkTrafficModel",
+    "UserGroupModel",
     "UserModel",
+    "UserPermissionModel",
 ]
