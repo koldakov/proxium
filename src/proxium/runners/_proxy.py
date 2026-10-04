@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import secrets
 import signal
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Final
 
 import uvloop
@@ -23,30 +25,80 @@ from proxium.proxy import (
     AddressGuard,
     BasicCredentials,
     BearerCredentials,
+    CachedAuthenticator,
     CachedEncryption,
+    ClientKey,
+    CredentialsKey,
     DirectConnector,
     DispatchAuthenticator,
     HttpInbound,
     Listener,
     ListenError,
     LoggingObserver,
+    MemoryCache,
     Profile,
     ProxyServer,
     Socks5Inbound,
     Timeouts,
 )
-from proxium.selectors import OutgoingSourceSelector
+from proxium.selectors import OUTGOING_IPS_CLAIM, OutgoingSourceSelector
 from proxium.watchers import SettingsSnapshot, SettingsWatcher
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from proxium.core import ListenAddress, LogLevel
-    from proxium.proxy import Authenticator, Encryption, Inbound, Observer, SourceSelector
+    from proxium.proxy import (
+        AuthenticationRequired,
+        Authenticator,
+        Cache,
+        Encryption,
+        EncryptionOutcome,
+        Identity,
+        Inbound,
+        Observer,
+        SourceSelector,
+    )
 
 logger = logging.getLogger(__name__)
 
 LOG_FORMAT: Final[str] = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+
+
+def _get_identity_size(identity: Identity, /) -> int:
+    """One plus the pool IPs: an identity with a big pool takes as much memory as many without."""
+    return 1 + len(identity.claims.get(OUTGOING_IPS_CLAIM, ()))
+
+
+@dataclass(frozen=True, slots=True)
+class _Caches:
+    """Where the proxy keeps checks of clients and the certificate between connections."""
+
+    basic: Cache[Identity]
+    basic_refusals: Cache[AuthenticationRequired]
+    bearer: Cache[Identity]
+    bearer_refusals: Cache[AuthenticationRequired]
+    trusted_network: Cache[Identity]
+    trusted_network_refusals: Cache[AuthenticationRequired]
+    encryption: Cache[EncryptionOutcome]
+
+    async def clear(self) -> None:
+        await self.basic.clear()
+        await self.basic_refusals.clear()
+        await self.bearer.clear()
+        await self.bearer_refusals.clear()
+        await self.trusted_network.clear()
+        await self.trusted_network_refusals.clear()
+        await self.encryption.clear()
+
+
+@dataclass(frozen=True, slots=True)
+class _Checks:
+    """Checks of clients and the certificate, reusing what's cached for `ttl` seconds."""
+
+    ttl: float
+    authenticator: Authenticator
+    encryption: Encryption
 
 
 class ProxyRunner:
@@ -82,19 +134,28 @@ class ProxyRunner:
             HttpInbound(),
             Socks5Inbound(),
         ]
-        self._authenticator: Authenticator = DispatchAuthenticator(
-            {
-                BasicCredentials: BasicProxyAccountAuthenticator(),
-                BearerCredentials: TokenProxyAccountAuthenticator(),
-            },
-            without_credentials=TrustedNetworkAuthenticator(),
+        # Kept across settings changes, so what's cached survives them. In memory: one process, nothing to share.
+        # Identities sized in pool IPs, see `_get_identity_size`: about 100 bytes each.
+        self._caches: _Caches = _Caches(
+            basic=MemoryCache(maxsize=100_000, getsizeof=_get_identity_size),
+            basic_refusals=MemoryCache(),
+            bearer=MemoryCache(maxsize=100_000, getsizeof=_get_identity_size),
+            bearer_refusals=MemoryCache(),
+            trusted_network=MemoryCache(maxsize=100_000, getsizeof=_get_identity_size),
+            trusted_network_refusals=MemoryCache(),
+            encryption=MemoryCache(),
         )
+        # Random per process, as the caches are: digests of credentials are of no use outside it.
+        digest_secret = secrets.token_bytes(32)
+        self._credentials_key: CredentialsKey = CredentialsKey(secret=digest_secret)
+        self._client_key: ClientKey = ClientKey(secret=digest_secret)
+        # Built on the first settings, rebuilt only for a new TTL.
+        self._checks: _Checks | None = None
         self._source: SourceSelector = OutgoingSourceSelector()
         self._observers: list[Observer] = [
             LoggingObserver(),
             self._traffic_observer,
         ]
-        self._encryption: Encryption = CachedEncryption(CertificateEncryption())
         self._settings_watcher: SettingsWatcher = SettingsWatcher(
             self._apply_settings,
             interval=settings_poll_interval,
@@ -105,16 +166,58 @@ class ProxyRunner:
         self._server: ProxyServer = ProxyServer()
         self._stop: asyncio.Event = asyncio.Event()
 
-    def _create_default_profile(self, settings: SettingsSnapshot, /) -> Profile:
+    def _create_authenticator(self, ttl: float, /) -> Authenticator:
+        return DispatchAuthenticator(
+            {
+                BasicCredentials: CachedAuthenticator(
+                    BasicProxyAccountAuthenticator(),
+                    key=self._credentials_key,
+                    cache=self._caches.basic,
+                    refusals=self._caches.basic_refusals,
+                    ttl=ttl,
+                ),
+                BearerCredentials: CachedAuthenticator(
+                    TokenProxyAccountAuthenticator(),
+                    key=self._credentials_key,
+                    cache=self._caches.bearer,
+                    refusals=self._caches.bearer_refusals,
+                    ttl=ttl,
+                ),
+            },
+            without_credentials=CachedAuthenticator(
+                TrustedNetworkAuthenticator(),
+                key=self._client_key,
+                cache=self._caches.trusted_network,
+                refusals=self._caches.trusted_network_refusals,
+                ttl=ttl,
+            ),
+        )
+
+    def _create_encryption(self, ttl: float, /) -> Encryption:
+        return CachedEncryption(
+            CertificateEncryption(),
+            cache=self._caches.encryption,
+            ttl=ttl,
+        )
+
+    def _create_checks(self, ttl: float, /) -> _Checks:
+        return _Checks(
+            ttl=ttl,
+            authenticator=self._create_authenticator(ttl),
+            encryption=self._create_encryption(ttl),
+        )
+
+    def _create_default_profile(self, settings: SettingsSnapshot, checks: _Checks, /) -> Profile:
         """HTTP and SOCKS5 proxy for accounts and trusted networks from the database, going straight to targets.
 
         Each goes out from the IP its account or network says. Their traffic is counted in the database.
-        Both may come wrapped in TLS with the active certificate from the database, looked up every few seconds.
+        Both may come wrapped in TLS with the active certificate from the database.
+        Checks of clients and the certificate are reused for the cache TTL from `settings`, by `checks`.
         Private networks are reachable only if `settings` allow them, timeouts come from `settings` too.
         """
         return Profile(
             inbounds=self._inbounds,
-            authenticator=self._authenticator,
+            authenticator=checks.authenticator,
             connector=DirectConnector(
                 timeout=settings.connect_timeout,
                 guard=AddressGuard(allow=settings.guard_allow),
@@ -125,7 +228,7 @@ class ProxyRunner:
                 handshake=settings.handshake_timeout,
                 idle=settings.idle_timeout,
             ),
-            encryption=self._encryption,
+            encryption=checks.encryption,
         )
 
     def _create_listeners(self, profile: Profile, /) -> list[Listener]:
@@ -140,8 +243,20 @@ class ProxyRunner:
         ]
 
     async def _apply_settings(self, settings: SettingsSnapshot, /) -> None:
+        # Kept on other changes: old and new connections share the checks in progress.
+        previous = self._checks
+        checks = previous
+        if checks is None or checks.ttl != settings.cache_ttl:
+            checks = self._create_checks(settings.cache_ttl)
+        self._checks = checks
+
         # The same addresses: no socket is opened or closed, only the profile changes.
-        await self._server.update(self._create_listeners(self._create_default_profile(settings)))
+        await self._server.update(self._create_listeners(self._create_default_profile(settings, checks)))
+
+        # What's cached keeps the TTL it was stored with: a shorter one mustn't wait the longer one out.
+        # After the update, so no new connection stores with the old TTL. A check in progress still may, once.
+        if previous is not None and settings.cache_ttl < previous.ttl:
+            await self._caches.clear()
 
     def run(self) -> None:
         logging.basicConfig(level=self._log_level, format=LOG_FORMAT)
@@ -157,7 +272,7 @@ class ProxyRunner:
         self._on_signal(self._stop.set)
         settings = await self._settings_watcher.load()
         self._traffic_observer.start()
-        await self._server.update(self._create_listeners(self._create_default_profile(settings)))
+        await self._apply_settings(settings)
         self._settings_watcher.start()
         await self._stop.wait()
 

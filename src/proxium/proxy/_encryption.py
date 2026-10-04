@@ -3,18 +3,27 @@ from __future__ import annotations
 import asyncio
 import copy
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
+from ._caches import CacheMiss
 from ._types import ProxyError
 
 if TYPE_CHECKING:
     import ssl
 
+    from ._caches import Cache
     from ._types import Session
+
+# The context doesn't depend on the session: one entry serves every connection.
+_CONTEXT_KEY: Final[bytes] = b"context"
 
 
 class EncryptionUnavailable(ProxyError):
     """No TLS for the client: none is set up, or there's no certificate right now. The client gets a TLS alert."""
+
+
+# What `CachedEncryption` keeps: the context or the refusal.
+type EncryptionOutcome = ssl.SSLContext | EncryptionUnavailable
 
 
 class Encryption(ABC):
@@ -46,29 +55,40 @@ class CachedEncryption(Encryption):
     one work for each, e.g. query the database. Connections arriving during a lookup wait for it instead of
     starting their own. Changes reach new connections within `ttl`. The inner one must not depend on the session:
     the first connection's session serves all of them. Other errors aren't cached, the next connection retries.
+    The context is kept in `cache`, in process memory: an `ssl.SSLContext` can't leave the process.
     """
 
-    def __init__(self, encryption: Encryption, /, *, ttl: float = 5.0) -> None:
+    def __init__(
+        self,
+        encryption: Encryption,
+        /,
+        *,
+        cache: Cache[EncryptionOutcome],
+        ttl: float = 10.0,
+    ) -> None:
         self._encryption: Encryption = encryption
+        self._cache: Cache[EncryptionOutcome] = cache
         self._ttl: float = ttl
+        # One lookup at a time, the rest wait for it and find it cached.
         self._lock: asyncio.Lock = asyncio.Lock()
-        # Never served: expired from the start, so the first connection loads the real one.
-        self._outcome: ssl.SSLContext | EncryptionUnavailable = EncryptionUnavailable("Not looked up yet.")
-        self._expires_at: float = float("-inf")
 
-    async def _load(self, session: Session, /) -> ssl.SSLContext | EncryptionUnavailable:
+    async def _load(self, session: Session, /) -> EncryptionOutcome:
         try:
             return await self._encryption.context(session)
         except EncryptionUnavailable as error:
             return error
 
+    async def _get(self, session: Session, /) -> EncryptionOutcome:
+        try:
+            outcome = await self._cache.get(_CONTEXT_KEY)
+        except CacheMiss:
+            outcome = await self._load(session)
+            await self._cache.set(_CONTEXT_KEY, outcome, ttl=self._ttl)
+        return outcome
+
     async def context(self, session: Session, /) -> ssl.SSLContext:
-        loop = asyncio.get_running_loop()
         async with self._lock:
-            if loop.time() >= self._expires_at:
-                self._outcome = await self._load(session)
-                self._expires_at = loop.time() + self._ttl
-            outcome = self._outcome
+            outcome = await self._get(session)
 
         if isinstance(outcome, EncryptionUnavailable):
             # A copy: raising the same instance from many connections would pile up their tracebacks on it.

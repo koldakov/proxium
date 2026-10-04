@@ -3,10 +3,11 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from ipaddress import IPv4Address, IPv6Address
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any, ClassVar, Final
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from dataclasses import Field
 
 
 class ProxyError(Exception):
@@ -28,9 +29,11 @@ class Address:
 
 
 class Credentials:
-    """What a client presents to prove who it is."""
+    """What a client presents to prove who it is. Subclasses are dataclasses: a cache key digests their fields."""
 
     __slots__ = ()
+    # Declared for type checkers, set by `@dataclass` on every subclass.
+    __dataclass_fields__: ClassVar[dict[str, Field[Any]]]
 
 
 @dataclass(frozen=True, slots=True)

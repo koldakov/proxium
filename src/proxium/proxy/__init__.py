@@ -1,13 +1,20 @@
 from ._authenticators import (
     AnonymousAuthenticator,
     Authenticate,
+    AuthenticationOutcome,
     AuthenticationRequired,
+    AuthenticationUnavailable,
     Authenticator,
+    CachedAuthenticator,
+    CacheKey,
+    ClientKey,
     CredentialsExpired,
+    CredentialsKey,
     CredentialsRevoked,
     DenyAllAuthenticator,
     DispatchAuthenticator,
 )
+from ._caches import Cache, CacheMiss, MemoryCache
 from ._connection import Connection, UnknownProtocol
 from ._connectors import (
     SYSTEM_SOURCE,
@@ -20,7 +27,7 @@ from ._connectors import (
     TargetTimeout,
     TargetUnreachable,
 )
-from ._encryption import CachedEncryption, Encryption, EncryptionUnavailable, StaticEncryption
+from ._encryption import CachedEncryption, Encryption, EncryptionOutcome, EncryptionUnavailable, StaticEncryption
 from ._guards import AddressGuard, ForbiddenAddress, IPAddress, IPNetwork
 from ._observers import LoggingObserver, Observer
 from ._policies import Forbidden, Policy
@@ -48,21 +55,30 @@ __all__ = [
     "AddressGuard",
     "AnonymousAuthenticator",
     "Authenticate",
+    "AuthenticationOutcome",
     "AuthenticationRequired",
+    "AuthenticationUnavailable",
     "Authenticator",
     "BadRequest",
     "BasicCredentials",
     "BearerCredentials",
+    "Cache",
+    "CacheKey",
+    "CacheMiss",
+    "CachedAuthenticator",
     "CachedEncryption",
+    "ClientKey",
     "Connection",
     "Connector",
     "Credentials",
     "CredentialsExpired",
+    "CredentialsKey",
     "CredentialsRevoked",
     "DenyAllAuthenticator",
     "DirectConnector",
     "DispatchAuthenticator",
     "Encryption",
+    "EncryptionOutcome",
     "EncryptionUnavailable",
     "Forbidden",
     "ForbiddenAddress",
@@ -76,6 +92,7 @@ __all__ = [
     "Listener",
     "ListenerSourceSelector",
     "LoggingObserver",
+    "MemoryCache",
     "Observer",
     "Policy",
     "Profile",
