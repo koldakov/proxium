@@ -60,6 +60,9 @@ async def create_user(data: CreateUserRequest) -> CreateUserResponse:
         status.HTTP_200_OK: {
             "description": "A page of users.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Query parameters are malformed, e.g. the page size is out of range.",
         },
@@ -69,6 +72,7 @@ async def create_user(data: CreateUserRequest) -> CreateUserResponse:
     },
 )
 async def list_users(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     query: Annotated[
         str | None,
         Query(
@@ -79,7 +83,7 @@ async def list_users(
     ] = None,
 ) -> Page[ListUsersResponse]:
     """List users, newest first."""
-    service: ListUsersService = ListUsersService(query=query)
+    service: ListUsersService = ListUsersService(token=credentials.credentials, query=query)
     return await service()
 
 
@@ -173,6 +177,9 @@ async def update_user_password(
         status.HTTP_200_OK: {
             "description": "The user.",
         },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "User not found.",
         },
@@ -184,7 +191,10 @@ async def update_user_password(
         },
     },
 )
-async def get_user(user_id: int) -> GetUserResponse:
+async def get_user(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    user_id: int,
+) -> GetUserResponse:
     """Get a user."""
-    service: GetUserService = GetUserService(id=user_id)
+    service: GetUserService = GetUserService(token=credentials.credentials, id=user_id)
     return await service()

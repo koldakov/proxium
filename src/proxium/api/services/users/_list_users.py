@@ -6,7 +6,7 @@ from fastapi_pagination.ext.sqlalchemy import apaginate
 from pydantic import EmailStr, Field
 from sqlalchemy import Select, or_, select
 
-from proxium.api.services import BaseSessionService
+from proxium.api.services import BaseUserAuthenticatedService
 from proxium.db import UserModel
 from proxium.helpers import BaseSchema
 
@@ -36,7 +36,7 @@ class ListUsersResponse(BaseSchema):
     created_at: datetime
 
 
-class ListUsersService(BaseSessionService[Page[ListUsersResponse]]):
+class ListUsersService(BaseUserAuthenticatedService[Page[ListUsersResponse]]):
     # Matches email, name or surname, case-insensitive.
     query: Annotated[
         str | None,
