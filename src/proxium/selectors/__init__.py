@@ -1,5 +1,5 @@
 from ._outgoing import (
-    OUTGOING_IP_CLAIM,
+    OUTGOING_IPS_CLAIM,
     OUTGOING_MODE_CLAIM,
     OutgoingSourceSelector,
     PoolSourceSelector,
@@ -7,7 +7,7 @@ from ._outgoing import (
 )
 
 __all__ = [
-    "OUTGOING_IP_CLAIM",
+    "OUTGOING_IPS_CLAIM",
     "OUTGOING_MODE_CLAIM",
     "OutgoingSourceSelector",
     "PoolSourceSelector",

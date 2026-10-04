@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from ipaddress import ip_address
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Final
@@ -13,36 +14,37 @@ from proxium.proxy import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
     from proxium.proxy import IPAddress, Request, Session
 
 # Identity claims the authenticators put and the selectors read. Plain strings, so an identity can be cached as is.
 OUTGOING_MODE_CLAIM: Final[str] = "outgoing_mode"
-OUTGOING_IP_CLAIM: Final[str] = "outgoing_ip"
+OUTGOING_IPS_CLAIM: Final[str] = "outgoing_ips"
 
 
-def outgoing_claims(mode: OutgoingMode, /, *, ip: IPAddress | None = None) -> dict[str, Any]:
+def outgoing_claims(mode: OutgoingMode, /, *, ips: Sequence[IPAddress] = ()) -> dict[str, Any]:
     """Claims for an identity that goes out the way its account or trusted network says.
 
-    `ip` is the one picked from the pool for this connection, without it a `pool` identity can't go out.
+    `ips` is the whole pool, one is picked per connection: the identity may be cached. Without them a `pool`
+    identity can't go out.
     """
     claims: dict[str, Any] = {OUTGOING_MODE_CLAIM: mode.value}
-    if ip is not None:
-        claims[OUTGOING_IP_CLAIM] = str(ip)
+    if ips:
+        claims[OUTGOING_IPS_CLAIM] = tuple(str(ip) for ip in ips)
     return claims
 
 
 class PoolSourceSelector(SourceSelector):
-    """The pool IP in the identity claims. The authenticator picks it at random from the pool, per connection."""
+    """A random IP of the pool in the identity claims, picked anew for every connection."""
 
     def select(self, request: Request, session: Session, /) -> IPAddress | None:
         try:
-            ip = request.identity.claims[OUTGOING_IP_CLAIM]
+            ips = request.identity.claims[OUTGOING_IPS_CLAIM]
         except KeyError as err:
             raise SourceUnavailable(f"{request.identity.subject} has an empty outgoing IP pool.") from err
 
-        return ip_address(ip)
+        return ip_address(random.choice(ips))  # noqa: S311, spreads connections, not a secret.
 
 
 # Every mode, as the admin describes it.
