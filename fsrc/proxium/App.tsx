@@ -1,9 +1,11 @@
 import polyglotI18nProvider from 'ra-i18n-polyglot'
 import englishMessages from 'ra-language-english'
 import type { ReactNode } from 'react'
-import { Admin, Layout, Resource } from 'react-admin'
+import { Admin, CustomRoutes, Layout, Resource } from 'react-admin'
+import { Route } from 'react-router-dom'
 
 import { GroupedMenu } from './components/GroupedMenu'
+import { SettingsPage, settingsLink } from './pages/settings'
 import { authProvider, dataProvider } from './providers'
 import { menu, resources } from './resources'
 
@@ -34,6 +36,9 @@ const App = () => (
     {resources.map((resource) => (
       <Resource key={resource.name} {...resource} />
     ))}
+    <CustomRoutes>
+      <Route path={settingsLink.to} element={<SettingsPage />} />
+    </CustomRoutes>
   </Admin>
 )
 

@@ -2,6 +2,7 @@ import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import type { ResourceProps } from 'react-admin'
 
 import type { MenuNode } from '../components/GroupedMenu'
+import { settingsLink } from '../pages/settings'
 import { basicProxyAccounts } from './basicProxyAccounts'
 import { certificates } from './certificates'
 import { outgoingIps } from './outgoingIps'
@@ -33,4 +34,5 @@ export const menu: MenuNode[] = [
   outgoingIps.name,
   certificates.name,
   users.name,
+  settingsLink,
 ]

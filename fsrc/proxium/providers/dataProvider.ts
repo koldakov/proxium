@@ -34,6 +34,14 @@ export interface TrafficTotal {
   bytesReceived: number
 }
 
+// Timeouts in seconds. Networks in CIDR notation, a bare address is taken as /32 or /128.
+export interface Settings {
+  guardAllow: string[]
+  handshakeTimeout: number
+  idleTimeout: number
+  connectTimeout: number
+}
+
 /** CRUD plus the actions some resources have on top of it. */
 export interface ProxiumDataProvider extends DataProvider {
   revoke: (resource: string, params: RevokeParams) => Promise<void>
@@ -42,6 +50,9 @@ export interface ProxiumDataProvider extends DataProvider {
   getTrafficTotal: (resource: string, params: TrafficTotalParams) => Promise<TrafficTotal>
   addToOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
   removeFromOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
+  // One record, not a resource: no id, no list.
+  getSettings: () => Promise<Settings>
+  updateSettings: (data: Settings) => Promise<Settings>
 }
 
 const unsupported = (method: string) => (): never => {
@@ -132,6 +143,20 @@ export const createDataProvider = (
       await httpClient(resourceUrl(resource, id, 'outgoing-ips', outgoingIpId), {
         method: 'DELETE',
       })
+    },
+
+    getSettings: async () => {
+      const { json } = await httpClient(resourceUrl('settings'))
+      return json
+    },
+
+    // All settings at once: PUT replaces them.
+    updateSettings: async (data) => {
+      const { json } = await httpClient(resourceUrl('settings'), {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+      return json
     },
 
     // No content in the response: react-admin gets the record it already had.

@@ -16,8 +16,15 @@ export interface MenuGroup {
   items: MenuGroupItem[]
 }
 
-// A resource name for a top-level item, or a collapsible group of them.
-export type MenuNode = string | MenuGroup
+// A page that isn't a resource, e.g. settings.
+export interface MenuLink {
+  to: string
+  label: string
+  icon: ComponentType
+}
+
+// A resource name for a top-level item, a collapsible group of them, or a link to another page.
+export type MenuNode = string | MenuGroup | MenuLink
 
 const Group = ({ label, icon: Icon, items }: MenuGroup) => {
   const [open, setOpen] = useState(true)
@@ -44,15 +51,22 @@ const Group = ({ label, icon: Icon, items }: MenuGroup) => {
   )
 }
 
-/** The sidebar menu from a list of resources and groups, in the given order. */
+const Node = ({ node }: { node: MenuNode }) => {
+  if (typeof node === 'string') {
+    return <Menu.ResourceItem name={node} />
+  }
+  if ('to' in node) {
+    const { to, label, icon: Icon } = node
+    return <Menu.Item to={to} primaryText={label} leftIcon={<Icon />} />
+  }
+  return <Group {...node} />
+}
+
+/** The sidebar menu from a list of resources, groups and links, in the given order. */
 export const GroupedMenu = ({ nodes }: { nodes: MenuNode[] }) => (
   <Menu>
-    {nodes.map((node) =>
-      typeof node === 'string' ? (
-        <Menu.ResourceItem key={node} name={node} />
-      ) : (
-        <Group key={node.label} {...node} />
-      ),
-    )}
+    {nodes.map((node) => (
+      <Node key={typeof node === 'string' ? node : node.label} node={node} />
+    ))}
   </Menu>
 )
