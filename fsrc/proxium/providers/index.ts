@@ -5,6 +5,7 @@ import { createAuthProvider } from './authProvider'
 import { createDataProvider } from './dataProvider'
 import { refreshTokens } from './tokens'
 
+export type { Me } from './authProvider'
 export type {
   OutgoingPoolParams,
   ProxiumDataProvider,

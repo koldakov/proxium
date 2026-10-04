@@ -7,6 +7,7 @@ import {
   ReferenceArrayInput,
   SelectInput,
   required,
+  useCanAccess,
   useGetMany,
   useRecordContext,
 } from 'react-admin'
@@ -63,6 +64,12 @@ const NewPoolInput = ({ ids }: { ids: number[] }) => {
 export const OutgoingModeInput = () => {
   const record = useRecordContext()
   const isNew = record?.id === undefined
+  // Filling a pool means picking IPs. A saved pool stays, its section shows it.
+  const { canAccess: canPick } = useCanAccess({ resource: 'outgoing-ips', action: 'list' })
+  const choices =
+    canPick || record?.outgoingMode === 'pool'
+      ? OUTGOING_MODES
+      : OUTGOING_MODES.filter(({ id }) => id !== 'pool')
 
   return (
     <FormDataConsumer>
@@ -71,7 +78,7 @@ export const OutgoingModeInput = () => {
           <SelectInput
             source="outgoingMode"
             label="Outgoing IP"
-            choices={OUTGOING_MODES}
+            choices={choices}
             validate={required()}
             helperText={MODE_HELP[formData.outgoingMode] ?? false}
           />

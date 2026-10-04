@@ -2,7 +2,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { Collapse, ListItemIcon, ListItemText, MenuItem } from '@mui/material'
 import { type ComponentType, useState } from 'react'
-import { Menu, useSidebarState } from 'react-admin'
+import { Menu, useCanAccess, useCanAccessResources, useSidebarState } from 'react-admin'
 
 export interface MenuGroupItem {
   resource: string
@@ -16,11 +16,12 @@ export interface MenuGroup {
   items: MenuGroupItem[]
 }
 
-// A page that isn't a resource, e.g. settings.
+// A page that isn't a resource, e.g. settings. Shown if the user may list `resource`.
 export interface MenuLink {
   to: string
   label: string
   icon: ComponentType
+  resource: string
 }
 
 // A resource name for a top-level item, a collapsible group of them, or a link to another page.
@@ -29,6 +30,14 @@ export type MenuNode = string | MenuGroup | MenuLink
 const Group = ({ label, icon: Icon, items }: MenuGroup) => {
   const [open, setOpen] = useState(true)
   const [sidebarOpen] = useSidebarState()
+  // The items hide themselves, the group goes with the last of them.
+  const { canAccess } = useCanAccessResources({
+    action: 'list',
+    resources: items.map((item) => item.resource),
+  })
+  if (canAccess === undefined || !Object.values(canAccess).some(Boolean)) {
+    return null
+  }
 
   return (
     <>
@@ -51,13 +60,21 @@ const Group = ({ label, icon: Icon, items }: MenuGroup) => {
   )
 }
 
+const Link = ({ to, label, icon: Icon, resource }: MenuLink) => {
+  const { canAccess } = useCanAccess({ resource, action: 'list' })
+  if (!canAccess) {
+    return null
+  }
+
+  return <Menu.Item to={to} primaryText={label} leftIcon={<Icon />} />
+}
+
 const Node = ({ node }: { node: MenuNode }) => {
   if (typeof node === 'string') {
     return <Menu.ResourceItem name={node} />
   }
   if ('to' in node) {
-    const { to, label, icon: Icon } = node
-    return <Menu.Item to={to} primaryText={label} leftIcon={<Icon />} />
+    return <Link {...node} />
   }
   return <Group {...node} />
 }

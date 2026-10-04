@@ -3,7 +3,6 @@ import {
   DateField,
   EditButton,
   Labeled,
-  ReferenceField,
   SelectField,
   Show,
   TopToolbar,
@@ -11,6 +10,7 @@ import {
 } from 'react-admin'
 
 import { CopyableField } from '../../components/CopyableField'
+import { CreatedByField } from '../../components/CreatedByField'
 import { ExpiresField } from '../../components/ExpiresField'
 import { OUTGOING_MODES } from '../../components/outgoing'
 import { OutgoingPoolSection } from '../../components/OutgoingPoolSection'
@@ -75,7 +75,7 @@ export const TokenProxyAccountShow = () => (
           <ShowSection title="History">
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 2, sm: 6 }}>
               <Labeled label="Created by">
-                <ReferenceField source="createdById" reference="users" link="show" />
+                <CreatedByField />
               </Labeled>
               <Labeled label="Created">
                 <DateField source="createdAt" showTime />

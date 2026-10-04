@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   Button,
   Confirm,
+  useCanAccess,
   useDataProvider,
   useNotify,
   useRecordContext,
@@ -13,7 +14,7 @@ import {
 
 import type { ProxiumDataProvider } from '../providers'
 
-/** Revokes the proxy account in context for good. Hidden once revoked. */
+/** Revokes the proxy account in context for good. Hidden once revoked or without `revoke`. */
 export const RevokeButton = () => {
   const record = useRecordContext()
   const resource = useResourceContext()
@@ -21,6 +22,7 @@ export const RevokeButton = () => {
   const notify = useNotify()
   const refresh = useRefresh()
   const [confirming, setConfirming] = useState(false)
+  const { canAccess } = useCanAccess({ resource, action: 'revoke' })
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => dataProvider.revoke(resource!, { id: record!.id }),
@@ -32,7 +34,7 @@ export const RevokeButton = () => {
     onError: (error: Error) => notify(error.message, { type: 'error' }),
   })
 
-  if (record === undefined || !record.isActive) {
+  if (record === undefined || !record.isActive || !canAccess) {
     return null
   }
 

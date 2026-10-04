@@ -1,5 +1,6 @@
-import { BooleanField, DataTable, DateField, List, ReferenceField, SelectField } from 'react-admin'
+import { BooleanField, DataTable, DateField, List, SelectField } from 'react-admin'
 
+import { CreatedByField } from '../../components/CreatedByField'
 import { OUTGOING_MODES } from '../../components/outgoing'
 import { QuerySearchInput } from '../../components/QuerySearchInput'
 
@@ -19,7 +20,7 @@ export const BasicProxyAccountList = () => (
         <DateField source="expiresAt" showTime emptyText="Never" />
       </DataTable.Col>
       <DataTable.Col source="createdById" label="Created by" disableSort>
-        <ReferenceField source="createdById" reference="users" link="show" />
+        <CreatedByField />
       </DataTable.Col>
       <DataTable.Col source="createdAt" label="Created" disableSort>
         <DateField source="createdAt" showTime />

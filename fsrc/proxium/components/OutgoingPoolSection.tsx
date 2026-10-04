@@ -18,6 +18,7 @@ import { useState } from 'react'
 import {
   type Identifier,
   type RaRecord,
+  useCanAccess,
   useDataProvider,
   useGetList,
   useNotify,
@@ -112,6 +113,9 @@ export const OutgoingPoolSection = () => {
   const notify = useNotify()
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(PER_PAGE_OPTIONS[0])
+  // Changing the pool is changing the record, picking an IP needs seeing them.
+  const { canAccess: canChange } = useCanAccess({ resource, action: 'edit' })
+  const { canAccess: canPick } = useCanAccess({ resource: 'outgoing-ips', action: 'list' })
 
   const {
     data = [],
@@ -149,12 +153,17 @@ export const OutgoingPoolSection = () => {
   return (
     <ShowSection title="Outgoing IP pool">
       <Typography variant="body2" color="text.secondary">
-        Each connection goes out from a random IP of the pool. Changes apply at once.
+        Each connection goes out from a random IP of the pool.
+        {canChange && ' Changes apply at once.'}
       </Typography>
-      <AddToPool resource={resource} id={record.id} onAdded={() => refetch()} />
+      {canChange && canPick && (
+        <AddToPool resource={resource} id={record.id} onAdded={() => refetch()} />
+      )}
       {total === 0 ? (
         <Typography variant="body2" color="text.secondary">
-          The pool is empty: add an IP to go out through it
+          {canChange && canPick
+            ? 'The pool is empty: add an IP to go out through it'
+            : 'The pool is empty'}
         </Typography>
       ) : (
         <>
@@ -163,7 +172,7 @@ export const OutgoingPoolSection = () => {
               <TableRow>
                 <TableCell>IP</TableCell>
                 <TableCell>Name</TableCell>
-                <TableCell />
+                {canChange && <TableCell />}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -171,27 +180,29 @@ export const OutgoingPoolSection = () => {
                 <TableRow key={outgoingIp.id}>
                   <TableCell>{outgoingIp.ip}</TableCell>
                   <TableCell>{outgoingIp.name}</TableCell>
-                  <TableCell align="right">
-                    <Tooltip
-                      title={
-                        keepsLast
-                          ? 'The pool is in use and needs an IP: add another one first'
-                          : 'Take out of the pool'
-                      }
-                    >
-                      {/* A disabled button gets no hover, the span shows the reason. */}
-                      <span>
-                        <IconButton
-                          size="small"
-                          aria-label="Take out of the pool"
-                          disabled={isRemoving || keepsLast}
-                          onClick={() => remove(outgoingIp.id)}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  </TableCell>
+                  {canChange && (
+                    <TableCell align="right">
+                      <Tooltip
+                        title={
+                          keepsLast
+                            ? 'The pool is in use and needs an IP: add another one first'
+                            : 'Take out of the pool'
+                        }
+                      >
+                        {/* A disabled button gets no hover, the span shows the reason. */}
+                        <span>
+                          <IconButton
+                            size="small"
+                            aria-label="Take out of the pool"
+                            disabled={isRemoving || keepsLast}
+                            onClick={() => remove(outgoingIp.id)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

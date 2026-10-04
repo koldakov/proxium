@@ -8,4 +8,5 @@ export const settingsLink: MenuLink = {
   to: '/settings',
   label: 'Settings',
   icon: SettingsIcon,
+  resource: 'settings',
 }

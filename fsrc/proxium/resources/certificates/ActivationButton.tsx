@@ -6,6 +6,7 @@ import { useState } from 'react'
 import {
   Button,
   Confirm,
+  useCanAccess,
   useDataProvider,
   useGetList,
   useNotify,
@@ -16,13 +17,17 @@ import {
 import type { ProxiumDataProvider } from '../../providers'
 import { describeCertificate, isExpired } from './expiry'
 
-/** Activates the certificate in context, or deactivates it if active. Hidden for an expired inactive one. */
+/**
+ * Activates the certificate in context, or deactivates it if active.
+ * Hidden for an expired inactive one and without `certificates.activate`.
+ */
 export const ActivationButton = () => {
   const record = useRecordContext()
   const dataProvider = useDataProvider<ProxiumDataProvider>()
   const notify = useNotify()
   const refresh = useRefresh()
   const [confirming, setConfirming] = useState(false)
+  const { canAccess } = useCanAccess({ resource: 'certificates', action: 'activate' })
   // The confirmation names the certificate that activating turns off.
   const { data: active, isPending: isActivePending } = useGetList('certificates', {
     filter: { isActive: true },
@@ -52,7 +57,12 @@ export const ActivationButton = () => {
 
   // The API refuses an expired certificate: don't offer it. Nor before the active one is known: the confirmation
   // names it, and the API checks it's still the same.
-  if (record === undefined || isActivePending || (!record.isActive && isExpired(record))) {
+  if (
+    record === undefined ||
+    !canAccess ||
+    isActivePending ||
+    (!record.isActive && isExpired(record))
+  ) {
     return null
   }
 

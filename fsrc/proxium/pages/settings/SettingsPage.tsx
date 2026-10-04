@@ -17,6 +17,7 @@ import {
   maxValue,
   minValue,
   required,
+  useCanAccess,
   useDataProvider,
   useNotify,
 } from 'react-admin'
@@ -55,10 +56,15 @@ const uniqueNetworks = () => (rows: { network: string }[] | undefined) => {
   return new Set(cidrs).size === cidrs.length ? undefined : 'Each network once'
 }
 
+// Without `settings.change` the page only shows them.
+interface InputsProps {
+  readOnly: boolean
+}
+
 const timeoutValidators = [required(), minValue(1), maxValue(MAX_TIMEOUT)]
 const cacheTtlValidators = [required(), minValue(1), maxValue(MAX_CACHE_TTL)]
 
-const GuardInputs = () => (
+const GuardInputs = ({ readOnly }: InputsProps) => (
   <>
     <Typography variant="h6">Private networks</Typography>
     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -72,10 +78,12 @@ const GuardInputs = () => (
       validate={uniqueNetworks()}
       helperText="Empty: the public internet only"
     >
-      <SimpleFormIterator inline disableReordering>
+      {/* The iterator holds the add and remove buttons. */}
+      <SimpleFormIterator inline disableReordering disabled={readOnly}>
         <TextInput
           source="network"
           label="Network"
+          readOnly={readOnly}
           validate={[required(), ipNetwork()]}
           helperText="E.g. 10.0.0.0/8, or 10.0.0.5 for a single address"
         />
@@ -94,23 +102,26 @@ const GuardInputs = () => (
   </>
 )
 
-const TimeoutInputs = () => (
+const TimeoutInputs = ({ readOnly }: InputsProps) => (
   <>
     <Typography variant="h6">Timeouts, seconds</Typography>
     <NumberInput
       source="handshakeTimeout"
+      readOnly={readOnly}
       label="Handshake"
       validate={timeoutValidators}
       helperText="For a client to authenticate and send its request. Default 10"
     />
     <NumberInput
       source="idleTimeout"
+      readOnly={readOnly}
       label="Idle"
       validate={timeoutValidators}
       helperText="A tunnel with no bytes either way for this long is closed. Default 300"
     />
     <NumberInput
       source="connectTimeout"
+      readOnly={readOnly}
       label="Connect"
       validate={timeoutValidators}
       helperText="To resolve and connect to a target. Default 10"
@@ -118,7 +129,7 @@ const TimeoutInputs = () => (
   </>
 )
 
-const CacheInputs = () => (
+const CacheInputs = ({ readOnly }: InputsProps) => (
   <>
     <Typography variant="h6">Cache</Typography>
     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -129,6 +140,7 @@ const CacheInputs = () => (
     </Typography>
     <NumberInput
       source="cacheTtl"
+      readOnly={readOnly}
       label="Cache TTL, seconds"
       validate={cacheTtlValidators}
       helperText="Shorter applies changes sooner, longer saves the database. Default 10"
@@ -141,6 +153,7 @@ export const SettingsPage = () => {
   const dataProvider = useDataProvider<ProxiumDataProvider>()
   const queryClient = useQueryClient()
   const notify = useNotify()
+  const { canAccess: canChange } = useCanAccess({ resource: 'settings', action: 'edit' })
 
   const { data, error } = useQuery({
     queryKey: QUERY_KEY,
@@ -176,15 +189,18 @@ export const SettingsPage = () => {
         <Title title="Settings" />
         <Card sx={{ mt: 2 }}>
           {/* Remounted on save: the form starts clean from what the API stored, e.g. 10.0.0.5/32. */}
+          {/* Read-only without `settings.change`: nothing to save. */}
           <Form key={JSON.stringify(data)} record={toForm(data)}>
             <CardContent>
-              <GuardInputs />
-              <TimeoutInputs />
-              <CacheInputs />
+              <GuardInputs readOnly={!canChange} />
+              <TimeoutInputs readOnly={!canChange} />
+              <CacheInputs readOnly={!canChange} />
             </CardContent>
-            <Toolbar>
-              <SaveButton />
-            </Toolbar>
+            {canChange && (
+              <Toolbar>
+                <SaveButton />
+              </Toolbar>
+            )}
           </Form>
         </Card>
       </SaveContextProvider>

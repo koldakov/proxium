@@ -11,6 +11,7 @@ import {
   type ListControllerResult,
   Pagination,
   type RaRecord,
+  useCanAccess,
   useDataProvider,
   useGetList,
   useListContext,
@@ -159,11 +160,15 @@ const TrafficTable = () => {
   )
 }
 
-/** Traffic of the record in context: totals, then days newest first, paged through the URL. */
+/**
+ * Traffic of the record in context: totals, then days newest first, paged through the URL.
+ * Hidden without `traffic.view`: seeing a record doesn't mean seeing its traffic.
+ */
 export const TrafficSection = () => {
   const resource = useResourceContext()
   const record = useRecordContext()
-  if (resource === undefined || record === undefined) {
+  const { canAccess } = useCanAccess({ resource: 'traffic', action: 'list' })
+  if (resource === undefined || record === undefined || !canAccess) {
     return null
   }
 
