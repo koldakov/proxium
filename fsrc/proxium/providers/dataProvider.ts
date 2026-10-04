@@ -51,6 +51,8 @@ export interface ProxiumDataProvider extends DataProvider {
   getTrafficTotal: (resource: string, params: TrafficTotalParams) => Promise<TrafficTotal>
   addToOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
   removeFromOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
+  // Every permission code, e.g. `trusted_networks.view`. Not paged.
+  listPermissions: () => Promise<string[]>
   // One record, not a resource: no id, no list.
   getSettings: () => Promise<Settings>
   updateSettings: (data: Settings) => Promise<Settings>
@@ -145,6 +147,11 @@ export const createDataProvider = (
       await httpClient(resourceUrl(resource, id, 'outgoing-ips', outgoingIpId), {
         method: 'DELETE',
       })
+    },
+
+    listPermissions: async () => {
+      const { json } = await httpClient(resourceUrl('permissions'))
+      return json.map(({ id }: { id: string }) => id)
     },
 
     getSettings: async () => {

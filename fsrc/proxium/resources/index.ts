@@ -1,3 +1,4 @@
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import type { ResourceProps } from 'react-admin'
 
@@ -5,6 +6,7 @@ import type { MenuNode } from '../components/GroupedMenu'
 import { settingsLink } from '../pages/settings'
 import { basicProxyAccounts } from './basicProxyAccounts'
 import { certificates } from './certificates'
+import { groups } from './groups'
 import { outgoingIps } from './outgoingIps'
 import { tokenProxyAccounts } from './tokenProxyAccounts'
 import { trustedNetworks } from './trustedNetworks'
@@ -18,6 +20,7 @@ export const resources: ResourceProps[] = [
   outgoingIps,
   certificates,
   users,
+  groups,
 ]
 
 // The sidebar, in order.
@@ -33,6 +36,13 @@ export const menu: MenuNode[] = [
   trustedNetworks.name,
   outgoingIps.name,
   certificates.name,
-  users.name,
+  {
+    label: 'Access',
+    icon: AdminPanelSettingsIcon,
+    items: [
+      { resource: users.name, label: 'Users' },
+      { resource: groups.name, label: 'Groups' },
+    ],
+  },
   settingsLink,
 ]
