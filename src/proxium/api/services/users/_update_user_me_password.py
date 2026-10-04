@@ -9,7 +9,7 @@ from proxium.db import Hash, Permission
 from proxium.helpers import BaseSchema
 
 
-class UpdateUserPasswordRequest(BaseSchema):
+class UpdateUserMePasswordRequest(BaseSchema):
     """The new password is typed twice in the UI, only the old one is checked here."""
 
     old_password: Annotated[
@@ -28,11 +28,11 @@ class UpdateUserPasswordRequest(BaseSchema):
     ]
 
 
-class UpdateUserPasswordService(BaseUserAuthenticatedService[None]):
+class UpdateUserMePasswordService(BaseUserAuthenticatedService[None]):
     # Any active user, for themselves.
     required_permissions: ClassVar[frozenset[Permission]] = frozenset()
 
-    data: UpdateUserPasswordRequest
+    data: UpdateUserMePasswordRequest
 
     async def process(self, *args, **kwargs) -> None:
         # Hashing is slow CPU work, it would stall the loop.
