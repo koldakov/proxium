@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query'
 import type { AuthProvider, HttpError } from 'react-admin'
 
 import { httpClient as defaultHttpClient, type HttpClient } from './httpClient'
@@ -13,7 +14,8 @@ interface CanAccessParams {
   action: string
 }
 
-// The API checks on every request, this only hides what it would refuse. A change shows up within it.
+// The API checks on every request, this only hides what it would refuse. A change shows up within it, or at
+// the first refusal.
 const ME_TTL_MS = 60 * 1000
 
 // React-admin actions by the API's names, the rest are the same, e.g. `revoke`.
@@ -42,10 +44,16 @@ export interface Me {
 export const toPermission = (resource: string, action: string): string =>
   `${resource.split('/')[0].replaceAll('-', '_')}.${ACTIONS[action] ?? action}`
 
+export interface AuthProviderOptions {
+  httpClient?: HttpClient
+  // The one react-admin uses: a 403 re-runs its permission checks at once.
+  queryClient?: QueryClient
+}
+
 /** JWT login against `/api/tokens`, the identity and permissions from `/api/users/me`. */
 export const createAuthProvider = (
   apiUrl: string,
-  httpClient: HttpClient = defaultHttpClient,
+  { httpClient = defaultHttpClient, queryClient }: AuthProviderOptions = {},
 ): AuthProvider => {
   // Shared by the checks react-admin fires at once.
   let me: { promise: Promise<Me>; expiresAt: number } | null = null
@@ -88,6 +96,11 @@ export const createAuthProvider = (
         clearTokens()
         me = null
         throw error
+      }
+      // Permissions were taken away since the UI last asked: hide what the API refuses now. Not a logout.
+      if (error.status === 403) {
+        me = null
+        void queryClient?.invalidateQueries({ queryKey: ['auth'] })
       }
     },
 

@@ -6,7 +6,7 @@ import { Route } from 'react-router-dom'
 
 import { GroupedMenu } from './components/GroupedMenu'
 import { SettingsPage, settingsLink } from './pages/settings'
-import { authProvider, dataProvider } from './providers'
+import { authProvider, dataProvider, queryClient } from './providers'
 import { menu, resources } from './resources'
 
 // The API logs in by email: relabel the stock login form.
@@ -29,6 +29,7 @@ const App = () => (
     title="Proxium"
     authProvider={authProvider}
     dataProvider={dataProvider}
+    queryClient={queryClient}
     i18nProvider={i18nProvider}
     layout={AppLayout}
     requireAuth
