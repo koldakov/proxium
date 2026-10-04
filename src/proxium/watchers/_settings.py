@@ -31,6 +31,10 @@ class SettingsSnapshot:
 type SettingsCallback = Callable[[SettingsSnapshot], Awaitable[None]]
 
 
+class SettingsNotLoadedError(Exception):
+    """`start` was called before `load`: there are no applied settings to compare changes with."""
+
+
 class SettingsWatcher:
     """Looks up the settings every `interval` seconds and calls `on_change` when they differ from the last applied.
 
@@ -58,10 +62,14 @@ class SettingsWatcher:
 
     async def load(self) -> SettingsSnapshot:
         """The current settings, taken as applied: `on_change` gets only changes made after."""
-        self._current = await self._read()
-        return self._current
+        snapshot = await self._read()
+        self._current = snapshot
+        return snapshot
 
     def start(self) -> None:
+        if self._current is None:
+            raise SettingsNotLoadedError()
+
         self._task = asyncio.create_task(self._run())
 
     async def close(self) -> None:
