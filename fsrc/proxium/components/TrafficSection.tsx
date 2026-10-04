@@ -182,7 +182,7 @@ export const TrafficSection = () => {
         />
         <TrafficTotal resource={resource} id={record.id} label="All time" />
       </Stack>
-      <TrafficListBase resource={`${resource}/${record.id}/traffic`}>
+      <TrafficListBase resource={`traffic/${resource}/${record.id}`}>
         <TrafficTable />
       </TrafficListBase>
     </ShowSection>

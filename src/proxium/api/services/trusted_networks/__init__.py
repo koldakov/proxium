@@ -6,11 +6,6 @@ from ._create_trusted_network import (
 )
 from ._delete_trusted_network import DeleteTrustedNetworkService
 from ._get_trusted_network import GetTrustedNetworkResponse, GetTrustedNetworkService
-from ._get_trusted_network_traffic_total import (
-    GetTrustedNetworkTrafficTotalRequest,
-    GetTrustedNetworkTrafficTotalResponse,
-    GetTrustedNetworkTrafficTotalService,
-)
 from ._list_trusted_network_available_outgoing_ips import (
     ListTrustedNetworkAvailableOutgoingIPsRequest,
     ListTrustedNetworkAvailableOutgoingIPsResponse,
@@ -19,11 +14,6 @@ from ._list_trusted_network_available_outgoing_ips import (
 from ._list_trusted_network_outgoing_ips import (
     ListTrustedNetworkOutgoingIPsResponse,
     ListTrustedNetworkOutgoingIPsService,
-)
-from ._list_trusted_network_traffic import (
-    ListTrustedNetworkTrafficRequest,
-    ListTrustedNetworkTrafficResponse,
-    ListTrustedNetworkTrafficService,
 )
 from ._list_trusted_networks import (
     ListTrustedNetworksRequest,
@@ -45,17 +35,11 @@ __all__ = [
     "DeleteTrustedNetworkService",
     "GetTrustedNetworkResponse",
     "GetTrustedNetworkService",
-    "GetTrustedNetworkTrafficTotalRequest",
-    "GetTrustedNetworkTrafficTotalResponse",
-    "GetTrustedNetworkTrafficTotalService",
     "ListTrustedNetworkAvailableOutgoingIPsRequest",
     "ListTrustedNetworkAvailableOutgoingIPsResponse",
     "ListTrustedNetworkAvailableOutgoingIPsService",
     "ListTrustedNetworkOutgoingIPsResponse",
     "ListTrustedNetworkOutgoingIPsService",
-    "ListTrustedNetworkTrafficRequest",
-    "ListTrustedNetworkTrafficResponse",
-    "ListTrustedNetworkTrafficService",
     "ListTrustedNetworksRequest",
     "ListTrustedNetworksResponse",
     "ListTrustedNetworksService",

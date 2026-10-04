@@ -132,7 +132,8 @@ export const createDataProvider = (
       const query = new URLSearchParams(
         Object.entries(range).filter((entry): entry is [string, string] => entry[1] !== undefined),
       )
-      const { json } = await httpClient(`${resourceUrl(resource, id, 'traffic', 'total')}?${query}`)
+      // Traffic is its own resource: `/traffic/<resource>/<id>`.
+      const { json } = await httpClient(`${resourceUrl('traffic', resource, id, 'total')}?${query}`)
       return json
     },
 

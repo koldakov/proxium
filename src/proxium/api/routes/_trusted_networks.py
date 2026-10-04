@@ -12,9 +12,6 @@ from proxium.api.services.trusted_networks import (
     DeleteTrustedNetworkService,
     GetTrustedNetworkResponse,
     GetTrustedNetworkService,
-    GetTrustedNetworkTrafficTotalRequest,
-    GetTrustedNetworkTrafficTotalResponse,
-    GetTrustedNetworkTrafficTotalService,
     ListTrustedNetworkAvailableOutgoingIPsRequest,
     ListTrustedNetworkAvailableOutgoingIPsResponse,
     ListTrustedNetworkAvailableOutgoingIPsService,
@@ -23,9 +20,6 @@ from proxium.api.services.trusted_networks import (
     ListTrustedNetworksRequest,
     ListTrustedNetworksResponse,
     ListTrustedNetworksService,
-    ListTrustedNetworkTrafficRequest,
-    ListTrustedNetworkTrafficResponse,
-    ListTrustedNetworkTrafficService,
     RemoveTrustedNetworkOutgoingIPService,
     UpdateTrustedNetworkRequest,
     UpdateTrustedNetworkResponse,
@@ -135,83 +129,6 @@ async def get_trusted_network(
 ) -> GetTrustedNetworkResponse:
     """Get a trusted network."""
     service: GetTrustedNetworkService = GetTrustedNetworkService(token=credentials.credentials, id=network_id)
-    return await service()
-
-
-@trusted_networks_router.get(
-    "/{network_id}/traffic",
-    status_code=status.HTTP_200_OK,
-    responses={
-        status.HTTP_200_OK: {
-            "description": "A page of days with traffic, newest first. Days without traffic are left out.",
-        },
-        status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
-        },
-        status.HTTP_404_NOT_FOUND: {
-            "description": "Network not found.",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": "The network id is not an integer or a query parameter is malformed, e.g. a date.",
-        },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {
-            "description": "Unexpected server error.",
-        },
-    },
-)
-async def list_trusted_network_traffic(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
-    network_id: int,
-    # `Depends`, not `Query`: next to the pagination params, FastAPI documents a `Query` model as one `data` param.
-    data: Annotated[ListTrustedNetworkTrafficRequest, Depends()],
-) -> Page[ListTrustedNetworkTrafficResponse]:
-    """Traffic of clients from a trusted network per UTC day. The proxy writes it about once a minute.
-
-    - `since`, `until`: only days in this range, both inclusive.
-    """
-    service: ListTrustedNetworkTrafficService = ListTrustedNetworkTrafficService(
-        token=credentials.credentials,
-        id=network_id,
-        data=data,
-    )
-    return await service()
-
-
-@trusted_networks_router.get(
-    "/{network_id}/traffic/total",
-    status_code=status.HTTP_200_OK,
-    responses={
-        status.HTTP_200_OK: {
-            "description": "Bytes sent and received in the range, zeros without traffic.",
-        },
-        status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
-        },
-        status.HTTP_404_NOT_FOUND: {
-            "description": "Network not found.",
-        },
-        status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": "The network id is not an integer or a query parameter is malformed, e.g. a date.",
-        },
-        status.HTTP_500_INTERNAL_SERVER_ERROR: {
-            "description": "Unexpected server error.",
-        },
-    },
-)
-async def get_trusted_network_traffic_total(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
-    network_id: int,
-    data: Annotated[GetTrustedNetworkTrafficTotalRequest, Depends()],
-) -> GetTrustedNetworkTrafficTotalResponse:
-    """Total traffic of clients from a trusted network.
-
-    - `since`, `until`: only days in this range, both inclusive. All time without them.
-    """
-    service: GetTrustedNetworkTrafficTotalService = GetTrustedNetworkTrafficTotalService(
-        token=credentials.credentials,
-        id=network_id,
-        data=data,
-    )
     return await service()
 
 
