@@ -3,6 +3,7 @@ import type { ResourceProps } from 'react-admin'
 
 import type { MenuNode } from '../components/GroupedMenu'
 import { basicProxyAccounts } from './basicProxyAccounts'
+import { certificates } from './certificates'
 import { outgoingIps } from './outgoingIps'
 import { tokenProxyAccounts } from './tokenProxyAccounts'
 import { trustedNetworks } from './trustedNetworks'
@@ -14,6 +15,7 @@ export const resources: ResourceProps[] = [
   tokenProxyAccounts,
   trustedNetworks,
   outgoingIps,
+  certificates,
   users,
 ]
 
@@ -29,5 +31,6 @@ export const menu: MenuNode[] = [
   },
   trustedNetworks.name,
   outgoingIps.name,
+  certificates.name,
   users.name,
 ]

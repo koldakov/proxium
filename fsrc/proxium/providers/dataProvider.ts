@@ -6,6 +6,16 @@ export interface RevokeParams {
   id: Identifier
 }
 
+export interface ActivateParams {
+  id: Identifier
+  // The active record the user saw, null if none: the API refuses if it has changed since.
+  replaces: Identifier | null
+}
+
+export interface DeactivateParams {
+  id: Identifier
+}
+
 // UTC days as `YYYY-MM-DD`, both inclusive. All time without them.
 export interface TrafficTotalParams {
   id: Identifier
@@ -27,6 +37,8 @@ export interface TrafficTotal {
 /** CRUD plus the actions some resources have on top of it. */
 export interface ProxiumDataProvider extends DataProvider {
   revoke: (resource: string, params: RevokeParams) => Promise<void>
+  activate: (resource: string, params: ActivateParams) => Promise<void>
+  deactivate: (resource: string, params: DeactivateParams) => Promise<void>
   getTrafficTotal: (resource: string, params: TrafficTotalParams) => Promise<TrafficTotal>
   addToOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
   removeFromOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
@@ -91,6 +103,17 @@ export const createDataProvider = (
 
     revoke: async (resource, { id }) => {
       await httpClient(resourceUrl(resource, id, 'revoke'), { method: 'POST' })
+    },
+
+    activate: async (resource, { id, replaces }) => {
+      await httpClient(resourceUrl(resource, id, 'activate'), {
+        method: 'POST',
+        body: JSON.stringify({ replaces }),
+      })
+    },
+
+    deactivate: async (resource, { id }) => {
+      await httpClient(resourceUrl(resource, id, 'deactivate'), { method: 'POST' })
     },
 
     getTrafficTotal: async (resource, { id, ...range }) => {
