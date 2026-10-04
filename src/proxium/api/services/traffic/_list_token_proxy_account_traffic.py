@@ -1,4 +1,5 @@
 from datetime import date
+from typing import ClassVar
 
 from fastapi import HTTPException, status
 from fastapi_pagination import Page
@@ -7,7 +8,7 @@ from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import TokenProxyAccountModel, TokenProxyAccountTrafficModel
+from proxium.db import Permission, TokenProxyAccountModel, TokenProxyAccountTrafficModel
 from proxium.helpers import BaseSchema
 
 
@@ -26,6 +27,8 @@ class ListTokenProxyAccountTrafficResponse(BaseSchema):
 
 
 class ListTokenProxyAccountTrafficService(BaseUserAuthenticatedService[Page[ListTokenProxyAccountTrafficResponse]]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.TRAFFIC_VIEW})
+
     id: int
     data: ListTokenProxyAccountTrafficRequest
 

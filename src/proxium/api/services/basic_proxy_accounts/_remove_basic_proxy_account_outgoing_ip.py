@@ -1,11 +1,11 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from fastapi import HTTPException, status
 from sqlalchemy import Result, Select, delete, exists, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import BasicProxyAccountModel, BasicProxyAccountOutgoingIPModel, OutgoingMode
+from proxium.db import BasicProxyAccountModel, BasicProxyAccountOutgoingIPModel, OutgoingMode, Permission
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import ReturningDelete
@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 
 class RemoveBasicProxyAccountOutgoingIPService(BaseUserAuthenticatedService[None]):
     """Take an IP out of the outgoing IP pool, the IP itself stays. The last one stays while the pool is in use."""
+
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.BASIC_PROXY_ACCOUNTS_CHANGE})
 
     id: int
     outgoing_ip_id: int

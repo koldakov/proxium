@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from fastapi import HTTPException, status
 from sqlalchemy import Result, Select, func, select
 from sqlalchemy.dialects.postgresql import Insert, insert
@@ -5,11 +7,13 @@ from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
 from proxium.core import api_settings
-from proxium.db import OutgoingIPModel, TrustedNetworkModel, TrustedNetworkOutgoingIPModel
+from proxium.db import OutgoingIPModel, Permission, TrustedNetworkModel, TrustedNetworkOutgoingIPModel
 
 
 class AddTrustedNetworkOutgoingIPService(BaseUserAuthenticatedService[None]):
     """Add an IP to the outgoing IP pool. Adding it again changes nothing. A pool is of one IP family."""
+
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.TRUSTED_NETWORKS_CHANGE})
 
     id: int
     outgoing_ip_id: int

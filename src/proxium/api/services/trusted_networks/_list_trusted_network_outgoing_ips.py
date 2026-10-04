@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi import HTTPException, status
 from fastapi_pagination import Page
@@ -9,7 +9,7 @@ from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import OutgoingIPModel, TrustedNetworkModel, TrustedNetworkOutgoingIPModel
+from proxium.db import OutgoingIPModel, Permission, TrustedNetworkModel, TrustedNetworkOutgoingIPModel
 from proxium.helpers import BaseSchema
 
 
@@ -28,6 +28,8 @@ class ListTrustedNetworkOutgoingIPsResponse(BaseSchema):
 
 
 class ListTrustedNetworkOutgoingIPsService(BaseUserAuthenticatedService[Page[ListTrustedNetworkOutgoingIPsResponse]]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.TRUSTED_NETWORKS_VIEW})
+
     id: int
 
     @property

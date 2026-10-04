@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from proxium.api.services import BaseUserAuthenticatedService
 from proxium.certificates import CertificateInfo, InvalidCertificateError, generate_self_signed, read_certificate
 from proxium.core import Hostname
-from proxium.db import CertificateModel, Encrypted
+from proxium.db import CertificateModel, Encrypted, Permission
 from proxium.helpers import BaseSchema
 
 
@@ -107,6 +107,8 @@ class CreateCertificateResponse(BaseSchema):
 
 class CreateCertificateService(BaseUserAuthenticatedService[CreateCertificateResponse]):
     """Added inactive, unless `activate`: then it replaces the active one, if that's still `replaces`."""
+
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.CERTIFICATES_ADD})
 
     # Partial unique index of the one active certificate.
     active_index: ClassVar[str] = "uq_certificates_active"

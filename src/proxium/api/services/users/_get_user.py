@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi import HTTPException, status
 from pydantic import EmailStr, Field
@@ -7,7 +7,7 @@ from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import UserModel
+from proxium.db import Permission, UserModel
 from proxium.helpers import BaseSchema
 
 
@@ -38,6 +38,8 @@ class GetUserResponse(BaseSchema):
 
 
 class GetUserService(BaseUserAuthenticatedService[GetUserResponse]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.USERS_VIEW})
+
     id: int
 
     @property

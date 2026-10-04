@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi import HTTPException, status
 from pydantic import Field, IPvAnyAddress
@@ -7,7 +7,7 @@ from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import OutgoingIPModel
+from proxium.db import OutgoingIPModel, Permission
 from proxium.helpers import BaseSchema
 
 
@@ -27,6 +27,8 @@ class GetOutgoingIPResponse(BaseSchema):
 
 
 class GetOutgoingIPService(BaseUserAuthenticatedService[GetOutgoingIPResponse]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.OUTGOING_IPS_VIEW})
+
     id: int
 
     @property

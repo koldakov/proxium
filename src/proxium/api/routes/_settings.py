@@ -29,6 +29,9 @@ settings_router: APIRouter = APIRouter(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `settings.view`.",
+        },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "description": "Unexpected server error.",
         },
@@ -51,6 +54,9 @@ async def get_settings(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `settings.change`.",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (

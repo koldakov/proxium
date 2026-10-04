@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from asyncpg import UniqueViolationError
 from fastapi import HTTPException, status
@@ -7,7 +7,7 @@ from pydantic import Field, IPvAnyAddress, StringConstraints
 from sqlalchemy.exc import IntegrityError
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import OutgoingIPModel
+from proxium.db import OutgoingIPModel, Permission
 from proxium.helpers import BaseSchema
 
 
@@ -40,6 +40,8 @@ class CreateOutgoingIPResponse(BaseSchema):
 
 
 class CreateOutgoingIPService(BaseUserAuthenticatedService[CreateOutgoingIPResponse]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.OUTGOING_IPS_ADD})
+
     data: CreateOutgoingIPRequest
 
     async def process(self, *args, **kwargs) -> CreateOutgoingIPResponse:

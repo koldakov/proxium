@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import IntEnum
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import apaginate
@@ -8,7 +8,7 @@ from pydantic import Field, IPvAnyAddress
 from sqlalchemy import Select, func, or_, select
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import OutgoingIPModel
+from proxium.db import OutgoingIPModel, Permission
 from proxium.helpers import BaseSchema
 
 
@@ -47,6 +47,8 @@ class ListOutgoingIPsResponse(BaseSchema):
 
 
 class ListOutgoingIPsService(BaseUserAuthenticatedService[Page[ListOutgoingIPsResponse]]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.OUTGOING_IPS_VIEW})
+
     data: ListOutgoingIPsRequest
 
     @property

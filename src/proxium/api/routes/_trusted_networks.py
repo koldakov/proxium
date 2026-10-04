@@ -44,6 +44,9 @@ trusted_networks_router: APIRouter = APIRouter(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.add`.",
+        },
         status.HTTP_409_CONFLICT: {
             "description": "The network is already trusted.",
         },
@@ -76,6 +79,9 @@ async def create_trusted_network(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.view`.",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Query parameters are malformed, e.g. the page size is out of range or the network invalid.",
@@ -112,6 +118,9 @@ async def list_trusted_networks(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.view`.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Network not found.",
         },
@@ -141,6 +150,9 @@ async def get_trusted_network(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.change`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Network not found.",
@@ -183,6 +195,9 @@ async def update_trusted_network(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.delete`.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Network not found.",
         },
@@ -218,6 +233,9 @@ async def delete_trusted_network(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.change` or `outgoing_ips.view`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Network not found.",
@@ -261,6 +279,9 @@ async def list_trusted_network_available_outgoing_ips(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.view`.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Network not found.",
         },
@@ -293,6 +314,9 @@ async def list_trusted_network_outgoing_ips(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.change`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Network or outgoing IP not found.",
@@ -334,6 +358,9 @@ async def add_trusted_network_outgoing_ip(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.change`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Network not found, or the IP is not in its pool.",

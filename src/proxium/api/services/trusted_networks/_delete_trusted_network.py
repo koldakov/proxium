@@ -1,10 +1,12 @@
+from typing import ClassVar
+
 from asyncpg import RestrictViolationError
 from fastapi import HTTPException, status
 from sqlalchemy import Delete, Result, Select, delete, select
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import TrustedNetworkModel, TrustedNetworkOutgoingIPModel
+from proxium.db import Permission, TrustedNetworkModel, TrustedNetworkOutgoingIPModel
 
 
 class DeleteTrustedNetworkService(BaseUserAuthenticatedService[None]):
@@ -12,6 +14,8 @@ class DeleteTrustedNetworkService(BaseUserAuthenticatedService[None]):
 
     A network with traffic stays: its history is kept, turn it off instead. Its outgoing IP pool goes, the IPs stay.
     """
+
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.TRUSTED_NETWORKS_DELETE})
 
     id: int
 

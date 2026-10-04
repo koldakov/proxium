@@ -43,6 +43,9 @@ basic_proxy_accounts_router: APIRouter = APIRouter(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `basic_proxy_accounts.add`.",
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "The body is malformed, e.g. `expiresAt` is in the past or a pool IP is unknown.",
         },
@@ -72,6 +75,9 @@ async def create_basic_proxy_account(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `basic_proxy_accounts.view`.",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Query parameters are malformed, e.g. the page size is out of range.",
@@ -110,6 +116,9 @@ async def list_basic_proxy_accounts(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `basic_proxy_accounts.view`.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Account not found.",
         },
@@ -139,6 +148,9 @@ async def get_basic_proxy_account(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `basic_proxy_accounts.change`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Account not found.",
@@ -181,6 +193,9 @@ async def update_basic_proxy_account(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `basic_proxy_accounts.revoke`.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Account not found.",
         },
@@ -213,6 +228,9 @@ async def revoke_basic_proxy_account(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `basic_proxy_accounts.change` or `outgoing_ips.view`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Account not found.",
@@ -256,6 +274,9 @@ async def list_basic_proxy_account_available_outgoing_ips(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `basic_proxy_accounts.view`.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Account not found.",
         },
@@ -288,6 +309,9 @@ async def list_basic_proxy_account_outgoing_ips(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `basic_proxy_accounts.change`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Account or outgoing IP not found.",
@@ -329,6 +353,9 @@ async def add_basic_proxy_account_outgoing_ip(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `basic_proxy_accounts.change`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Account not found, or the IP is not in its pool.",

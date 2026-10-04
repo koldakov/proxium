@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import ClassVar
 
 from asyncpg import UniqueViolationError
 from fastapi import HTTPException, status
@@ -6,7 +7,7 @@ from sqlalchemy import Result, Select, Update, select, update
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import CertificateModel
+from proxium.db import CertificateModel, Permission
 from proxium.helpers import BaseSchema
 
 
@@ -21,6 +22,8 @@ class ActivateCertificateService(BaseUserAuthenticatedService[None]):
 
     New connections get it within a few seconds, open ones keep the old one. Activating the active one changes nothing.
     """
+
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.CERTIFICATES_ACTIVATE})
 
     id: int
     data: ActivateCertificateRequest

@@ -1,13 +1,17 @@
+from typing import ClassVar
+
 from fastapi import HTTPException, status
 from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import CertificateModel
+from proxium.db import CertificateModel, Permission
 
 
 class DeleteCertificateService(BaseUserAuthenticatedService[None]):
     """The active certificate stays: deactivate it first, so turning TLS off is a choice of its own."""
+
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.CERTIFICATES_DELETE})
 
     id: int
 

@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from pydantic import Field, IPvAnyNetwork, field_validator
 from sqlalchemy import Result, Select, select
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import SettingsModel
+from proxium.db import Permission, SettingsModel
 from proxium.helpers import BaseSchema
 
 
@@ -72,6 +72,8 @@ class UpdateSettingsResponse(BaseSchema):
 
 
 class UpdateSettingsService(BaseUserAuthenticatedService[UpdateSettingsResponse]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.SETTINGS_CHANGE})
+
     data: UpdateSettingsRequest
 
     @property

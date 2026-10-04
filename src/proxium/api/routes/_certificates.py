@@ -37,6 +37,9 @@ certificates_router: APIRouter = APIRouter(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `certificates.add`.",
+        },
         status.HTTP_409_CONFLICT: {
             "description": "The certificate is already uploaded, or with `activate` the active one isn't `replaces`.",
         },
@@ -76,6 +79,9 @@ async def create_certificate(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `certificates.view`.",
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Query parameters are malformed, e.g. the page size is out of range.",
         },
@@ -107,6 +113,9 @@ async def list_certificates(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `certificates.view`.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Certificate not found.",
         },
@@ -136,6 +145,9 @@ async def get_certificate(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `certificates.activate`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Certificate not found.",
@@ -182,6 +194,9 @@ async def activate_certificate(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `certificates.activate`.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Certificate not found.",
         },
@@ -214,6 +229,9 @@ async def deactivate_certificate(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `certificates.delete`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Certificate not found.",

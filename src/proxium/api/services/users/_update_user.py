@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from asyncpg import UniqueViolationError
 from fastapi import HTTPException, status
@@ -7,6 +7,7 @@ from pydantic import EmailStr, Field, StringConstraints
 from sqlalchemy.exc import IntegrityError
 
 from proxium.api.services import BaseUserAuthenticatedService
+from proxium.db import Permission  # noqa: TC001, pydantic reads annotations at runtime.
 from proxium.helpers import BaseSchema
 
 
@@ -64,6 +65,9 @@ class UpdateUserResponse(BaseSchema):
 
 
 class UpdateUserService(BaseUserAuthenticatedService[UpdateUserResponse]):
+    # Any active user, for themselves.
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset()
+
     data: UpdateUserRequest
 
     async def process(self, *args, **kwargs) -> UpdateUserResponse:

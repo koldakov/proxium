@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi import HTTPException, status
 from pydantic import Field, StringConstraints
@@ -7,7 +7,7 @@ from sqlalchemy import Result, Select, exists, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import OutgoingMode, TokenProxyAccountModel, TokenProxyAccountOutgoingIPModel
+from proxium.db import OutgoingMode, Permission, TokenProxyAccountModel, TokenProxyAccountOutgoingIPModel
 from proxium.helpers import BaseSchema
 
 
@@ -45,6 +45,8 @@ class UpdateTokenProxyAccountResponse(BaseSchema):
 
 
 class UpdateTokenProxyAccountService(BaseUserAuthenticatedService[UpdateTokenProxyAccountResponse]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.TOKEN_PROXY_ACCOUNTS_CHANGE})
+
     id: int
     data: UpdateTokenProxyAccountRequest
 

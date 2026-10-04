@@ -7,11 +7,18 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 import jwt
 from fastapi import HTTPException, status
 from pydantic import Field, ValidationError
-from sqlalchemy import Result, Select, select
+from sqlalchemy import CompoundSelect, Result, Select, select, union
 from sqlalchemy.exc import NoResultFound
 
 from proxium.core import api_settings
-from proxium.db import UserModel, session_manager
+from proxium.db import (
+    GroupPermissionModel,
+    Permission,
+    UserGroupModel,
+    UserModel,
+    UserPermissionModel,
+    session_manager,
+)
 from proxium.helpers import BaseSchema
 
 if TYPE_CHECKING:
@@ -145,7 +152,13 @@ class BaseSessionService[R](BaseService[R], ABC):
 
 
 class BaseUserAuthenticatedService[R](BaseSessionService[R], ABC):
-    """A use case of the logged-in user, available via `self.user`. `token` is an access JWT."""
+    """A use case of the logged-in user, available via `self.user`. `token` is an access JWT.
+
+    Subclasses set `required_permissions`, all of them are needed, empty for any active user.
+    """
+
+    # Checked on every call, not taken from the token: a change applies to the next request.
+    required_permissions: ClassVar[frozenset[Permission]]
 
     token: str
 
@@ -153,6 +166,7 @@ class BaseUserAuthenticatedService[R](BaseSessionService[R], ABC):
         super().__init__(**data)
 
         self._user: UserModel | None = None
+        self._permissions: frozenset[Permission] | None = None
 
     @property
     def user(self) -> UserModel:
@@ -160,6 +174,14 @@ class BaseUserAuthenticatedService[R](BaseSessionService[R], ABC):
             raise RuntimeError("User is not initialized.")
 
         return self._user
+
+    @property
+    def permissions(self) -> frozenset[Permission]:
+        """What the user may do: given directly and through groups, every permission for a superuser."""
+        if self._permissions is None:
+            raise RuntimeError("Permissions are not initialized.")
+
+        return self._permissions
 
     @property
     def _access_token(self) -> AccessToken:
@@ -171,16 +193,27 @@ class BaseUserAuthenticatedService[R](BaseSessionService[R], ABC):
                 headers={"WWW-Authenticate": "Bearer"},
             ) from None
 
+    # `_auth_` names: subclasses have their own users and permissions statements.
     @property
-    def _get_user_statement(self) -> Select[tuple[UserModel]]:
+    def _get_auth_user_statement(self) -> Select[tuple[UserModel]]:
         # The user may be deactivated since the token was issued.
         return select(UserModel).where(
             UserModel.id == self._access_token.user.id,
             UserModel.is_active.is_(True),
         )
 
+    @property
+    def _list_auth_permissions_statement(self) -> CompoundSelect:
+        # `union` drops duplicates, so there are no more rows than permissions.
+        return union(
+            select(UserPermissionModel.permission).where(UserPermissionModel.user_id == self.user.id),
+            select(GroupPermissionModel.permission)
+            .join(UserGroupModel, UserGroupModel.group_id == GroupPermissionModel.group_id)
+            .where(UserGroupModel.user_id == self.user.id),
+        )
+
     async def _set_user(self) -> None:
-        result: Result[tuple[UserModel]] = await self.session.execute(self._get_user_statement)
+        result: Result[tuple[UserModel]] = await self.session.execute(self._get_auth_user_statement)
         try:
             self._user = result.scalars().one()
         except NoResultFound:
@@ -189,9 +222,27 @@ class BaseUserAuthenticatedService[R](BaseSessionService[R], ABC):
                 headers={"WWW-Authenticate": "Bearer"},
             ) from None
 
+    async def _set_permissions(self) -> None:
+        if self.user.is_superuser:
+            self._permissions = frozenset(Permission)
+            return
+
+        result: Result[tuple[Permission]] = await self.session.execute(self._list_auth_permissions_statement)
+        self._permissions = frozenset(result.scalars())
+
+    def _check_permissions(self) -> None:
+        missing: frozenset[Permission] = self.required_permissions - self.permissions
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing permissions: {', '.join(sorted(missing))}.",
+            )
+
     async def __call__(self, *args, **kwargs) -> R:
         async with session_manager.session() as session:
             self._session = session
             await self._set_user()
+            await self._set_permissions()
+            self._check_permissions()
 
             return await self.process(*args, **kwargs)

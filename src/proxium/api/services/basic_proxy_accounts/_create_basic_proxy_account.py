@@ -1,7 +1,7 @@
 import asyncio
 import secrets
 from datetime import UTC, datetime
-from typing import Annotated, Self
+from typing import Annotated, ClassVar, Self
 
 from asyncpg import ForeignKeyViolationError
 from fastapi import HTTPException, status
@@ -18,6 +18,7 @@ from proxium.db import (
     Hash,
     OutgoingIPModel,
     OutgoingMode,
+    Permission,
 )
 from proxium.helpers import BaseSchema
 
@@ -78,6 +79,8 @@ class CreateBasicProxyAccountResponse(BaseSchema):
 
 
 class CreateBasicProxyAccountService(BaseUserAuthenticatedService[CreateBasicProxyAccountResponse]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.BASIC_PROXY_ACCOUNTS_ADD})
+
     data: CreateBasicProxyAccountRequest
 
     def _insert_outgoing_ips_statement(self, account_id: int, /) -> Insert:

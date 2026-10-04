@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi import HTTPException, status
 from fastapi_pagination import Page
@@ -10,7 +10,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import aliased
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import OutgoingIPModel, TrustedNetworkModel, TrustedNetworkOutgoingIPModel
+from proxium.db import OutgoingIPModel, Permission, TrustedNetworkModel, TrustedNetworkOutgoingIPModel
 from proxium.helpers import BaseSchema
 
 
@@ -45,6 +45,13 @@ class ListTrustedNetworkAvailableOutgoingIPsService(
     BaseUserAuthenticatedService[Page[ListTrustedNetworkAvailableOutgoingIPsResponse]],
 ):
     """IPs the pool can take: not in it yet and of its family. Any family for an empty pool."""
+
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset(
+        {
+            Permission.TRUSTED_NETWORKS_CHANGE,
+            Permission.OUTGOING_IPS_VIEW,
+        },
+    )
 
     id: int
     data: ListTrustedNetworkAvailableOutgoingIPsRequest

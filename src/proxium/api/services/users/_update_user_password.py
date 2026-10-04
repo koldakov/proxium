@@ -1,11 +1,11 @@
 import asyncio
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi import HTTPException, status
 from pydantic import Field, SecretStr
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import Hash
+from proxium.db import Hash, Permission
 from proxium.helpers import BaseSchema
 
 
@@ -29,6 +29,9 @@ class UpdateUserPasswordRequest(BaseSchema):
 
 
 class UpdateUserPasswordService(BaseUserAuthenticatedService[None]):
+    # Any active user, for themselves.
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset()
+
     data: UpdateUserPasswordRequest
 
     async def process(self, *args, **kwargs) -> None:

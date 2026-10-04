@@ -1,10 +1,11 @@
 from datetime import datetime
+from typing import ClassVar
 
 from pydantic import IPvAnyNetwork
 from sqlalchemy import Result, Select, select
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import SettingsModel
+from proxium.db import Permission, SettingsModel
 from proxium.helpers import BaseSchema
 
 
@@ -20,6 +21,8 @@ class GetSettingsResponse(BaseSchema):
 
 
 class GetSettingsService(BaseUserAuthenticatedService[GetSettingsResponse]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.SETTINGS_VIEW})
+
     @property
     def _get_settings_statement(self) -> Select[tuple[SettingsModel]]:
         return select(SettingsModel)

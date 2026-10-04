@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import apaginate
@@ -8,7 +8,7 @@ from sqlalchemy import Select, String, cast, func, literal, or_, select
 from sqlalchemy.dialects.postgresql import CIDR
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import OutgoingMode, TrustedNetworkModel
+from proxium.db import OutgoingMode, Permission, TrustedNetworkModel
 from proxium.helpers import BaseSchema
 
 
@@ -54,6 +54,8 @@ class ListTrustedNetworksResponse(BaseSchema):
 
 
 class ListTrustedNetworksService(BaseUserAuthenticatedService[Page[ListTrustedNetworksResponse]]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.TRUSTED_NETWORKS_VIEW})
+
     data: ListTrustedNetworksRequest
 
     @property

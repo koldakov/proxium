@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Self
+from typing import Annotated, ClassVar, Self
 
 from asyncpg import ForeignKeyViolationError, UniqueViolationError
 from fastapi import HTTPException, status
@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from proxium.api.services import BaseUserAuthenticatedService
 from proxium.core import api_settings
-from proxium.db import OutgoingIPModel, OutgoingMode, TrustedNetworkModel, TrustedNetworkOutgoingIPModel
+from proxium.db import OutgoingIPModel, OutgoingMode, Permission, TrustedNetworkModel, TrustedNetworkOutgoingIPModel
 from proxium.helpers import BaseSchema
 
 
@@ -57,6 +57,8 @@ class CreateTrustedNetworkResponse(BaseSchema):
 
 
 class CreateTrustedNetworkService(BaseUserAuthenticatedService[CreateTrustedNetworkResponse]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.TRUSTED_NETWORKS_ADD})
+
     data: CreateTrustedNetworkRequest
 
     def _insert_outgoing_ips_statement(self, network_id: int, /) -> Insert:

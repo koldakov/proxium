@@ -37,6 +37,9 @@ outgoing_ips_router: APIRouter = APIRouter(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `outgoing_ips.add`.",
+        },
         status.HTTP_409_CONFLICT: {
             "description": "The IP is already added.",
         },
@@ -70,6 +73,9 @@ async def create_outgoing_ip(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `outgoing_ips.view`.",
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Query parameters are malformed, e.g. the page size or the version is out of range.",
         },
@@ -102,6 +108,9 @@ async def list_outgoing_ips(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `outgoing_ips.view`.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "IP not found.",
         },
@@ -131,6 +140,9 @@ async def get_outgoing_ip(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `outgoing_ips.change`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "IP not found.",
@@ -169,6 +181,9 @@ async def update_outgoing_ip(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `outgoing_ips.delete`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "IP not found.",

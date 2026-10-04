@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi import HTTPException, status
 from fastapi_pagination import Page
@@ -9,7 +9,7 @@ from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import BasicProxyAccountModel, BasicProxyAccountOutgoingIPModel, OutgoingIPModel
+from proxium.db import BasicProxyAccountModel, BasicProxyAccountOutgoingIPModel, OutgoingIPModel, Permission
 from proxium.helpers import BaseSchema
 
 
@@ -30,6 +30,8 @@ class ListBasicProxyAccountOutgoingIPsResponse(BaseSchema):
 class ListBasicProxyAccountOutgoingIPsService(
     BaseUserAuthenticatedService[Page[ListBasicProxyAccountOutgoingIPsResponse]],
 ):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.BASIC_PROXY_ACCOUNTS_VIEW})
+
     id: int
 
     @property

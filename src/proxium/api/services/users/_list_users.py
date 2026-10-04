@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import apaginate
@@ -7,7 +7,7 @@ from pydantic import EmailStr, Field
 from sqlalchemy import Select, or_, select
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import UserModel
+from proxium.db import Permission, UserModel
 from proxium.helpers import BaseSchema
 
 
@@ -37,6 +37,8 @@ class ListUsersResponse(BaseSchema):
 
 
 class ListUsersService(BaseUserAuthenticatedService[Page[ListUsersResponse]]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.USERS_VIEW})
+
     # Matches email, name or surname, case-insensitive.
     query: Annotated[
         str | None,

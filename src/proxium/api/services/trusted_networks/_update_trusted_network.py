@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from asyncpg import UniqueViolationError
 from fastapi import HTTPException, status
@@ -8,7 +8,7 @@ from sqlalchemy import Result, Select, exists, select
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import OutgoingMode, TrustedNetworkModel, TrustedNetworkOutgoingIPModel
+from proxium.db import OutgoingMode, Permission, TrustedNetworkModel, TrustedNetworkOutgoingIPModel
 from proxium.helpers import BaseSchema
 
 
@@ -47,6 +47,8 @@ class UpdateTrustedNetworkResponse(BaseSchema):
 
 
 class UpdateTrustedNetworkService(BaseUserAuthenticatedService[UpdateTrustedNetworkResponse]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.TRUSTED_NETWORKS_CHANGE})
+
     id: int
     data: UpdateTrustedNetworkRequest
 

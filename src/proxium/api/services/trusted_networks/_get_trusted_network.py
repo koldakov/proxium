@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi import HTTPException, status
 from pydantic import Field, IPvAnyNetwork
@@ -7,7 +7,7 @@ from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import OutgoingMode, TrustedNetworkModel
+from proxium.db import OutgoingMode, Permission, TrustedNetworkModel
 from proxium.helpers import BaseSchema
 
 
@@ -29,6 +29,8 @@ class GetTrustedNetworkResponse(BaseSchema):
 
 
 class GetTrustedNetworkService(BaseUserAuthenticatedService[GetTrustedNetworkResponse]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.TRUSTED_NETWORKS_VIEW})
+
     id: int
 
     @property

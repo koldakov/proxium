@@ -1,11 +1,12 @@
 from datetime import datetime
+from typing import ClassVar
 
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import apaginate
 from sqlalchemy import Select, select
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import CertificateModel
+from proxium.db import CertificateModel, Permission
 from proxium.helpers import BaseSchema
 
 
@@ -28,6 +29,8 @@ class ListCertificatesResponse(BaseSchema):
 
 
 class ListCertificatesService(BaseUserAuthenticatedService[Page[ListCertificatesResponse]]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.CERTIFICATES_VIEW})
+
     data: ListCertificatesRequest
 
     @property

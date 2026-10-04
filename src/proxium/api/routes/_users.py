@@ -63,6 +63,9 @@ async def create_user(data: CreateUserRequest) -> CreateUserResponse:
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `users.view`.",
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Query parameters are malformed, e.g. the page size is out of range.",
         },
@@ -179,6 +182,9 @@ async def update_user_password(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `users.view`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "User not found.",

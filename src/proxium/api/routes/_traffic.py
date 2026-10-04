@@ -44,6 +44,9 @@ traffic_router: APIRouter = APIRouter(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `traffic.view`.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Account not found.",
         },
@@ -83,6 +86,9 @@ async def list_basic_proxy_account_traffic(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `traffic.view`.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Account not found.",
         },
@@ -120,6 +126,9 @@ async def get_basic_proxy_account_traffic_total(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `traffic.view`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Account not found.",
@@ -160,6 +169,9 @@ async def list_token_proxy_account_traffic(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `traffic.view`.",
+        },
         status.HTTP_404_NOT_FOUND: {
             "description": "Account not found.",
         },
@@ -197,6 +209,9 @@ async def get_token_proxy_account_traffic_total(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `traffic.view`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Network not found.",
@@ -236,6 +251,9 @@ async def list_trusted_network_traffic(
         },
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `traffic.view`.",
         },
         status.HTTP_404_NOT_FOUND: {
             "description": "Network not found.",

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi import HTTPException, status
 from pydantic import Field
@@ -7,7 +7,7 @@ from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import OutgoingMode, TokenProxyAccountModel
+from proxium.db import OutgoingMode, Permission, TokenProxyAccountModel
 from proxium.helpers import BaseSchema
 
 
@@ -30,6 +30,8 @@ class GetTokenProxyAccountResponse(BaseSchema):
 
 
 class GetTokenProxyAccountService(BaseUserAuthenticatedService[GetTokenProxyAccountResponse]):
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.TOKEN_PROXY_ACCOUNTS_VIEW})
+
     id: int
 
     @property

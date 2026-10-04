@@ -1,13 +1,17 @@
+from typing import ClassVar
+
 from fastapi import HTTPException, status
 from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import CertificateModel
+from proxium.db import CertificateModel, Permission
 
 
 class DeactivateCertificateService(BaseUserAuthenticatedService[None]):
     """Turn it off. Without an active certificate TLS is off: TLS clients are refused, open connections stay."""
+
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.CERTIFICATES_ACTIVATE})
 
     id: int
 

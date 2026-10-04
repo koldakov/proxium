@@ -1,14 +1,18 @@
+from typing import ClassVar
+
 from asyncpg import RestrictViolationError
 from fastapi import HTTPException, status
 from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import OutgoingIPModel
+from proxium.db import OutgoingIPModel, Permission
 
 
 class DeleteOutgoingIPService(BaseUserAuthenticatedService[None]):
     """An IP in a pool stays: take it out of the pools first."""
+
+    required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.OUTGOING_IPS_DELETE})
 
     id: int
 
