@@ -44,6 +44,7 @@ Read by the proxy, the API and the management commands.
 | `PROXY_LISTEN` | Addresses to listen on, default `127.0.0.1:8080`, see below |
 | `PROXY_GRACEFUL_TIMEOUT` | Seconds open connections get to finish on shutdown, default `30` |
 | `PROXY_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`, default `INFO` |
+| `PROXY_SETTINGS_POLL_INTERVAL` | Seconds between lookups of the [settings](#settings) from the admin UI, default `5` |
 
 `PROXY_LISTEN` is a comma-separated list of `host:port` pairs. A host is an IP address, a network or a host name,
 IPv6 goes in brackets. A port may be an inclusive range. Every host listens on every port of its pair:
@@ -207,6 +208,18 @@ e.g. `ip addr add 203.0.113.11/32 dev eth0`, and routed to it. Nothing checks th
 another host: a connection from an IP that isn't there fails with "not on this host or loopback" in the log, and
 so does one from loopback, e.g. `listener` on `127.0.0.1`. Nothing falls back to another IP. Behind cloud NAT,
 use the private IPs the public ones map to. IPs of different providers need policy routing (`ip rule`) in the OS.
+
+### Settings
+
+The Settings page of the admin UI holds what the proxy does with connections. The proxy looks the settings up
+every `PROXY_SETTINGS_POLL_INTERVAL` seconds and applies them without a restart: new connections get them, open
+ones keep the old.
+
+- Allowed networks: the proxy reaches only the public internet, loopback, private networks and cloud metadata
+  (`169.254.169.254`) are blocked. List the private networks clients may reach anyway, e.g. `10.0.0.0/8`. Every
+  client gets them, accounts and trusted networks alike.
+- Timeouts, seconds: handshake, for a client to authenticate and send its request, `10` by default; idle, after
+  which a silent tunnel is closed, `300`; connect, to resolve and reach a target, `10`.
 
 Check an account with a site that shows the caller's IP:
 
