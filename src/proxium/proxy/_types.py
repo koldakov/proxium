@@ -91,6 +91,8 @@ class Session:
     # Where the client came in: the listener address as configured, e.g. 0.0.0.0, and the actual one of the socket.
     listener: Address
     local: Address | None
+    # The client came over TLS.
+    encrypted: bool = False
     request: Request | None = None
     error: Exception | None = None
     bytes_sent: int = 0

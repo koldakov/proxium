@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 import contextlib
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
-from ._types import Address
+if TYPE_CHECKING:
+    import socket
+    import ssl
 
 
 class Stream:
@@ -20,29 +24,23 @@ class Stream:
         self._writer: asyncio.StreamWriter = writer
         self._buffer: bytearray = bytearray()
 
+    @classmethod
+    async def accept(cls, sock: socket.socket, /, *, encryption: ssl.SSLContext | None = None) -> Self:
+        """Take over an accepted socket, after a TLS handshake if `encryption` is given.
+
+        The socket belongs to the stream from here, even if the handshake fails: the loop closes it then.
+        """
+        loop = asyncio.get_running_loop()
+        reader = asyncio.StreamReader(loop=loop)
+        protocol = asyncio.StreamReaderProtocol(reader, loop=loop)
+        transport, _ = await loop.connect_accepted_socket(lambda: protocol, sock, ssl=encryption)
+        return cls(reader, asyncio.StreamWriter(transport, protocol, reader, loop))
+
     async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(self, *_: object) -> None:
         await self.close()
-
-    @property
-    def peer(self) -> Address | None:
-        """The remote address, None if the socket was gone before it could be read."""
-        peername = self._writer.get_extra_info("peername")
-        if peername is None:
-            return None
-        host, port, *_ = peername
-        return Address(host, port)
-
-    @property
-    def local(self) -> Address | None:
-        """This side's address, None if the socket was gone before it could be read."""
-        sockname = self._writer.get_extra_info("sockname")
-        if sockname is None:
-            return None
-        host, port, *_ = sockname
-        return Address(host, port)
 
     async def peek(self, n: int, /) -> bytes:
         """The next `n` bytes, left in the buffer for the next read."""
@@ -83,8 +81,11 @@ class Stream:
         await self._writer.drain()
 
     def write_eof(self) -> None:
+        """Tell the other side nothing more comes. TLS can't half-close, so it closes the whole connection."""
         if self._writer.can_write_eof():
             self._writer.write_eof()
+        else:
+            self._writer.close()
 
     async def close(self) -> None:
         self._writer.close()

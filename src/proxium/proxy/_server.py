@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import functools
 import logging
-from typing import TYPE_CHECKING
+import socket
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from ._connection import Connection
-from ._stream import Stream
 from ._types import Address, Session
 
 if TYPE_CHECKING:
@@ -22,12 +21,26 @@ class ListenError(Exception):
 
 
 class ProxyServer:
-    """Opens and closes listeners, hands every accepted connection to a `Connection` with the listener's profile."""
+    """Opens and closes listeners, hands every accepted connection to a `Connection` with the listener's profile.
+
+    Accepts on its own sockets instead of `asyncio.start_server`: a connection must reach `Connection` untouched,
+    since a TLS handshake needs the bytes a stream would have already read.
+    """
+
+    backlog: ClassVar[int] = 100
+    # Seconds to wait after a failed accept, e.g. out of file descriptors, instead of failing again at once.
+    accept_retry_delay: ClassVar[float] = 1.0
 
     def __init__(self) -> None:
-        self._servers: dict[Address, asyncio.Server] = {}
+        # Accept loops of every address, one per socket it resolves to.
+        self._servers: dict[Address, list[asyncio.Task[None]]] = {}
         self._profiles: dict[Address, Profile] = {}
         self._connections: set[asyncio.Task[None]] = set()
+
+    @staticmethod
+    def _stop(tasks: list[asyncio.Task[None]], /) -> None:
+        for task in tasks:
+            task.cancel()
 
     async def update(self, listeners: Sequence[Listener], /) -> None:
         """Apply a new set of listeners, all or nothing.
@@ -47,19 +60,19 @@ class ProxyServer:
         previous = self._profiles
         # New sockets accept right away, so their profiles must be known before they open.
         self._profiles = previous | profiles
-        opened: dict[Address, asyncio.Server] = {}
+        opened: dict[Address, list[asyncio.Task[None]]] = {}
         for address in added:
             try:
                 opened[address] = await self._listen(address)
             except ListenError:
-                for server in opened.values():
-                    server.close()
+                for tasks in opened.values():
+                    self._stop(tasks)
                 self._profiles = previous
                 raise
 
         self._servers |= opened
         for address in removed:
-            self._servers.pop(address).close()
+            self._stop(self._servers.pop(address))
         self._profiles = profiles
         for address in sorted(added, key=str):
             logger.debug("Listening on %s", address)
@@ -69,8 +82,8 @@ class ProxyServer:
 
     async def shutdown(self, *, timeout: float) -> None:
         """Stop accepting, give open connections `timeout` seconds to finish, then cut them."""
-        for server in self._servers.values():
-            server.close()
+        for tasks in self._servers.values():
+            self._stop(tasks)
         self._servers.clear()
 
         if not self._connections:
@@ -81,38 +94,94 @@ class ProxyServer:
             task.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
 
-    async def _listen(self, address: Address, /) -> asyncio.Server:
-        try:
-            return await asyncio.start_server(
-                functools.partial(self._accept, address),
-                address.host,
-                address.port,
-            )
-        except OSError as error:
-            raise ListenError(f"Can't listen on {address}: {error}") from error
+    @classmethod
+    def _bind(cls, sock: socket.socket, sockaddr: Any, /) -> None:
+        # Restarts don't wait for old connections in TIME_WAIT to free the port.
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if sock.family == socket.AF_INET6:
+            # [::] takes IPv6 only, so 0.0.0.0 on the same port can be listened on too.
+            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+        sock.bind(sockaddr)
+        sock.listen(cls.backlog)
+        sock.setblocking(False)
 
-    def _accept(
-        self,
-        address: Address,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
-    ) -> None:
+    @classmethod
+    def _open_socket(cls, family: int, kind: int, proto: int, sockaddr: Any, /) -> socket.socket:
+        sock = socket.socket(family, kind, proto)
+        try:
+            cls._bind(sock, sockaddr)
+        except OSError:
+            sock.close()
+            raise
+        return sock
+
+    def _spawn(self, address: Address, client: socket.socket, peer: Any, /) -> None:
+        client.setblocking(False)
         # Keeps a reference to every connection task, so shutdown can wait for them.
-        task = asyncio.create_task(self._handle(address, Stream(reader, writer)))
+        task = asyncio.create_task(self._handle(address, client, peer))
         self._connections.add(task)
         task.add_done_callback(self._connections.discard)
 
-    async def _handle(self, address: Address, client: Stream, /) -> None:
+    async def _accept_forever(self, address: Address, sock: socket.socket, /) -> None:
+        loop = asyncio.get_running_loop()
+        while True:
+            try:
+                client, peer = await loop.sock_accept(sock)
+            except ConnectionError:
+                # The client gave up before it was accepted.
+                continue
+            except OSError as error:
+                logger.error("Can't accept on %s, retrying in %ss: %s", address, self.accept_retry_delay, error)
+                await asyncio.sleep(self.accept_retry_delay)
+                continue
+            self._spawn(address, client, peer)
+
+    def _start_accepting(self, address: Address, sock: socket.socket, /) -> asyncio.Task[None]:
+        task = asyncio.create_task(self._accept_forever(address, sock))
+        # Closed once nothing waits on it, even if the task is cancelled before it starts.
+        task.add_done_callback(lambda _: sock.close())
+        return task
+
+    async def _listen(self, address: Address, /) -> list[asyncio.Task[None]]:
+        """Open a socket for every address the host resolves to and start accepting on them."""
+        loop = asyncio.get_running_loop()
+        try:
+            infos = await loop.getaddrinfo(address.host, address.port, type=socket.SOCK_STREAM, flags=socket.AI_PASSIVE)
+        except OSError as error:
+            raise ListenError(f"Can't listen on {address}: {error}") from error
+
+        sockets: list[socket.socket] = []
+        # A host may resolve to the same address twice.
+        for family, kind, proto, _, sockaddr in dict.fromkeys(infos):
+            try:
+                sockets.append(self._open_socket(family, kind, proto, sockaddr))
+            except OSError as error:
+                for sock in sockets:
+                    sock.close()
+                raise ListenError(f"Can't listen on {address}: {error}") from error
+        return [self._start_accepting(address, sock) for sock in sockets]
+
+    @staticmethod
+    def _local(sock: socket.socket, /) -> Address | None:
+        """This side's address, None if the socket was gone before it could be read."""
+        try:
+            host, port, *_ = sock.getsockname()
+        except OSError:
+            return None
+        return Address(host, port)
+
+    async def _handle(self, address: Address, client: socket.socket, peer: Any, /) -> None:
         try:
             profile = self._profiles[address]
         except KeyError:
             # The listener was removed right after accepting.
-            await client.close()
+            client.close()
             return
 
+        host, port, *_ = peer
         session = Session(
-            client=client.peer,
+            client=Address(host, port),
             listener=address,
-            local=client.local,
+            local=self._local(client),
         )
         await Connection(profile, client, session).run()

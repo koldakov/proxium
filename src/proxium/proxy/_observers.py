@@ -28,10 +28,11 @@ class LoggingObserver(Observer):
             return
 
         logger.info(
-            "%s %s -> %s sent=%d received=%d",
+            "%s %s -> %s sent=%d received=%d encrypted=%s",
             session.client,
             session.request.identity.subject,
             session.request.target,
             session.bytes_sent,
             session.bytes_received,
+            session.encrypted,
         )

@@ -20,6 +20,7 @@ from ._connectors import (
     TargetTimeout,
     TargetUnreachable,
 )
+from ._encryption import CachedEncryption, Encryption, EncryptionUnavailable, StaticEncryption
 from ._guards import AddressGuard, ForbiddenAddress, IPAddress
 from ._observers import LoggingObserver, Observer
 from ._policies import Forbidden, Policy
@@ -53,6 +54,7 @@ __all__ = [
     "BadRequest",
     "BasicCredentials",
     "BearerCredentials",
+    "CachedEncryption",
     "Connection",
     "Connector",
     "Credentials",
@@ -61,6 +63,8 @@ __all__ = [
     "DenyAllAuthenticator",
     "DirectConnector",
     "DispatchAuthenticator",
+    "Encryption",
+    "EncryptionUnavailable",
     "Forbidden",
     "ForbiddenAddress",
     "Host",
@@ -83,6 +87,7 @@ __all__ = [
     "Socks5Inbound",
     "SourceSelector",
     "SourceUnavailable",
+    "StaticEncryption",
     "Stream",
     "SystemSourceSelector",
     "TargetTimeout",
