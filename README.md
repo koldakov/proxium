@@ -235,6 +235,24 @@ curl -x http://USERNAME:PASSWORD@127.0.0.1:8080 https://ifconfig.me
 `Ctrl+C` (SIGINT) or SIGTERM stops accepting and waits up to `PROXY_GRACEFUL_TIMEOUT` for open connections.
 A second signal stops immediately.
 
+### Users and permissions
+
+Admin UI users are managed under Access. A superuser may do everything, the first one comes from
+`createsuperuser`, see [Management commands](#management-commands). Other users get permissions per section and
+action, e.g. view, add and change trusted networks, revoke basic accounts or activate certificates, through groups
+and on their own: a user has the permissions of all their groups plus their own. Traffic is a permission of its
+own, so a user can see accounts and networks without their traffic.
+
+- Groups, e.g. Operators or Read only, are named sets of permissions. A change to a group applies to all its
+  users.
+- A user gives only what they have: permissions, and groups whose permissions they all have. Taking away is
+  always allowed. Only superusers make superusers or change them.
+- Nobody deactivates themselves or takes their own superuser status away.
+- An inactive user can't log in. A change of permissions or activity applies to the user's next request, the
+  admin UI shows it within a minute.
+
+The admin UI hides what the user may not do: sections, buttons, the outgoing pool without access to outgoing IPs.
+
 ### API
 
 The API is a FastAPI app served by [Hypercorn](https://hypercorn.readthedocs.io/). Extra arguments go to Hypercorn:
