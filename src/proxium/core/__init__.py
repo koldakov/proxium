@@ -1,5 +1,6 @@
 from ._ciphers import DecryptionError, FernetCipher, cipher
 from ._hashers import hasher
+from ._hostname import Hostname
 from ._listen_address import ListenAddress
 from ._log_level import LogLevel
 from ._settings import (
@@ -23,6 +24,7 @@ __all__ = [
     "DecryptionError",
     "EncryptionSettings",
     "FernetCipher",
+    "Hostname",
     "ListenAddress",
     "LogLevel",
     "ProxySettings",

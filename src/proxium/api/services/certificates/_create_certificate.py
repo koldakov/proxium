@@ -10,9 +10,9 @@ from sqlalchemy.exc import IntegrityError
 
 from proxium.api.services import BaseUserAuthenticatedService
 from proxium.certificates import CertificateInfo, InvalidCertificateError, generate_self_signed, read_certificate
+from proxium.core import Hostname
 from proxium.db import CertificateModel, Encrypted
 from proxium.helpers import BaseSchema
-from proxium.proxy import Hostname
 
 
 class UploadCertificateRequest(BaseSchema):

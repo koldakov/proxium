@@ -1,10 +1,10 @@
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from ipaddress import ip_network
+from ipaddress import IPv4Address, IPv6Address, ip_network
 from typing import ClassVar, Final, Self
 
-from proxium.proxy import Host, Hostname
+from ._hostname import Hostname
 
 RANGE_SEPARATOR: Final[str] = "-"
 LIST_SEPARATOR: Final[str] = ","
@@ -13,6 +13,9 @@ MAX_PORT: Final[int] = 65535
 # Guards against a typo like 10.0.0.0/8:1-65535 opening millions of sockets, per item and in total.
 MAX_SOCKETS: Final[int] = 65_536
 IPV6: Final[int] = 6
+
+# An IP address or a valid lowercased host name, resolved when the socket is opened.
+type Host = IPv4Address | IPv6Address | str
 
 
 class HostParser(ABC):
@@ -60,7 +63,7 @@ class HostnameParser(HostParser):
         return True
 
     def parse(self, value: str, /) -> list[Host]:
-        return [Hostname(value)]
+        return [str(Hostname(value))]
 
 
 def _parse_port(value: str, /) -> int:

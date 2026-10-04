@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import re
 import time
-from collections import UserString
 from dataclasses import dataclass, field
 from ipaddress import IPv4Address, IPv6Address
 from typing import TYPE_CHECKING, Any, Final
@@ -10,28 +8,13 @@ from typing import TYPE_CHECKING, Any, Final
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-# RFC 1123: dot-separated labels of letters, digits and inner hyphens.
-HOSTNAME: Final[re.Pattern[str]] = re.compile(
-    r"(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*",
-    re.I,
-)
-
 
 class ProxyError(Exception):
     """Base for errors that an inbound reports to the client in its own protocol."""
 
 
-class Hostname(UserString):
-    """A valid DNS host name, lowercased. Only created through validation, so a plain `str` never passes for it."""
-
-    def __init__(self, value: str, /) -> None:
-        if not HOSTNAME.fullmatch(value):
-            raise ValueError(f"Invalid host name {value!r}.")
-        super().__init__(value.lower())
-
-
-# An IP address or a host name resolved when the socket is opened.
-type Host = IPv4Address | IPv6Address | Hostname
+# An IP address or a host name resolved when the socket is opened. Validating the name is up to the caller.
+type Host = IPv4Address | IPv6Address | str
 
 
 @dataclass(frozen=True, slots=True)
