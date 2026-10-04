@@ -1,5 +1,5 @@
 from ._base import BaseModel, BaseTimestampModel
-from ._fields import Hash, HashField
+from ._fields import Encrypted, EncryptedField, Hash, HashField
 from ._outgoing_ips import (
     BaseOutgoingIPLinkModel,
     BasicProxyAccountOutgoingIPModel,
@@ -28,6 +28,8 @@ __all__ = [
     "BasicProxyAccountModel",
     "BasicProxyAccountOutgoingIPModel",
     "BasicProxyAccountTrafficModel",
+    "Encrypted",
+    "EncryptedField",
     "Hash",
     "HashField",
     "OutgoingIPModel",

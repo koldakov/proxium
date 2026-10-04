@@ -1,6 +1,7 @@
 from typing import Annotated, Any
 from urllib.parse import urlparse
 
+from cryptography.fernet import Fernet
 from pydantic import EmailStr, Field, PostgresDsn, SecretStr, StringConstraints, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
@@ -99,6 +100,35 @@ class DatabaseSettings(BaseSettings):
 
 
 database_settings = DatabaseSettings()
+
+
+class EncryptionSettings(BaseSettings):
+    """One for every process: the API encrypts secrets kept in the database, the proxy decrypts them."""
+
+    # A Fernet key. Changing it makes stored secrets, e.g. private keys of TLS certificates, unreadable.
+    key: SecretStr
+
+    model_config = SettingsConfigDict(
+        env_prefix="encryption_",
+    )
+
+    @field_validator(
+        "key",
+        mode="after",
+    )
+    @classmethod
+    def _check_key(cls, value: SecretStr) -> SecretStr:
+        try:
+            Fernet(value.get_secret_value())
+        except ValueError:
+            raise ValueError(
+                "Not a Fernet key, generate one with "
+                '`python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"`.',
+            ) from None
+        return value
+
+
+encryption_settings = EncryptionSettings()
 
 
 class ApiSettings(BaseSettings):
@@ -202,6 +232,7 @@ superuser_settings = SuperuserSettings()
 class Settings(BaseSettings):
     api: ApiSettings = api_settings
     database: DatabaseSettings = database_settings
+    encryption: EncryptionSettings = encryption_settings
     proxy: ProxySettings = proxy_settings
     superuser: SuperuserSettings = superuser_settings
 
