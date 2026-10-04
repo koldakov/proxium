@@ -28,6 +28,13 @@ class ProxySettings(BaseSettings):
         ),
     ] = 30.0
     log_level: LogLevel = LogLevel.INFO
+    # Seconds between lookups of the settings edited in the admin: how soon new connections get the changes.
+    settings_poll_interval: Annotated[
+        float,
+        Field(
+            gt=0,
+        ),
+    ] = 5.0
 
     model_config = SettingsConfigDict(
         env_prefix="proxy_",

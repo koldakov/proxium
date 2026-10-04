@@ -21,7 +21,7 @@ from ._connectors import (
     TargetUnreachable,
 )
 from ._encryption import CachedEncryption, Encryption, EncryptionUnavailable, StaticEncryption
-from ._guards import AddressGuard, ForbiddenAddress, IPAddress
+from ._guards import AddressGuard, ForbiddenAddress, IPAddress, IPNetwork
 from ._observers import LoggingObserver, Observer
 from ._policies import Forbidden, Policy
 from ._profiles import Listener, Profile, Timeouts
@@ -69,6 +69,7 @@ __all__ = [
     "Host",
     "HttpInbound",
     "IPAddress",
+    "IPNetwork",
     "Identity",
     "Inbound",
     "ListenError",

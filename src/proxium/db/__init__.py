@@ -11,6 +11,7 @@ from ._outgoing_ips import (
 )
 from ._proxy_accounts import BaseProxyAccountModel, BasicProxyAccountModel, TokenProxyAccountModel
 from ._session import SessionClosedError, SessionManager, session_manager
+from ._settings import SettingsModel
 from ._traffic import (
     BaseTrafficModel,
     BasicProxyAccountTrafficModel,
@@ -38,6 +39,7 @@ __all__ = [
     "OutgoingMode",
     "SessionClosedError",
     "SessionManager",
+    "SettingsModel",
     "TokenProxyAccountModel",
     "TokenProxyAccountOutgoingIPModel",
     "TokenProxyAccountTrafficModel",
