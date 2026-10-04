@@ -14,6 +14,7 @@ class GetSettingsResponse(BaseSchema):
     handshake_timeout: float
     idle_timeout: float
     connect_timeout: float
+    cache_ttl: float
     created_at: datetime
     updated_at: datetime
 

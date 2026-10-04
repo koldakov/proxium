@@ -26,6 +26,7 @@ class SettingsSnapshot:
     handshake_timeout: float
     idle_timeout: float
     connect_timeout: float
+    cache_ttl: float
 
 
 type SettingsCallback = Callable[[SettingsSnapshot], Awaitable[None]]
@@ -89,6 +90,7 @@ class SettingsWatcher:
             handshake_timeout=settings.handshake_timeout,
             idle_timeout=settings.idle_timeout,
             connect_timeout=settings.connect_timeout,
+            cache_ttl=settings.cache_ttl,
         )
 
     async def _run(self) -> None:

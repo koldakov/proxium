@@ -34,12 +34,13 @@ export interface TrafficTotal {
   bytesReceived: number
 }
 
-// Timeouts in seconds. Networks in CIDR notation, a bare address is taken as /32 or /128.
+// Timeouts and the cache TTL in seconds. Networks in CIDR notation, a bare address is taken as /32 or /128.
 export interface Settings {
   guardAllow: string[]
   handshakeTimeout: number
   idleTimeout: number
   connectTimeout: number
+  cacheTtl: number
 }
 
 /** CRUD plus the actions some resources have on top of it. */

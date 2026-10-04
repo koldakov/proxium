@@ -54,7 +54,8 @@ async def get_settings(
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
-                "The body is malformed, e.g. a network has host bits or repeats, or a timeout is out of range."
+                "The body is malformed, e.g. a network has host bits or repeats, "
+                "or a timeout or the cache TTL is out of range."
             ),
         },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
@@ -71,6 +72,8 @@ async def update_settings(
     - `guardAllow`: private networks the proxy may connect to, e.g. 10.0.0.0/8. Empty: the public internet only.
     - Timeouts, seconds: `handshakeTimeout` to authenticate and send a request, `idleTimeout` for a silent tunnel,
       `connectTimeout` to reach a target.
+    - `cacheTtl`, seconds: how long checks of accounts and trusted networks and the TLS certificate are reused,
+      so how soon new connections see changes to them.
     """
     service: UpdateSettingsService = UpdateSettingsService(token=credentials.credentials, data=data)
     return await service()

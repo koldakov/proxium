@@ -40,6 +40,14 @@ class UpdateSettingsRequest(BaseSchema):
             le=86400,
         ),
     ]
+    # Seconds, up to an hour: a revoked account keeps working for this long.
+    cache_ttl: Annotated[
+        float,
+        Field(
+            gt=0,
+            le=3600,
+        ),
+    ]
 
     @field_validator(
         "guard_allow",
@@ -58,6 +66,7 @@ class UpdateSettingsResponse(BaseSchema):
     handshake_timeout: float
     idle_timeout: float
     connect_timeout: float
+    cache_ttl: float
     created_at: datetime
     updated_at: datetime
 

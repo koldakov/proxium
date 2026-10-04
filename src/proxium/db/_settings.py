@@ -31,6 +31,10 @@ class SettingsModel(BaseTimestampModel):
             "connect_timeout > 0",
             name="ck_settings_connect_timeout_positive",
         ),
+        CheckConstraint(
+            "cache_ttl > 0",
+            name="ck_settings_cache_ttl_positive",
+        ),
     )
 
     # Private networks the proxy may connect to anyway, e.g. an internal service. Empty: the public internet only.
@@ -53,6 +57,12 @@ class SettingsModel(BaseTimestampModel):
     )
     # Seconds to resolve and connect to a target.
     connect_timeout: Mapped[float] = mapped_column(
+        default=10.0,
+        server_default="10",
+    )
+    # Seconds the proxy reuses checks of accounts and trusted networks and the TLS certificate:
+    # how soon new connections see changes to them.
+    cache_ttl: Mapped[float] = mapped_column(
         default=10.0,
         server_default="10",
     )

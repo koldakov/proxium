@@ -28,6 +28,8 @@ const QUERY_KEY = ['settings']
 
 // A day: the API's limit too.
 const MAX_TIMEOUT = 86400
+// An hour: the API's limit too.
+const MAX_CACHE_TTL = 3600
 
 // Networks are `{ network }` rows in the form, the API takes strings.
 interface SettingsForm extends Omit<Settings, 'guardAllow'> {
@@ -43,6 +45,7 @@ const fromForm = (form: SettingsForm): Settings => ({
   handshakeTimeout: form.handshakeTimeout,
   idleTimeout: form.idleTimeout,
   connectTimeout: form.connectTimeout,
+  cacheTtl: form.cacheTtl,
   guardAllow: form.guardAllow.map(({ network }) => network.trim()),
 })
 
@@ -53,6 +56,7 @@ const uniqueNetworks = () => (rows: { network: string }[] | undefined) => {
 }
 
 const timeoutValidators = [required(), minValue(1), maxValue(MAX_TIMEOUT)]
+const cacheTtlValidators = [required(), minValue(1), maxValue(MAX_CACHE_TTL)]
 
 const GuardInputs = () => (
   <>
@@ -114,6 +118,24 @@ const TimeoutInputs = () => (
   </>
 )
 
+const CacheInputs = () => (
+  <>
+    <Typography variant="h6">Cache</Typography>
+    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      The proxy reuses checks of accounts and trusted networks and the TLS certificate for this long
+      instead of looking them up on every connection. Changes to them reach new connections within
+      it, e.g. a revoked account keeps connecting until it passes. Lowering it drops what&apos;s
+      cached, so it applies at once.
+    </Typography>
+    <NumberInput
+      source="cacheTtl"
+      label="Cache TTL, seconds"
+      validate={cacheTtlValidators}
+      helperText="Shorter applies changes sooner, longer saves the database. Default 10"
+    />
+  </>
+)
+
 /** Proxy settings: one record, applied by the proxy to new connections within a few seconds. */
 export const SettingsPage = () => {
   const dataProvider = useDataProvider<ProxiumDataProvider>()
@@ -158,6 +180,7 @@ export const SettingsPage = () => {
             <CardContent>
               <GuardInputs />
               <TimeoutInputs />
+              <CacheInputs />
             </CardContent>
             <Toolbar>
               <SaveButton />
