@@ -1,3 +1,4 @@
+from ._certificates import CertificateModel
 from ._outgoing_ips import (
     BasicProxyAccountOutgoingIPModel,
     OutgoingIPModel,
@@ -13,6 +14,7 @@ __all__ = [
     "BasicProxyAccountModel",
     "BasicProxyAccountOutgoingIPModel",
     "BasicProxyAccountTrafficModel",
+    "CertificateModel",
     "OutgoingIPModel",
     "TokenProxyAccountModel",
     "TokenProxyAccountOutgoingIPModel",

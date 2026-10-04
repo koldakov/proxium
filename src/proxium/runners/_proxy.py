@@ -10,6 +10,7 @@ from proxium.auth import (
     TokenProxyAccountAuthenticator,
     TrustedNetworkAuthenticator,
 )
+from proxium.certificates import CertificateEncryption
 from proxium.core import proxy_settings
 from proxium.db import (
     BasicProxyAccountTrafficModel,
@@ -21,6 +22,7 @@ from proxium.observers import TrafficObserver
 from proxium.proxy import (
     BasicCredentials,
     BearerCredentials,
+    CachedEncryption,
     DirectConnector,
     DispatchAuthenticator,
     HttpInbound,
@@ -86,6 +88,7 @@ class ProxyRunner:
         """HTTP and SOCKS5 proxy for accounts and trusted networks from the database, going straight to targets.
 
         Each goes out from the IP its account or network says. Their traffic is counted in the database.
+        Both may come wrapped in TLS with the active certificate from the database, looked up every few seconds.
         """
         return Profile(
             inbounds=[
@@ -106,6 +109,7 @@ class ProxyRunner:
                 LoggingObserver(),
                 self._traffic_observer,
             ],
+            encryption=CachedEncryption(CertificateEncryption()),
         )
 
     def run(self) -> None:

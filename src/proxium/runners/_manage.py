@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from proxium.management import ManagementUtility
-from proxium.management.commands import CreateSuperuserCommand
+from proxium.management.commands import CreateSuperuserCommand, ImportCertificateCommand
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -12,6 +12,7 @@ def run_manage(args: Sequence[str] | None = None) -> int:
     utility: ManagementUtility = ManagementUtility(
         [
             CreateSuperuserCommand(),
+            ImportCertificateCommand(),
         ],
     )
     return utility.run(args)
