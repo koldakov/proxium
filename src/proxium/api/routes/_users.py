@@ -144,11 +144,8 @@ async def get_user_me(
         status.HTTP_401_UNAUTHORIZED: {
             "description": "The access token is missing, invalid or expired, or the user is inactive.",
         },
-        status.HTTP_409_CONFLICT: {
-            "description": "Email is already taken.",
-        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
-            "description": "The body is malformed, e.g. the email is invalid.",
+            "description": "The body is malformed, e.g. the name is empty.",
         },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "description": "Unexpected server error.",
@@ -159,7 +156,10 @@ async def update_user_me(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     data: UpdateUserMeRequest,
 ) -> UpdateUserMeResponse:
-    """Update the logged-in user's profile. Only the given fields change, the password has its own endpoint."""
+    """Update the logged-in user's name and surname. Only the given fields change.
+
+    The email is the login, an admin changes it. The password has its own endpoint.
+    """
     service: UpdateUserMeService = UpdateUserMeService(token=credentials.credentials, data=data)
     return await service()
 
