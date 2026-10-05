@@ -3,10 +3,11 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Any, ClassVar
 
-from sqlalchemy import VARCHAR, Enum, ForeignKey, UniqueConstraint
+from sqlalchemy import VARCHAR, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from ._base import BaseModel, BaseTimestampModel
+from ._fields import ChoiceField
 
 
 class Permission(StrEnum):
@@ -55,20 +56,6 @@ class Permission(StrEnum):
     SETTINGS_CHANGE = "settings.change"
 
 
-def permission_column() -> Mapped[Permission]:
-    return mapped_column(
-        # A string with a check, not a PostgreSQL enum: a new permission needs no type migration.
-        Enum(
-            Permission,
-            name="permission",
-            native_enum=False,
-            create_constraint=True,
-            length=64,
-            values_callable=lambda permissions: [permission.value for permission in permissions],
-        ),
-    )
-
-
 class GroupModel(BaseTimestampModel):
     """A named set of permissions. Its users have them all."""
 
@@ -100,7 +87,13 @@ class GroupPermissionModel(BaseModel):
             ondelete="RESTRICT",
         ),
     )
-    permission: Mapped[Permission] = permission_column()
+    permission: Mapped[Permission] = mapped_column(
+        ChoiceField(
+            Permission,
+            name="permission",
+            length=64,
+        ),
+    )
 
     group: Mapped[GroupModel] = relationship(
         back_populates="permissions",
@@ -153,4 +146,10 @@ class UserPermissionModel(BaseUserLinkModel):
 
     value_column: ClassVar[str] = "permission"
 
-    permission: Mapped[Permission] = permission_column()
+    permission: Mapped[Permission] = mapped_column(
+        ChoiceField(
+            Permission,
+            name="permission",
+            length=64,
+        ),
+    )

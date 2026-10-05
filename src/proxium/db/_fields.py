@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections import UserString
+from enum import StrEnum
 from typing import TYPE_CHECKING, Self
 
-from sqlalchemy import TEXT, VARCHAR
+from sqlalchemy import TEXT, VARCHAR, Enum
 from sqlalchemy.types import TypeDecorator
 
 from proxium.core import cipher, hasher
@@ -98,3 +99,35 @@ class EncryptedField(TypeDecorator[Encrypted]):
         dialect: Dialect,
     ) -> Encrypted | None:
         return None if value is None else Encrypted(value)
+
+
+class ChoiceField[C: StrEnum](TypeDecorator[C]):
+    """Stores a `StrEnum` by its values as a string with a check, not a PostgreSQL enum.
+
+    A new choice needs no type migration. `Enum` converts values both ways.
+    """
+
+    impl = Enum
+    cache_ok = True
+
+    def __init__(
+        self,
+        choices: type[C],
+        /,
+        *,
+        name: str,
+        length: int,
+    ) -> None:
+        # Kept for the cache key of the type.
+        self.choices: type[C] = choices
+        self.name: str = name
+        self.length: int = length
+
+        super().__init__(
+            choices,
+            name=name,
+            native_enum=False,
+            create_constraint=True,
+            length=length,
+            values_callable=lambda members: [member.value for member in members],
+        )

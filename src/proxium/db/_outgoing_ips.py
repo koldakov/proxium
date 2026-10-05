@@ -4,7 +4,7 @@ from enum import StrEnum
 from ipaddress import IPv4Address, IPv6Address
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from sqlalchemy import VARCHAR, Enum, ForeignKey, UniqueConstraint
+from sqlalchemy import VARCHAR, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
@@ -24,23 +24,6 @@ class OutgoingMode(StrEnum):
     LISTENER = "listener"
     # A random IP of the pool assigned to the account.
     POOL = "pool"
-
-
-def outgoing_mode_column() -> Mapped[OutgoingMode]:
-    """`outgoing_mode` of an account or a trusted network: the OS picks the IP by default."""
-    return mapped_column(
-        # A string with a check, not a PostgreSQL enum: a new mode needs no type migration.
-        Enum(
-            OutgoingMode,
-            name="outgoing_mode",
-            native_enum=False,
-            create_constraint=True,
-            length=16,
-            values_callable=lambda modes: [mode.value for mode in modes],
-        ),
-        default=OutgoingMode.SYSTEM,
-        server_default=OutgoingMode.SYSTEM.value,
-    )
 
 
 class OutgoingIPModel(BaseTimestampModel):
