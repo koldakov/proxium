@@ -34,7 +34,9 @@ groups_router: APIRouter = APIRouter(
             "description": "The created group.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `groups.add` or gives permissions they don't have.",
@@ -70,7 +72,9 @@ async def create_group(
             "description": "A page of groups.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `groups.view`.",
@@ -107,7 +111,9 @@ async def list_groups(
             "description": "The group.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `groups.view`.",
@@ -140,7 +146,9 @@ async def get_group(
             "description": "The updated group. Its users get the permissions with their next request.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `groups.change` or gives permissions they don't have.",
@@ -180,7 +188,9 @@ async def update_group(
             "description": "The group is deleted, its users lose its permissions with their next request.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `groups.delete`.",

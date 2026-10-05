@@ -42,7 +42,9 @@ trusted_networks_router: APIRouter = APIRouter(
             "description": "The created network. Its clients connect without credentials right away, if active.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `trusted_networks.add`.",
@@ -78,7 +80,9 @@ async def create_trusted_network(
             "description": "A page of networks.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `trusted_networks.view`.",
@@ -116,7 +120,9 @@ async def list_trusted_networks(
             "description": "The network.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `trusted_networks.view`.",
@@ -149,7 +155,9 @@ async def get_trusted_network(
             "description": "The updated network. New connections follow it right away, open ones are never cut.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `trusted_networks.change`.",
@@ -193,7 +201,9 @@ async def update_trusted_network(
             "description": "The network is deleted, its new connections need credentials again.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `trusted_networks.delete`.",
@@ -232,7 +242,9 @@ async def delete_trusted_network(
             "description": "A page of IPs the pool can take: not in it yet and of its family.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `trusted_networks.change` or `outgoing_ips.view`.",
@@ -277,7 +289,9 @@ async def list_trusted_network_available_outgoing_ips(
             "description": "A page of the outgoing IP pool, in the order the IPs were added to the server.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `trusted_networks.view`.",
@@ -313,7 +327,9 @@ async def list_trusted_network_outgoing_ips(
             "description": "The IP is in the pool, new connections may go out from it right away.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `trusted_networks.change`.",
@@ -357,7 +373,9 @@ async def add_trusted_network_outgoing_ip(
             "description": "The IP is out of the pool. Open connections from it are never cut.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `trusted_networks.change`.",

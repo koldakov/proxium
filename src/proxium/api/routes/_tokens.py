@@ -47,7 +47,7 @@ async def get_user_auth_token(data: GetAuthUserTokenRequest) -> GetAuthUserToken
             "description": "A new access and refresh token pair.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The refresh token is invalid or expired, or the user is inactive.",
+            "description": "The refresh token is invalid or expired, or the user is inactive or has a new password.",
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "The body is malformed.",

@@ -21,7 +21,9 @@ permissions_router: APIRouter = APIRouter(
             "description": "Every permission, not paged: there are a few dozen.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "description": "Unexpected server error.",

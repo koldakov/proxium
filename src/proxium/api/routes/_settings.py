@@ -27,7 +27,9 @@ settings_router: APIRouter = APIRouter(
             "description": "The proxy settings.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `settings.view`.",
@@ -53,7 +55,9 @@ async def get_settings(
             "description": "The updated settings. The proxy applies them to new connections within a few seconds.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `settings.change`.",

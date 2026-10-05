@@ -26,6 +26,7 @@ class GetRefreshedAuthUserTokenService(BaseSessionService[GetRefreshedAuthUserTo
         except TokenError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Your session has expired, log in again.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from None
 
@@ -44,12 +45,21 @@ class GetRefreshedAuthUserTokenService(BaseSessionService[GetRefreshedAuthUserTo
         except NoResultFound:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Your session has expired, log in again.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from None
 
     async def process(self, *args, **kwargs) -> GetRefreshedAuthUserTokenResponse:
         user: UserModel = await self._get_user()
-        refresh_token: RefreshToken = RefreshToken.from_user_id(user.id)
+        # The same answer as for an expired token: the holder isn't told why, the token may be stolen.
+        if not self._refresh_token.user.has_password_of(user):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Your session has expired, log in again.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        refresh_token: RefreshToken = RefreshToken.from_user(user)
         return GetRefreshedAuthUserTokenResponse(
             access=refresh_token.access_token.encode(),
             refresh=refresh_token.encode(),

@@ -52,6 +52,8 @@ class GetAuthUserTokenService(BaseSessionService[GetAuthUserTokenResponse]):
             await asyncio.to_thread(self._dummy_password_hash.verify, self.data.password.get_secret_value())
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
+                # The same for an unknown email and an inactive user: it mustn't tell which.
+                detail="Wrong email or password.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from None
 
@@ -61,10 +63,11 @@ class GetAuthUserTokenService(BaseSessionService[GetAuthUserTokenResponse]):
         if not await asyncio.to_thread(user.password.verify, self.data.password.get_secret_value()):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Wrong email or password.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        refresh_token: RefreshToken = RefreshToken.from_user_id(user.id)
+        refresh_token: RefreshToken = RefreshToken.from_user(user)
         return GetAuthUserTokenResponse(
             access=refresh_token.access_token.encode(),
             refresh=refresh_token.encode(),

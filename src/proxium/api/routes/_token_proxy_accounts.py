@@ -41,7 +41,9 @@ token_proxy_accounts_router: APIRouter = APIRouter(
             "description": "The created account with its token. The token is shown only once.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `token_proxy_accounts.add`.",
@@ -74,7 +76,9 @@ async def create_token_proxy_account(
             "description": "A page of accounts.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `token_proxy_accounts.view`.",
@@ -114,7 +118,9 @@ async def list_token_proxy_accounts(
             "description": "The account.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `token_proxy_accounts.view`.",
@@ -147,7 +153,9 @@ async def get_token_proxy_account(
             "description": "The updated account.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `token_proxy_accounts.change`.",
@@ -191,7 +199,9 @@ async def update_token_proxy_account(
             "description": "The account is revoked, its token stops working for good.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `token_proxy_accounts.revoke`.",
@@ -227,7 +237,9 @@ async def revoke_token_proxy_account(
             "description": "A page of IPs the pool can take: not in it yet and of its family.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `token_proxy_accounts.change` or `outgoing_ips.view`.",
@@ -272,7 +284,9 @@ async def list_token_proxy_account_available_outgoing_ips(
             "description": "A page of the outgoing IP pool, in the order the IPs were added to the server.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `token_proxy_accounts.view`.",
@@ -308,7 +322,9 @@ async def list_token_proxy_account_outgoing_ips(
             "description": "The IP is in the pool, new connections may go out from it right away.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `token_proxy_accounts.change`.",
@@ -352,7 +368,9 @@ async def add_token_proxy_account_outgoing_ip(
             "description": "The IP is out of the pool. Open connections from it are never cut.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `token_proxy_accounts.change`.",

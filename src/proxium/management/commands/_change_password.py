@@ -21,7 +21,7 @@ class PasswordMismatchError(Exception):
 class ChangePasswordCommand(BaseAsyncCommand):
     """Like Django's `changepassword`: prompts for a new password of any user, e.g. a forgotten one.
 
-    Tokens the user already has keep working until they expire.
+    The tokens the user already has stop working: they follow the password.
     """
 
     name: ClassVar[str] = "changepassword"

@@ -42,7 +42,9 @@ traffic_router: APIRouter = APIRouter(
             "description": "A page of days with traffic, newest first. Days without traffic are left out.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `traffic.view`.",
@@ -84,7 +86,9 @@ async def list_basic_proxy_account_traffic(
             "description": "Bytes sent and received in the range, zeros without traffic.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `traffic.view`.",
@@ -125,7 +129,9 @@ async def get_basic_proxy_account_traffic_total(
             "description": "A page of days with traffic, newest first. Days without traffic are left out.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `traffic.view`.",
@@ -167,7 +173,9 @@ async def list_token_proxy_account_traffic(
             "description": "Bytes sent and received in the range, zeros without traffic.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `traffic.view`.",
@@ -208,7 +216,9 @@ async def get_token_proxy_account_traffic_total(
             "description": "A page of days with traffic, newest first. Days without traffic are left out.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `traffic.view`.",
@@ -250,7 +260,9 @@ async def list_trusted_network_traffic(
             "description": "Bytes sent and received in the range, zeros without traffic.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `traffic.view`.",

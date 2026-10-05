@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import uuid
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime, timedelta
@@ -48,6 +50,28 @@ class InvalidTokenPayloadError(TokenError):
 
 class TokenUser(BaseSchema):
     id: int
+    # Follows the password, like Django's session auth hash: a new password revokes the tokens issued before.
+    password_key: str
+
+    @staticmethod
+    def get_password_key(user: UserModel, /) -> str:
+        # Keyed, so a token tells nothing about the hash.
+        return hmac.new(
+            api_settings.secret_key.get_secret_value().encode(),
+            f"password:{user.password}".encode(),
+            hashlib.sha256,
+        ).hexdigest()
+
+    @classmethod
+    def from_user(cls, user: UserModel, /) -> Self:
+        return cls(
+            id=user.id,
+            password_key=cls.get_password_key(user),
+        )
+
+    def has_password_of(self, user: UserModel, /) -> bool:
+        """False once the user's password has changed since the token was issued."""
+        return hmac.compare_digest(self.password_key, self.get_password_key(user))
 
 
 class BaseToken(BaseSchema):
@@ -67,11 +91,15 @@ class BaseToken(BaseSchema):
     user: TokenUser
 
     @classmethod
-    def from_user_id(cls, user_id: int, /) -> Self:
+    def from_token_user(cls, user: TokenUser, /) -> Self:
         return cls(
             exp=datetime.now(UTC) + cls.lifetime,
-            user=TokenUser(id=user_id),
+            user=user,
         )
+
+    @classmethod
+    def from_user(cls, user: UserModel, /) -> Self:
+        return cls.from_token_user(TokenUser.from_user(user))
 
     def encode(self) -> str:
         # Python mode: PyJWT turns `exp` datetime into a timestamp itself.
@@ -113,8 +141,8 @@ class RefreshToken(BaseToken):
 
     @property
     def access_token(self) -> AccessToken:
-        """A fresh access token for the same user."""
-        return AccessToken.from_user_id(self.user.id)
+        """A fresh access token for the same user and password."""
+        return AccessToken.from_token_user(self.user)
 
 
 class BaseService[R](BaseSchema, ABC):
@@ -190,6 +218,7 @@ class BaseUserAuthenticatedService[R](BaseSessionService[R], ABC):
         except TokenError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Your session has expired, log in again.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from None
 
@@ -215,12 +244,23 @@ class BaseUserAuthenticatedService[R](BaseSessionService[R], ABC):
     async def _set_user(self) -> None:
         result: Result[tuple[UserModel]] = await self.session.execute(self._get_auth_user_statement)
         try:
-            self._user = result.scalars().one()
+            user: UserModel = result.scalars().one()
         except NoResultFound:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Your session has expired, log in again.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from None
+
+        # The same answer as for an expired token: the holder isn't told why, the token may be stolen.
+        if not self._access_token.user.has_password_of(user):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Your session has expired, log in again.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        self._user = user
 
     async def _set_permissions(self) -> None:
         if self.user.is_superuser:

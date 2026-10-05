@@ -15,6 +15,7 @@ from proxium.api.services.users import (
     ListUsersResponse,
     ListUsersService,
     UpdateUserMePasswordRequest,
+    UpdateUserMePasswordResponse,
     UpdateUserMePasswordService,
     UpdateUserMeRequest,
     UpdateUserMeResponse,
@@ -42,7 +43,9 @@ users_router: APIRouter = APIRouter(
             "description": "The created user.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": (
@@ -81,7 +84,9 @@ async def create_user(
             "description": "A page of users.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `users.view`.",
@@ -118,7 +123,9 @@ async def list_users(
             "description": "The logged-in user with what they may do.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "description": "Unexpected server error.",
@@ -144,7 +151,9 @@ async def get_user_me(
             "description": "The updated user.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "The body is malformed, e.g. the name is empty.",
@@ -168,16 +177,18 @@ async def update_user_me(
 
 @users_router.put(
     "/me/password",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     responses={
-        status.HTTP_204_NO_CONTENT: {
-            "description": "The password is changed.",
+        status.HTTP_200_OK: {
+            "description": "The password is changed. A new access and refresh token pair, the old ones stop working.",
         },
         status.HTTP_400_BAD_REQUEST: {
             "description": "Old password is incorrect.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "The body is malformed, e.g. the new password is too short.",
@@ -190,8 +201,11 @@ async def update_user_me(
 async def update_user_me_password(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     data: UpdateUserMePasswordRequest,
-) -> None:
-    """Change the logged-in user's password. The old one must match."""
+) -> UpdateUserMePasswordResponse:
+    """Change the logged-in user's password. The old one must match.
+
+    Every token issued before stops working, on all devices: keep the session with the returned pair.
+    """
     service: UpdateUserMePasswordService = UpdateUserMePasswordService(token=credentials.credentials, data=data)
     return await service()
 
@@ -204,7 +218,9 @@ async def update_user_me_password(
             "description": "The user.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `users.view`.",
@@ -240,7 +256,9 @@ async def get_user(
             "description": "The updated user. Permissions apply to their next request.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": (
@@ -280,10 +298,12 @@ async def update_user(
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_204_NO_CONTENT: {
-            "description": "The password is set.",
+            "description": "The password is set. The user's tokens stop working.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": (

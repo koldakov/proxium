@@ -35,7 +35,9 @@ outgoing_ips_router: APIRouter = APIRouter(
             "description": "The added IP, ready for pools.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `outgoing_ips.add`.",
@@ -71,7 +73,9 @@ async def create_outgoing_ip(
             "description": "A page of IPs.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `outgoing_ips.view`.",
@@ -106,7 +110,9 @@ async def list_outgoing_ips(
             "description": "The IP.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `outgoing_ips.view`.",
@@ -139,7 +145,9 @@ async def get_outgoing_ip(
             "description": "The updated IP. New connections of its pools use it right away, open ones are never cut.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `outgoing_ips.change`.",
@@ -180,7 +188,9 @@ async def update_outgoing_ip(
             "description": "The IP is deleted.",
         },
         status.HTTP_401_UNAUTHORIZED: {
-            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
         },
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `outgoing_ips.delete`.",
