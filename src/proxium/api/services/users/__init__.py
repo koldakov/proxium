@@ -5,6 +5,7 @@ from ._list_users import ListUsersResponse, ListUsersService
 from ._update_user import UpdateUserRequest, UpdateUserResponse, UpdateUserService
 from ._update_user_me import UpdateUserMeRequest, UpdateUserMeResponse, UpdateUserMeService
 from ._update_user_me_password import UpdateUserMePasswordRequest, UpdateUserMePasswordService
+from ._update_user_password import UpdateUserPasswordRequest, UpdateUserPasswordService
 
 __all__ = [
     "CreateUserRequest",
@@ -21,6 +22,8 @@ __all__ = [
     "UpdateUserMeRequest",
     "UpdateUserMeResponse",
     "UpdateUserMeService",
+    "UpdateUserPasswordRequest",
+    "UpdateUserPasswordService",
     "UpdateUserRequest",
     "UpdateUserResponse",
     "UpdateUserService",

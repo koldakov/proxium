@@ -19,6 +19,8 @@ from proxium.api.services.users import (
     UpdateUserMeRequest,
     UpdateUserMeResponse,
     UpdateUserMeService,
+    UpdateUserPasswordRequest,
+    UpdateUserPasswordService,
     UpdateUserRequest,
     UpdateUserResponse,
     UpdateUserService,
@@ -270,4 +272,51 @@ async def update_user(
     - `groupIds`, `permissions`: replace the lists. Only what the logged-in user has can be added.
     """
     service: UpdateUserService = UpdateUserService(token=credentials.credentials, id=user_id, data=data)
+    return await service()
+
+
+@users_router.put(
+    "/{user_id}/password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "The password is set.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": "The access token is missing, invalid or expired, or the user is inactive.",
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": (
+                "The user lacks `users.change`, the target has permissions they don't have, directly or through "
+                "groups, or the target is a superuser and the user isn't."
+            ),
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "User not found.",
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": "The target is the user themselves, their password changes under `/users/me/password`.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "The user id is not an integer or the body is malformed, e.g. the password is too short.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def update_user_password(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    user_id: int,
+    data: UpdateUserPasswordRequest,
+) -> None:
+    """Set another user's password, e.g. a forgotten one. The old one isn't needed.
+
+    Only for a user whose permissions the logged-in user all has: the password gives them.
+    """
+    service: UpdateUserPasswordService = UpdateUserPasswordService(
+        token=credentials.credentials,
+        id=user_id,
+        data=data,
+    )
     return await service()
