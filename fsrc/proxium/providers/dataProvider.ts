@@ -52,6 +52,12 @@ export interface PasswordChange {
   newPassword: string
 }
 
+// Another user's password, the old one isn't needed.
+export interface UserPasswordParams {
+  id: Identifier
+  password: string
+}
+
 // Timeouts and the cache TTL in seconds. Networks in CIDR notation, a bare address is taken as /32 or /128.
 export interface Settings {
   guardAllow: string[]
@@ -73,6 +79,7 @@ export interface ProxiumDataProvider extends DataProvider {
   getProfile: () => Promise<Profile>
   updateProfile: (data: ProfileChanges) => Promise<Profile>
   updatePassword: (data: PasswordChange) => Promise<void>
+  setUserPassword: (params: UserPasswordParams) => Promise<void>
   // Every permission code, e.g. `trusted_networks.view`. Not paged.
   listPermissions: () => Promise<string[]>
   // One record, not a resource: no id, no list.
@@ -188,6 +195,13 @@ export const createDataProvider = (
       await httpClient(resourceUrl('users', 'me', 'password'), {
         method: 'PUT',
         body: JSON.stringify(data),
+      })
+    },
+
+    setUserPassword: async ({ id, password }) => {
+      await httpClient(resourceUrl('users', id, 'password'), {
+        method: 'PUT',
+        body: JSON.stringify({ password }),
       })
     },
 

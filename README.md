@@ -252,6 +252,10 @@ own, so a user can see accounts and networks without their traffic.
   admin UI shows it within a minute or at the first refused action.
 - Everyone changes their own name, surname and password under Profile in the user menu, no permission needed.
   The email is the login: only a user with `users.change` changes it.
+- A forgotten password is set anew with Set password on the user's page. It needs `users.change` and all the
+  user's permissions, since the password gives them: the button shows only then. Only superusers set superusers'
+  passwords. Without access to the admin UI, use `changepassword`, see
+  [Management commands](#management-commands).
 
 The admin UI hides what the user may not do: sections, buttons, the outgoing pool without access to outgoing IPs.
 

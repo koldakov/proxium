@@ -18,6 +18,7 @@ import { CopyableField } from '../../components/CopyableField'
 import { useMyPermissions } from '../../components/permissions'
 import { PermissionsField } from '../../components/PermissionsField'
 import { ShowSection } from '../../components/ShowSection'
+import { SetPasswordButton } from './SetPasswordButton'
 import { UserHeader } from './UserHeader'
 
 // Only superusers change superusers: the API refuses the rest.
@@ -68,6 +69,7 @@ export const UserShow = () => (
     component="div"
     actions={
       <TopToolbar>
+        <SetPasswordButton />
         <UserEditButton />
       </TopToolbar>
     }
