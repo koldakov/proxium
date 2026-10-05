@@ -282,6 +282,12 @@ Without prompts, e.g. in scripts, the password comes only from `SUPERUSER_PASSWO
 SUPERUSER_PASSWORD=... uv run --env-file .env proxium-manage createsuperuser --no-input --email admin@example.com
 ```
 
+Set a new password for any user, e.g. a forgotten one, it prompts for it twice:
+
+```bash
+uv run --env-file .env proxium-manage changepassword admin@example.com
+```
+
 Add a TLS certificate from PEM files and activate it, see [TLS](#tls). It asks before turning the active one off,
 `--no-input` doesn't. The same certificate imported again is only activated. The key must have no password:
 
