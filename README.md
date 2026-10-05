@@ -256,6 +256,9 @@ own, so a user can see accounts and networks without their traffic.
   user's permissions, since the password gives them: the button shows only then. Only superusers set superusers'
   passwords. Without access to the admin UI, use `changepassword`, see
   [Management commands](#management-commands).
+- A new password, set any of these ways, logs the user out everywhere at their next request, as deactivation does.
+  The admin UI says only that the session has expired, not why. Changing one's own password under Profile keeps
+  the current session.
 
 The admin UI hides what the user may not do: sections, buttons, the outgoing pool without access to outgoing IPs.
 

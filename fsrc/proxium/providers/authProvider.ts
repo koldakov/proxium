@@ -92,8 +92,8 @@ export const createAuthProvider = (
     },
 
     checkError: async (error: HttpError) => {
+      // React-admin shows the API's message on logout only while the tokens are still there: `logout` clears them.
       if (error.status === 401) {
-        clearTokens()
         me = null
         throw error
       }

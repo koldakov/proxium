@@ -1,7 +1,8 @@
 import { jwtDecode } from 'jwt-decode'
-import { fetchUtils } from 'react-admin'
+import { fetchUtils, HttpError } from 'react-admin'
 
 import { apiUrl } from '../config'
+import { toHttpError } from './errors'
 
 export interface Tokens {
   access: string
@@ -31,11 +32,17 @@ const isExpiring = (token: string): boolean => {
 }
 
 const requestTokens = async (refresh: string): Promise<void> => {
-  const { json } = await fetchUtils.fetchJson(`${apiUrl}/api/tokens/refresh`, {
-    method: 'POST',
-    body: JSON.stringify({ refresh }),
-  })
-  saveTokens(json)
+  let response: Awaited<ReturnType<typeof fetchUtils.fetchJson>>
+  try {
+    response = await fetchUtils.fetchJson(`${apiUrl}/api/tokens/refresh`, {
+      method: 'POST',
+      body: JSON.stringify({ refresh }),
+    })
+  } catch (error) {
+    // The API's message of a 401 is shown on logout.
+    throw error instanceof HttpError ? toHttpError(error) : error
+  }
+  saveTokens(response.json)
 }
 
 // Shared by the calls react-admin fires at once, so they wait for a single refresh.

@@ -1,6 +1,7 @@
 import type { DataProvider, DeleteParams, Identifier, RaRecord } from 'react-admin'
 
 import { httpClient as defaultHttpClient, type HttpClient } from './httpClient'
+import { saveTokens } from './tokens'
 
 export interface RevokeParams {
   id: Identifier
@@ -191,11 +192,13 @@ export const createDataProvider = (
       return json
     },
 
+    // The new password revokes every token issued before: the session goes on with the returned pair.
     updatePassword: async (data) => {
-      await httpClient(resourceUrl('users', 'me', 'password'), {
+      const { json } = await httpClient(resourceUrl('users', 'me', 'password'), {
         method: 'PUT',
         body: JSON.stringify(data),
       })
+      saveTokens(json)
     },
 
     setUserPassword: async ({ id, password }) => {
