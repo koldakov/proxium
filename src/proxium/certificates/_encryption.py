@@ -55,7 +55,8 @@ class CertificateEncryption(Encryption):
             key = private_key.decrypt()
         except DecryptionError:
             raise EncryptionUnavailable(
-                "The active certificate's key can't be decrypted: ENCRYPTION_KEY has changed since it was uploaded.",
+                "The active certificate's key can't be decrypted: neither ENCRYPTION_KEY nor ENCRYPTION_OLD_KEYS "
+                "is the key it was uploaded with.",
             ) from None
 
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)

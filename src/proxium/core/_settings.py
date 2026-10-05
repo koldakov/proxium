@@ -114,17 +114,21 @@ class EncryptionSettings(BaseSettings):
 
     # A Fernet key. Changing it makes stored secrets, e.g. private keys of TLS certificates, unreadable.
     key: SecretStr
+    # Previous keys, comma-separated: they still decrypt, while `rotateencryptionkey` moves secrets to `key`.
+    old_keys: Annotated[
+        list[SecretStr],
+        NoDecode,
+        Field(
+            default_factory=list,
+        ),
+    ]
 
     model_config = SettingsConfigDict(
         env_prefix="encryption_",
     )
 
-    @field_validator(
-        "key",
-        mode="after",
-    )
-    @classmethod
-    def _check_key(cls, value: SecretStr) -> SecretStr:
+    @staticmethod
+    def _check_fernet_key(value: SecretStr, /) -> SecretStr:
         try:
             Fernet(value.get_secret_value())
         except ValueError:
@@ -133,6 +137,32 @@ class EncryptionSettings(BaseSettings):
                 '`python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"`.',
             ) from None
         return value
+
+    @field_validator(
+        "old_keys",
+        mode="before",
+    )
+    @classmethod
+    def _split_old_keys(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return [key.strip() for key in value.split(",") if key.strip()]
+        return value
+
+    @field_validator(
+        "key",
+        mode="after",
+    )
+    @classmethod
+    def _check_key(cls, value: SecretStr) -> SecretStr:
+        return cls._check_fernet_key(value)
+
+    @field_validator(
+        "old_keys",
+        mode="after",
+    )
+    @classmethod
+    def _check_old_keys(cls, value: list[SecretStr]) -> list[SecretStr]:
+        return [cls._check_fernet_key(key) for key in value]
 
 
 encryption_settings = EncryptionSettings()

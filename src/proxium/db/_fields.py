@@ -75,6 +75,10 @@ class Encrypted(UserString):
         """The plain value. Raises `DecryptionError` if `ENCRYPTION_KEY` has changed since."""
         return cipher.decrypt(self.data)
 
+    def rotate(self) -> Self:
+        """The same value encrypted with the current `ENCRYPTION_KEY`. Raises `DecryptionError` like `decrypt`."""
+        return type(self)(cipher.rotate(self.data))
+
 
 class EncryptedField(TypeDecorator[Encrypted]):
     """Stores `Encrypted` as text. Takes only `Encrypted`: a plain string is never encrypted behind the scenes."""

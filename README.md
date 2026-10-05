@@ -31,6 +31,7 @@ Read by the proxy, the API and the management commands.
 |---|---|
 | `DATABASE_URL` | PostgreSQL URL, e.g. `postgres://user:password@host/db_name` |
 | `ENCRYPTION_KEY` | Fernet key that encrypts private keys of TLS certificates in the database, see [TLS](#tls) |
+| `ENCRYPTION_OLD_KEYS` | Comma-separated previous keys, they still decrypt during [key rotation](#tls) |
 | `DATABASE_ECHO` | Log every SQL query, default `false`. Parameters are always hidden |
 | `DATABASE_POOL_SIZE` | Connections each process keeps open, default `5` |
 | `DATABASE_POOL_MAX_OVERFLOW` | Extra connections under load, default `10` |
@@ -134,6 +135,18 @@ python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).de
 
 Losing or changing it makes the stored keys unreadable: TLS clients are refused with "can't be decrypted" in the
 log until the certificate is uploaded again.
+
+To replace the key without downtime, e.g. after a leak:
+
+1. Generate a new key. Set it as `ENCRYPTION_KEY` and the current one as `ENCRYPTION_OLD_KEYS` for the proxy, the
+   API and the management commands, then restart them. Both keys now decrypt, new secrets get the new one.
+2. Re-encrypt the stored secrets with the new key. Stopped halfway, it's just run again:
+
+   ```bash
+   uv run --env-file .env proxium-manage rotateencryptionkey
+   ```
+
+3. Remove `ENCRYPTION_OLD_KEYS` everywhere and restart again.
 
 The proxy needs a writable temporary directory: Python's `ssl` loads a key only from a file, not from memory
 ([python/cpython#60691](https://github.com/python/cpython/issues/60691)), so the decrypted key goes to a file
@@ -300,6 +313,12 @@ Add a TLS certificate from PEM files and activate it, see [TLS](#tls). It asks b
 
 ```bash
 uv run --env-file .env proxium-manage importcert --cert fullchain.pem --key privkey.pem
+```
+
+Re-encrypt stored secrets with `ENCRYPTION_KEY`, reading them with it or `ENCRYPTION_OLD_KEYS`, see [TLS](#tls):
+
+```bash
+uv run --env-file .env proxium-manage rotateencryptionkey
 ```
 
 ## Development
