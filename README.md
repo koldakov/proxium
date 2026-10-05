@@ -318,3 +318,7 @@ uv run --env-file .env alembic upgrade head
 # Create a new migration from model changes
 uv run --env-file .env alembic revision --autogenerate -m "description"
 ```
+
+## License
+
+[MIT](LICENSE.md)

@@ -3,6 +3,8 @@ name = "proxium"
 version = "0.1.0"
 description = "A lightweight proxy server written in Python."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE.md"]
 requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20.0",
