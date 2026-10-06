@@ -6,16 +6,17 @@ import { ipNetwork } from '../../components/validators'
 import { TypedEveryoneAlert } from './OpenToEveryoneAlert'
 import { OverlapsSection } from './OverlapsSection'
 
-/** The fields of a trusted network, shared by create and edit. */
-export const TrustedNetworkInputs = () => {
+/** The fields of a trusted network, shared by create and edit, read-only on the show page. */
+export const TrustedNetworkInputs = ({ readOnly = false }: { readOnly?: boolean }) => {
   // A saved network assigns policies in its Policies section.
   const isNew = useRecordContext()?.id === undefined
 
   return (
     <>
-      <TextInput source="name" validate={required()} helperText="E.g. Office" />
+      <TextInput source="name" readOnly={readOnly} validate={required()} helperText="E.g. Office" />
       <TextInput
         source="network"
+        readOnly={readOnly}
         validate={[required(), ipNetwork()]}
         helperText="E.g. 192.168.0.0/16, or 10.0.0.5 for a single address. IPv6 works too"
       />
@@ -27,8 +28,8 @@ export const TrustedNetworkInputs = () => {
           </>
         )}
       </FormDataConsumer>
-      <BooleanInput source="isActive" label="Active" />
-      <OutgoingModeInput />
+      <BooleanInput source="isActive" label="Active" readOnly={readOnly} />
+      <OutgoingModeInput readOnly={readOnly} />
       {isNew && <NewPoliciesInput />}
     </>
   )

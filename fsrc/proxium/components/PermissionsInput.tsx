@@ -16,15 +16,17 @@ import { groupPermissions, useAllPermissions, useMyPermissions } from './permiss
 interface PermissionsInputProps {
   source?: string
   label?: string
+  readOnly?: boolean
 }
 
 /**
  * Permission codes as checkboxes, a row per resource. Only the ones the logged-in user has can be ticked, the API
- * refuses the rest. Unticking is always allowed.
+ * refuses the rest. Unticking is always allowed. Read-only, it only shows them.
  */
 export const PermissionsInput = ({
   source = 'permissions',
   label = 'Permissions',
+  readOnly = false,
 }: PermissionsInputProps) => {
   const { field } = useInput({ source, defaultValue: [] })
   const { data: all } = useAllPermissions()
@@ -54,7 +56,7 @@ export const PermissionsInput = ({
                     <FormControlLabel
                       key={code}
                       label={action}
-                      disabled={!checked && !me.permissions.includes(code)}
+                      disabled={readOnly || (!checked && !me.permissions.includes(code))}
                       control={
                         <Checkbox
                           size="small"
@@ -70,7 +72,7 @@ export const PermissionsInput = ({
           ))}
         </TableBody>
       </Table>
-      {!me.isSuperuser && (
+      {!readOnly && !me.isSuperuser && (
         <FormHelperText>You can give only the permissions you have yourself</FormHelperText>
       )}
     </Stack>

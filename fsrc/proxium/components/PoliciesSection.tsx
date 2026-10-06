@@ -28,6 +28,7 @@ import {
 } from 'react-admin'
 
 import type { ProxiumDataProvider } from '../providers'
+import { useDetailPage } from './detailPage'
 import { ShowSection } from './ShowSection'
 
 // The API caps assigned policies at `API_POLICIES_MAX_PER_OWNER`, 32 by default: one page shows them all.
@@ -103,6 +104,7 @@ const Assign = ({ resource, id, onAssigned }: AssignProps) => {
 /** The active global policies, which apply to every client without assigning. */
 const GlobalPolicies = () => {
   const createPath = useCreatePath()
+  const detailPage = useDetailPage('policies')
   const { data = [], total = 0 } = useGetList('policies', {
     filter: { isGlobal: true },
     pagination: { page: 1, perPage: GLOBAL_LIMIT },
@@ -120,7 +122,7 @@ const GlobalPolicies = () => {
       {active.map((policy) => (
         <Link
           key={policy.id}
-          to={createPath({ resource: 'policies', type: 'edit', id: policy.id })}
+          to={createPath({ resource: 'policies', type: detailPage, id: policy.id })}
         >
           <Chip size="small" label={policy.name} clickable />
         </Link>
@@ -142,6 +144,7 @@ export const PoliciesSection = () => {
   const dataProvider = useDataProvider<ProxiumDataProvider>()
   const notify = useNotify()
   const createPath = useCreatePath()
+  const detailPage = useDetailPage('policies')
   // Assigning is changing the record, picking a policy needs seeing them.
   const { canAccess: canChange } = useCanAccess({ resource, action: 'edit' })
   const { canAccess: canPick } = useCanAccess({ resource: 'policies', action: 'list' })
@@ -194,7 +197,9 @@ export const PoliciesSection = () => {
               <TableRow key={policy.id}>
                 <TableCell>
                   {canPick ? (
-                    <Link to={createPath({ resource: 'policies', type: 'edit', id: policy.id })}>
+                    <Link
+                      to={createPath({ resource: 'policies', type: detailPage, id: policy.id })}
+                    >
                       {policy.name}
                     </Link>
                   ) : (

@@ -59,9 +59,9 @@ const NewPoolInput = ({ ids }: { ids: number[] }) => {
 
 /**
  * The outgoing mode of an account or trusted network, with its pool for `pool`.
- * A new record picks the pool in the form, a saved one edits it in place.
+ * A new record picks the pool in the form, a saved one edits it in place. Read-only on the show page.
  */
-export const OutgoingModeInput = () => {
+export const OutgoingModeInput = ({ readOnly = false }: { readOnly?: boolean }) => {
   const record = useRecordContext()
   const isNew = record?.id === undefined
   // Filling a pool means picking IPs. A saved pool stays, its section shows it.
@@ -79,6 +79,7 @@ export const OutgoingModeInput = () => {
             source="outgoingMode"
             label="Outgoing IP"
             choices={choices}
+            readOnly={readOnly}
             validate={required()}
             helperText={MODE_HELP[formData.outgoingMode] ?? false}
           />

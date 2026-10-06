@@ -1,14 +1,7 @@
-import {
-  BooleanField,
-  DataTable,
-  DateField,
-  List,
-  SelectField,
-  TextInput,
-  useCanAccess,
-} from 'react-admin'
+import { BooleanField, DataTable, DateField, List, SelectField, TextInput } from 'react-admin'
 
 import { CreatedByField } from '../../components/CreatedByField'
+import { useDetailPage } from '../../components/detailPage'
 import { OUTGOING_MODES } from '../../components/outgoing'
 import { QuerySearchInput } from '../../components/QuerySearchInput'
 import { ipNetwork } from '../../components/validators'
@@ -23,15 +16,14 @@ const filters = [
 ]
 
 export const TrustedNetworkList = () => {
-  // No show page: without `change` a row leads nowhere.
-  const { canAccess: canChange } = useCanAccess({ resource: 'trusted-networks', action: 'edit' })
+  const detailPage = useDetailPage('trusted-networks')
 
   return (
     <>
       <OpenToEveryoneAlert />
       <TrustedNetworksWarning />
       <List filters={filters} exporter={false}>
-        <DataTable rowClick={canChange ? 'edit' : false} bulkActionButtons={false}>
+        <DataTable rowClick={detailPage} bulkActionButtons={false}>
           <DataTable.Col source="id" disableSort />
           <DataTable.Col source="name" disableSort />
           <DataTable.Col source="network" disableSort />

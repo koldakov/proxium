@@ -1,6 +1,7 @@
-import { DataTable, DateField, List, SelectInput, useCanAccess } from 'react-admin'
+import { DataTable, DateField, List, SelectInput } from 'react-admin'
 
 import { CreatedByField } from '../../components/CreatedByField'
+import { useDetailPage } from '../../components/detailPage'
 import { QuerySearchInput } from '../../components/QuerySearchInput'
 
 const filters = [
@@ -16,12 +17,11 @@ const filters = [
 ]
 
 export const OutgoingIPList = () => {
-  // No show page: without `change` a row leads nowhere.
-  const { canAccess: canChange } = useCanAccess({ resource: 'outgoing-ips', action: 'edit' })
+  const detailPage = useDetailPage('outgoing-ips')
 
   return (
     <List filters={filters} exporter={false}>
-      <DataTable rowClick={canChange ? 'edit' : false} bulkActionButtons={false}>
+      <DataTable rowClick={detailPage} bulkActionButtons={false}>
         <DataTable.Col source="id" disableSort />
         <DataTable.Col source="name" disableSort />
         <DataTable.Col source="ip" label="IP" disableSort />

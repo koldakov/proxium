@@ -1,6 +1,7 @@
-import { BooleanField, DataTable, DateField, List, SelectInput, useCanAccess } from 'react-admin'
+import { BooleanField, DataTable, DateField, List, SelectInput } from 'react-admin'
 
 import { CreatedByField } from '../../components/CreatedByField'
+import { useDetailPage } from '../../components/detailPage'
 import { QuerySearchInput } from '../../components/QuerySearchInput'
 
 const filters = [
@@ -19,12 +20,11 @@ const filters = [
 ]
 
 export const PolicyList = () => {
-  // No show page: without `change` a row leads nowhere.
-  const { canAccess: canChange } = useCanAccess({ resource: 'policies', action: 'edit' })
+  const detailPage = useDetailPage('policies')
 
   return (
     <List filters={filters} exporter={false}>
-      <DataTable rowClick={canChange ? 'edit' : false} bulkActionButtons={false}>
+      <DataTable rowClick={detailPage} bulkActionButtons={false}>
         <DataTable.Col source="id" disableSort />
         <DataTable.Col source="name" disableSort />
         <DataTable.Col source="isActive" label="Active" disableSort>
