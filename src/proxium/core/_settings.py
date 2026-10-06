@@ -191,6 +191,13 @@ class ApiSettings(BaseSettings):
             ge=1,
         ),
     ] = 256
+    # Policies assigned to one account or trusted network at most.
+    policies_max_per_owner: Annotated[
+        int,
+        Field(
+            ge=1,
+        ),
+    ] = 32
 
     model_config = SettingsConfigDict(
         env_prefix="api_",

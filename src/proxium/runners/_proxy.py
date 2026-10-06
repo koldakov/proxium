@@ -21,6 +21,7 @@ from proxium.db import (
     session_manager,
 )
 from proxium.observers import TrafficObserver
+from proxium.policies import RuleSetBuilder, RuleSetPolicy
 from proxium.proxy import (
     AddressGuard,
     BasicCredentials,
@@ -42,7 +43,7 @@ from proxium.proxy import (
     Timeouts,
 )
 from proxium.selectors import OUTGOING_IPS_CLAIM, OutgoingSourceSelector
-from proxium.watchers import SettingsSnapshot, SettingsWatcher
+from proxium.watchers import PolicyWatcher, SettingsSnapshot, SettingsWatcher
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -59,6 +60,7 @@ if TYPE_CHECKING:
         Observer,
         SourceSelector,
     )
+    from proxium.watchers import PolicySnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +162,13 @@ class ProxyRunner:
             self._apply_settings,
             interval=settings_poll_interval,
         )
+        # Kept across settings changes: their limits count open connections. Rules change in place.
+        self._rule_set_policy: RuleSetPolicy = RuleSetPolicy()
+        self._rule_set_builder: RuleSetBuilder = RuleSetBuilder()
+        self._policy_watcher: PolicyWatcher = PolicyWatcher(
+            self._apply_policies,
+            interval=settings_poll_interval,
+        )
         self._graceful_timeout: float = graceful_timeout
         self._listen: Sequence[ListenAddress] = listen
 
@@ -210,7 +219,8 @@ class ProxyRunner:
     def _create_default_profile(self, settings: SettingsSnapshot, checks: _Checks, /) -> Profile:
         """HTTP and SOCKS5 proxy for accounts and trusted networks from the database, going straight to targets.
 
-        Each goes out from the IP its account or network says. Their traffic is counted in the database.
+        Each goes out from the IP its account or network says, within the limits of its and the global policies.
+        Their traffic is counted in the database.
         Both may come wrapped in TLS with the active certificate from the database.
         Checks of clients and the certificate are reused for the cache TTL from `settings`, by `checks`.
         Private networks are reachable only if `settings` allow them, timeouts come from `settings` too.
@@ -223,6 +233,7 @@ class ProxyRunner:
                 guard=AddressGuard(allow=settings.guard_allow),
                 source=self._source,
             ),
+            policies=[self._rule_set_policy],
             observers=self._observers,
             timeouts=Timeouts(
                 handshake=settings.handshake_timeout,
@@ -258,6 +269,9 @@ class ProxyRunner:
         if previous is not None and settings.cache_ttl < previous.ttl:
             await self._caches.clear()
 
+    async def _apply_policies(self, policies: tuple[PolicySnapshot, ...], /) -> None:
+        self._rule_set_policy.update(self._rule_set_builder.build(policies))
+
     def run(self) -> None:
         logging.basicConfig(level=self._log_level, format=LOG_FORMAT)
         try:
@@ -271,9 +285,12 @@ class ProxyRunner:
     async def _serve(self) -> None:
         self._on_signal(self._stop.set)
         settings = await self._settings_watcher.load()
+        # Before listening: no connection goes through without its limits.
+        await self._apply_policies(await self._policy_watcher.load())
         self._traffic_observer.start()
         await self._apply_settings(settings)
         self._settings_watcher.start()
+        self._policy_watcher.start()
         await self._stop.wait()
 
         # A second signal cuts the graceful wait short.
@@ -283,6 +300,7 @@ class ProxyRunner:
         logger.info("Shutting down, press Ctrl+C again to force")
         # First: a change applied during the shutdown would listen again.
         await self._settings_watcher.close()
+        await self._policy_watcher.close()
         await self._server.shutdown(timeout=self._graceful_timeout)
         # After the shutdown: closed connections have counted their last bytes.
         await self._traffic_observer.close()

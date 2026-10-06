@@ -13,8 +13,10 @@ from proxium.db import (
     OutgoingMode,
     TrustedNetworkModel,
     TrustedNetworkOutgoingIPModel,
+    TrustedNetworkPolicyModel,
     session_manager,
 )
+from proxium.policies import policy_claims
 from proxium.proxy import AuthenticationRequired, Authenticator, Identity
 from proxium.selectors import outgoing_claims
 
@@ -46,9 +48,15 @@ class TrustedNetworkAuthenticator(Authenticator):
     Looked up anew on every call: wrap it in `CachedAuthenticator`. Open connections are never cut.
     """
 
-    def __init__(self, *, pool_max_size: int = api_settings.outgoing_pool_max_size) -> None:
-        # The API keeps pools within it, the cap only bounds the query.
+    def __init__(
+        self,
+        *,
+        pool_max_size: int = api_settings.outgoing_pool_max_size,
+        policies_max_size: int = api_settings.policies_max_per_owner,
+    ) -> None:
+        # The API keeps pools and policies within these, the caps only bound the queries.
         self._pool_max_size: int = pool_max_size
+        self._policies_max_size: int = policies_max_size
 
     def _get_client_ip(self, proxy_session: Session, /) -> IPv4Address | IPv6Address:
         if proxy_session.client is None:
@@ -108,6 +116,21 @@ class TrustedNetworkAuthenticator(Authenticator):
 
         return list(result.scalars())
 
+    def _get_policies_statement(self, network: TrustedNetworkModel, /) -> Select[tuple[int]]:
+        return (
+            select(TrustedNetworkPolicyModel.policy_id)
+            .where(TrustedNetworkPolicyModel.trusted_network_id == network.id)
+            .order_by(TrustedNetworkPolicyModel.policy_id)
+            .limit(self._policies_max_size)
+        )
+
+    async def _get_policy_ids(self, network: TrustedNetworkModel, /) -> list[int]:
+        """The ids of the policies assigned to the network, active or not: the proxy knows which are active."""
+        async with session_manager.session() as session:
+            result: Result[tuple[int]] = await session.execute(self._get_policies_statement(network))
+
+        return list(result.scalars())
+
     def _check_no_credentials(self, credentials: Credentials | None, /) -> None:
         # Registered for a credentials kind by mistake, it would let in any password from a trusted network.
         if credentials is not None:
@@ -130,10 +153,12 @@ class TrustedNetworkAuthenticator(Authenticator):
             raise AuthenticationRequired() from err
 
         pool = await self._get_pool(network)
+        policy_ids = await self._get_policy_ids(network)
         return Identity(
             subject=f"network:{network.network}",
             claims={
                 "trusted_network_id": network.id,
                 **outgoing_claims(network.outgoing_mode, ips=pool),
+                **policy_claims(policy_ids),
             },
         )
