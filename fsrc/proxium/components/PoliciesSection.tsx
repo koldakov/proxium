@@ -29,13 +29,15 @@ import {
 
 import type { ProxiumDataProvider } from '../providers'
 import { useDetailPage } from './detailPage'
+import { useConfigs } from './configs'
 import { ShowSection } from './ShowSection'
 
-// The API caps assigned policies at `API_POLICIES_MAX_PER_OWNER`, 32 by default: one page shows them all.
+// The API caps assigned policies at `API_POLICIES_MAX_PER_OWNER`, up to 100, the largest page:
+// one shows them all.
 const ASSIGNED_LIMIT = 100
 
-// Options shown while typing: the search narrows them, the rest stay out of the request.
-const OPTIONS_LIMIT = 20
+// Options offered at once: the search finds the rest, they stay out of the request.
+const OPTIONS_LIMIT = 5
 
 // Global policies named next to the assigned ones, the rest are behind the link to the list.
 const GLOBAL_LIMIT = 10
@@ -53,6 +55,7 @@ const Assign = ({ resource, id, onAssigned }: AssignProps) => {
   const [query, setQuery] = useState('')
   const {
     data: options = [],
+    total = 0,
     isFetching,
     refetch,
   } = useGetList(
@@ -92,6 +95,9 @@ const Assign = ({ resource, id, onAssigned }: AssignProps) => {
           {...params}
           size="small"
           label="Assign a policy"
+          helperText={
+            total > options.length && `First ${options.length} of ${total}, type to find the rest`
+          }
           // Inside a form Enter would submit it.
           onKeyDown={(event) => event.key === 'Enter' && event.preventDefault()}
         />
@@ -149,7 +155,13 @@ export const PoliciesSection = () => {
   const { canAccess: canChange } = useCanAccess({ resource, action: 'edit' })
   const { canAccess: canPick } = useCanAccess({ resource: 'policies', action: 'list' })
 
-  const { data = [], refetch } = useGetList(
+  const configs = useConfigs()
+
+  const {
+    data = [],
+    total = 0,
+    refetch,
+  } = useGetList(
     `${resource}/${record?.id}/policies`,
     { pagination: { page: 1, perPage: ASSIGNED_LIMIT } },
     { enabled: resource !== undefined && record !== undefined },
@@ -169,16 +181,27 @@ export const PoliciesSection = () => {
     return null
   }
 
+  const max = configs?.policiesMaxPerOwner
+  // Assigning one more would be refused: no picker, the reason instead.
+  const isFull = max !== undefined && total >= max
+
   return (
     <ShowSection title="Policies">
       <Typography variant="body2" color="text.secondary">
         Limits of every policy apply at once.
         {canChange && ' Changes reach the proxy within the cache TTL from the settings.'}
+        {max !== undefined && ` Assigned ${total} of ${max} at most.`}
       </Typography>
       {canPick && <GlobalPolicies />}
-      {canChange && canPick && (
-        <Assign resource={resource} id={record.id} onAssigned={() => refetch()} />
-      )}
+      {canChange &&
+        canPick &&
+        (isFull ? (
+          <Typography variant="body2" color="warning.main">
+            The limit of {max} policies is reached: take one off to assign another
+          </Typography>
+        ) : (
+          <Assign resource={resource} id={record.id} onAssigned={() => refetch()} />
+        ))}
       {data.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
           No policies assigned

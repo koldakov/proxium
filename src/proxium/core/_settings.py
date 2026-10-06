@@ -192,10 +192,12 @@ class ApiSettings(BaseSettings):
         ),
     ] = 256
     # Policies assigned to one account or trusted network at most.
+    # Up to 100, the largest page: the admin UI shows them all on one.
     policies_max_per_owner: Annotated[
         int,
         Field(
             ge=1,
+            le=100,
         ),
     ] = 32
 

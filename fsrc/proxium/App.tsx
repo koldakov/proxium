@@ -5,6 +5,7 @@ import { Admin, AppBar, CustomRoutes, Layout, Resource } from 'react-admin'
 import { Route } from 'react-router-dom'
 
 import { AppUserMenu } from './components/AppUserMenu'
+import { useConfigs } from './components/configs'
 import { GroupedMenu } from './components/GroupedMenu'
 import { PROFILE_PATH, ProfilePage } from './pages/profile'
 import { SettingsPage, settingsLink } from './pages/settings'
@@ -24,11 +25,16 @@ const AppMenu = () => <GroupedMenu nodes={menu} />
 
 const AppAppBar = () => <AppBar userMenu={<AppUserMenu profilePath={PROFILE_PATH} />} />
 
-const AppLayout = ({ children }: { children: ReactNode }) => (
-  <Layout menu={AppMenu} appBar={AppAppBar}>
-    {children}
-  </Layout>
-)
+const AppLayout = ({ children }: { children: ReactNode }) => {
+  // Loaded once after login, the pages read them from the cache.
+  useConfigs()
+
+  return (
+    <Layout menu={AppMenu} appBar={AppAppBar}>
+      {children}
+    </Layout>
+  )
+}
 
 const App = () => (
   <Admin

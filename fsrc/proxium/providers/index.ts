@@ -8,6 +8,7 @@ import { refreshTokens } from './tokens'
 
 export type { Me } from './authProvider'
 export type {
+  Configs,
   OutgoingPoolParams,
   PasswordChange,
   PolicyAssignmentParams,

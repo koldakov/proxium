@@ -66,7 +66,7 @@ Host names are resolved once, on start.
 | `API_SECRET_KEY` | Secret that signs API user tokens, at least 32 characters. Changing it logs everyone out |
 | `API_CORS_ORIGINS` | Comma-separated browser origins allowed to call the API, e.g. the admin dev server. Empty blocks all |
 | `API_OUTGOING_POOL_MAX_SIZE` | IPs in one outgoing IP pool at most, default `256` |
-| `API_POLICIES_MAX_PER_OWNER` | Policies assigned to one account or trusted network at most, default `32` |
+| `API_POLICIES_MAX_PER_OWNER` | Policies assigned to one account or trusted network at most, up to `100`, default `32` |
 
 ### Management commands
 

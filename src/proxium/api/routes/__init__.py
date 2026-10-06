@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from ._basic_proxy_accounts import basic_proxy_accounts_router
 from ._certificates import certificates_router
+from ._configs import configs_router
 from ._groups import groups_router
 from ._outgoing_ips import outgoing_ips_router
 from ._permissions import permissions_router
@@ -30,3 +31,4 @@ api_router.include_router(outgoing_ips_router)
 api_router.include_router(policies_router)
 api_router.include_router(certificates_router)
 api_router.include_router(settings_router)
+api_router.include_router(configs_router)

@@ -74,6 +74,11 @@ export interface Settings {
   cacheTtl: number
 }
 
+// Read-only, from the API's environment.
+export interface Configs {
+  policiesMaxPerOwner: number
+}
+
 /** CRUD plus the actions some resources have on top of it. */
 export interface ProxiumDataProvider extends DataProvider {
   revoke: (resource: string, params: RevokeParams) => Promise<void>
@@ -94,6 +99,8 @@ export interface ProxiumDataProvider extends DataProvider {
   // One record, not a resource: no id, no list.
   getSettings: () => Promise<Settings>
   updateSettings: (data: Settings) => Promise<Settings>
+  // Any active user, no permission needed.
+  getConfigs: () => Promise<Configs>
 }
 
 const unsupported = (method: string) => (): never => {
@@ -240,6 +247,11 @@ export const createDataProvider = (
         method: 'PUT',
         body: JSON.stringify(data),
       })
+      return json
+    },
+
+    getConfigs: async () => {
+      const { json } = await httpClient(resourceUrl('configs'))
       return json
     },
 
