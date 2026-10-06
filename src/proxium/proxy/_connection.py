@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import socket
 from typing import TYPE_CHECKING, Final
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from ._observers import Observer
+    from ._policies import Grant
     from ._profiles import Profile
     from ._types import Credentials, Identity, Request, Session
     from .inbound import Inbound
@@ -112,20 +114,28 @@ class Connection:
             self._session.error = UnknownProtocol()
             return
 
-        try:
-            request, target = await self._open(inbound, client, deadline)
-        except ProxyError as error:
-            self._session.error = error
-            await inbound.reject(client, error)
-            return
+        # Releases the grants however the connection ends, refused by a later policy included.
+        async with contextlib.AsyncExitStack() as releases:
+            try:
+                request, grants, target = await self._open(inbound, client, deadline, releases)
+            except ProxyError as error:
+                self._session.error = error
+                await inbound.reject(client, error)
+                return
 
-        self._session.request = request
-        async with target:
-            target.write(request.payload)
-            self._session.bytes_sent += len(request.payload)
-            await inbound.accept(client, request)
-            await self._notify(lambda observer: observer.on_open(self._session))
-            await Relay(client, target, self._session, idle_timeout=self._profile.timeouts.idle).run()
+            self._session.request = request
+            async with target:
+                target.write(request.payload)
+                self._session.bytes_sent += len(request.payload)
+                await inbound.accept(client, request)
+                await self._notify(lambda observer: observer.on_open(self._session))
+                await Relay(
+                    client,
+                    target,
+                    self._session,
+                    idle_timeout=self._profile.timeouts.idle,
+                    grants=grants,
+                ).run()
 
     async def _process(self) -> None:
         # One deadline for the whole handshake, TLS and detection included.
@@ -147,13 +157,28 @@ class Connection:
         async with client:
             await self._serve(client, deadline)
 
-    async def _open(self, inbound: Inbound, client: Stream, deadline: float, /) -> tuple[Request, Stream]:
-        """Handshake, policy checks and the outgoing connection: every step that may refuse with a `ProxyError`."""
+    async def _admit(self, request: Request, releases: contextlib.AsyncExitStack, /) -> list[Grant]:
+        """Grants of every policy, each released by `releases`."""
+        grants: list[Grant] = []
+        for policy in self._profile.policies:
+            grant = await policy.admit(request, self._session)
+            releases.push_async_callback(grant.release)
+            grants.append(grant)
+        return grants
+
+    async def _open(
+        self,
+        inbound: Inbound,
+        client: Stream,
+        deadline: float,
+        releases: contextlib.AsyncExitStack,
+        /,
+    ) -> tuple[Request, list[Grant], Stream]:
+        """Handshake, policies and the outgoing connection: every step that may refuse with a `ProxyError`."""
         async with asyncio.timeout_at(deadline):
             request = await inbound.handshake(client, self._authenticate)
-        for policy in self._profile.policies:
-            await policy.check(request, self._session)
-        return request, await self._profile.connector.connect(request, self._session)
+        grants = await self._admit(request, releases)
+        return request, grants, await self._profile.connector.connect(request, self._session)
 
     async def _authenticate(self, credentials: Credentials | None, /) -> Identity:
         # Binds the session, so inbounds pass credentials only and stay unaware of it.

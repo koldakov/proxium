@@ -29,9 +29,11 @@ from ._connectors import (
 )
 from ._encryption import CachedEncryption, Encryption, EncryptionOutcome, EncryptionUnavailable, StaticEncryption
 from ._guards import AddressGuard, ForbiddenAddress, IPAddress, IPNetwork
+from ._limits import ConnectionLimitExceeded, ConnectionLimitPolicy, Direction, SpeedLimitPolicy
 from ._observers import LoggingObserver, Observer
-from ._policies import Forbidden, Policy
+from ._policies import EMPTY_GRANT, Forbidden, Grant, Policy
 from ._profiles import Listener, Profile, Timeouts
+from ._scopes import ClientIPScope, ConnectionScope, GlobalScope, IdentityScope, Scope, TargetHostScope
 from ._server import ListenError, ProxyServer
 from ._stream import Stream
 from ._types import (
@@ -50,6 +52,7 @@ from .inbound import BadRequest, HttpInbound, Inbound, Socks5Inbound
 
 __all__ = [
     "ANONYMOUS",
+    "EMPTY_GRANT",
     "SYSTEM_SOURCE",
     "Address",
     "AddressGuard",
@@ -67,8 +70,12 @@ __all__ = [
     "CacheMiss",
     "CachedAuthenticator",
     "CachedEncryption",
+    "ClientIPScope",
     "ClientKey",
     "Connection",
+    "ConnectionLimitExceeded",
+    "ConnectionLimitPolicy",
+    "ConnectionScope",
     "Connector",
     "Credentials",
     "CredentialsExpired",
@@ -76,17 +83,21 @@ __all__ = [
     "CredentialsRevoked",
     "DenyAllAuthenticator",
     "DirectConnector",
+    "Direction",
     "DispatchAuthenticator",
     "Encryption",
     "EncryptionOutcome",
     "EncryptionUnavailable",
     "Forbidden",
     "ForbiddenAddress",
+    "GlobalScope",
+    "Grant",
     "Host",
     "HttpInbound",
     "IPAddress",
     "IPNetwork",
     "Identity",
+    "IdentityScope",
     "Inbound",
     "ListenError",
     "Listener",
@@ -99,13 +110,16 @@ __all__ = [
     "ProxyError",
     "ProxyServer",
     "Request",
+    "Scope",
     "Session",
     "Socks5Inbound",
     "SourceSelector",
     "SourceUnavailable",
+    "SpeedLimitPolicy",
     "StaticEncryption",
     "Stream",
     "SystemSourceSelector",
+    "TargetHostScope",
     "TargetTimeout",
     "TargetUnreachable",
     "Timeouts",

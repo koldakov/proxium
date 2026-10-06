@@ -36,3 +36,6 @@ class LoggingObserver(Observer):
             session.bytes_received,
             session.encrypted,
         )
+        # After the request was accepted, e.g. a policy cut the tunnel.
+        if session.error is not None:
+            logger.info("%s %s ended: %r", session.client, session.request.identity.subject, session.error)

@@ -13,6 +13,7 @@ from proxium.proxy._connectors import (
     TargetTimeout,
     TargetUnreachable,
 )
+from proxium.proxy._limits import ConnectionLimitExceeded
 from proxium.proxy._policies import Forbidden
 from proxium.proxy._types import (
     Address,
@@ -55,6 +56,7 @@ DEFAULT_STATUSES: Final[Mapping[type[ProxyError], HTTPStatus]] = {
     UnsupportedMethod: HTTPStatus.NOT_IMPLEMENTED,
     AuthenticationRequired: HTTPStatus.PROXY_AUTHENTICATION_REQUIRED,
     Forbidden: HTTPStatus.FORBIDDEN,
+    ConnectionLimitExceeded: HTTPStatus.TOO_MANY_REQUESTS,
     TargetUnreachable: HTTPStatus.BAD_GATEWAY,
     TargetTimeout: HTTPStatus.GATEWAY_TIMEOUT,
     ProxyError: HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -64,6 +66,7 @@ DEFAULT_STATUSES: Final[Mapping[type[ProxyError], HTTPStatus]] = {
 DEFAULT_REASONS: Final[Mapping[type[ProxyError], str]] = {
     CredentialsExpired: "Credentials Expired",
     CredentialsRevoked: "Credentials Revoked",
+    ConnectionLimitExceeded: "Too Many Connections",
 }
 
 
