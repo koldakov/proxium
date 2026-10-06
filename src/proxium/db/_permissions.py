@@ -52,6 +52,11 @@ class Permission(StrEnum):
     GROUPS_CHANGE = "groups.change"
     GROUPS_DELETE = "groups.delete"
 
+    POLICIES_VIEW = "policies.view"
+    POLICIES_ADD = "policies.add"
+    POLICIES_CHANGE = "policies.change"
+    POLICIES_DELETE = "policies.delete"
+
     SETTINGS_VIEW = "settings.view"
     SETTINGS_CHANGE = "settings.change"
 

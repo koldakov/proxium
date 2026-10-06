@@ -11,6 +11,7 @@ from ._fields import Hash, HashField
 if TYPE_CHECKING:
     # SQLAlchemy finds relationship targets by name in its registry, a runtime import would be circular.
     from ._outgoing_ips import OutgoingIPModel  # noqa: TC004
+    from ._policies import PolicyModel  # noqa: TC004
     from ._proxy_accounts import BasicProxyAccountModel, TokenProxyAccountModel  # noqa: TC004
     from ._trusted_networks import TrustedNetworkModel  # noqa: TC004
 
@@ -54,6 +55,10 @@ class UserModel(BaseTimestampModel):
         passive_deletes="all",
     )
     outgoing_ips: Mapped[list[OutgoingIPModel]] = relationship(
+        back_populates="created_by",
+        passive_deletes="all",
+    )
+    policies: Mapped[list[PolicyModel]] = relationship(
         back_populates="created_by",
         passive_deletes="all",
     )
