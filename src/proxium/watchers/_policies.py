@@ -92,7 +92,7 @@ class PolicyWatcher:
 
     All of them are read every time, `chunk_size` policies per query: a change anywhere in a policy, its rules or
     limits shows up without the API marking it. Call `load` before serving: the proxy must not start without its
-    limits, so it raises if the policies can't be read. Then `start` in the running loop, and `close` before
+    limits, so it raises if the policies can't be applied. Then `start` in the running loop, and `close` before
     the server shuts down. A failed lookup or `on_change` is logged and the old policies stay, the next lookup retries.
     """
 
@@ -111,11 +111,11 @@ class PolicyWatcher:
         self._closing: asyncio.Event = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
 
-    async def load(self) -> tuple[PolicySnapshot, ...]:
-        """The current policies, taken as applied: `on_change` gets only changes made after."""
+    async def load(self) -> None:
+        """Read and apply the current policies by `on_change`, raising if either fails."""
         snapshot = await self._read()
+        await self._on_change(snapshot)
         self._current = snapshot
-        return snapshot
 
     def start(self) -> None:
         if self._current is None:

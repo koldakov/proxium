@@ -43,7 +43,7 @@ from proxium.proxy import (
     Timeouts,
 )
 from proxium.selectors import OUTGOING_IPS_CLAIM, OutgoingSourceSelector
-from proxium.watchers import PolicyWatcher, SettingsSnapshot, SettingsWatcher
+from proxium.watchers import PolicyWatcher, SettingsSnapshot, SettingsWatcher, Watchers
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -158,17 +158,22 @@ class ProxyRunner:
             LoggingObserver(),
             self._traffic_observer,
         ]
-        self._settings_watcher: SettingsWatcher = SettingsWatcher(
-            self._apply_settings,
-            interval=settings_poll_interval,
-        )
         # Kept across settings changes: their limits count open connections. Rules change in place.
         self._rule_set_policy: RuleSetPolicy = RuleSetPolicy()
         # Quotas measure the traffic the observer counts.
         self._rule_set_builder: RuleSetBuilder = RuleSetBuilder(self._traffic_observer)
-        self._policy_watcher: PolicyWatcher = PolicyWatcher(
-            self._apply_policies,
-            interval=settings_poll_interval,
+        self._watchers: Watchers = Watchers(
+            [
+                # Before the settings, which start listening: no connection goes through without its limits.
+                PolicyWatcher(
+                    self._apply_policies,
+                    interval=settings_poll_interval,
+                ),
+                SettingsWatcher(
+                    self._apply_settings,
+                    interval=settings_poll_interval,
+                ),
+            ],
         )
         self._graceful_timeout: float = graceful_timeout
         self._listen: Sequence[ListenAddress] = listen
@@ -285,13 +290,9 @@ class ProxyRunner:
 
     async def _serve(self) -> None:
         self._on_signal(self._stop.set)
-        settings = await self._settings_watcher.load()
-        # Before listening: no connection goes through without its limits.
-        await self._apply_policies(await self._policy_watcher.load())
+        # Before listening, which the watchers start: every connection counts its traffic.
         self._traffic_observer.start()
-        await self._apply_settings(settings)
-        self._settings_watcher.start()
-        self._policy_watcher.start()
+        await self._watchers.start()
         await self._stop.wait()
 
         # A second signal cuts the graceful wait short.
@@ -300,8 +301,7 @@ class ProxyRunner:
 
         logger.info("Shutting down, press Ctrl+C again to force")
         # First: a change applied during the shutdown would listen again.
-        await self._settings_watcher.close()
-        await self._policy_watcher.close()
+        await self._watchers.close()
         await self._server.shutdown(timeout=self._graceful_timeout)
         # After the shutdown: closed connections have counted their last bytes.
         await self._traffic_observer.close()

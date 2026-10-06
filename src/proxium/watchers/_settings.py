@@ -39,7 +39,7 @@ class SettingsNotLoadedError(Exception):
 class SettingsWatcher:
     """Looks up the settings every `interval` seconds and calls `on_change` when they differ from the last applied.
 
-    Call `load` before serving: the proxy must not start on guesses, so it raises if the settings can't be read.
+    Call `load` before serving: the proxy must not start on guesses, so it raises if the settings can't be applied.
     Then `start` in the running loop, and `close` before the server shuts down.
     A failed lookup or `on_change` is logged and the old settings stay, the next lookup retries.
     """
@@ -61,11 +61,11 @@ class SettingsWatcher:
     def _get_settings_statement(self) -> Select[tuple[SettingsModel]]:
         return select(SettingsModel)
 
-    async def load(self) -> SettingsSnapshot:
-        """The current settings, taken as applied: `on_change` gets only changes made after."""
+    async def load(self) -> None:
+        """Read and apply the current settings by `on_change`, raising if either fails."""
         snapshot = await self._read()
+        await self._on_change(snapshot)
         self._current = snapshot
-        return snapshot
 
     def start(self) -> None:
         if self._current is None:

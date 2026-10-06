@@ -9,6 +9,7 @@ from ._policies import (
     TrafficQuotaSnapshot,
 )
 from ._settings import SettingsCallback, SettingsNotLoadedError, SettingsSnapshot, SettingsWatcher
+from ._watchers import Watcher, Watchers
 
 __all__ = [
     "ConnectionLimitSnapshot",
@@ -23,4 +24,6 @@ __all__ = [
     "SettingsWatcher",
     "SpeedLimitSnapshot",
     "TrafficQuotaSnapshot",
+    "Watcher",
+    "Watchers",
 ]
