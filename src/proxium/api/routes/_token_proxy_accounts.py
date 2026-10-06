@@ -6,6 +6,7 @@ from fastapi_pagination import Page  # noqa: TC002, FastAPI reads signatures at 
 
 from proxium.api.services.token_proxy_accounts import (
     AddTokenProxyAccountOutgoingIPService,
+    AddTokenProxyAccountPolicyService,
     CreateTokenProxyAccountRequest,
     CreateTokenProxyAccountResponse,
     CreateTokenProxyAccountService,
@@ -14,11 +15,17 @@ from proxium.api.services.token_proxy_accounts import (
     ListTokenProxyAccountAvailableOutgoingIPsRequest,
     ListTokenProxyAccountAvailableOutgoingIPsResponse,
     ListTokenProxyAccountAvailableOutgoingIPsService,
+    ListTokenProxyAccountAvailablePoliciesRequest,
+    ListTokenProxyAccountAvailablePoliciesResponse,
+    ListTokenProxyAccountAvailablePoliciesService,
     ListTokenProxyAccountOutgoingIPsResponse,
     ListTokenProxyAccountOutgoingIPsService,
+    ListTokenProxyAccountPoliciesResponse,
+    ListTokenProxyAccountPoliciesService,
     ListTokenProxyAccountsResponse,
     ListTokenProxyAccountsService,
     RemoveTokenProxyAccountOutgoingIPService,
+    RemoveTokenProxyAccountPolicyService,
     RevokeTokenProxyAccountService,
     UpdateTokenProxyAccountRequest,
     UpdateTokenProxyAccountResponse,
@@ -63,6 +70,7 @@ async def create_token_proxy_account(
     """Create a bearer token proxy account, owned by the logged-in user.
 
     - `outgoingMode`, `outgoingIpIds`: the pool, IPs of one family, at least one with `pool` and none with the rest.
+    - `policyIds`: policies to assign, not global ones: those apply anyway.
     """
     service: CreateTokenProxyAccountService = CreateTokenProxyAccountService(token=credentials.credentials, data=data)
     return await service()
@@ -399,5 +407,178 @@ async def remove_token_proxy_account_outgoing_ip(
         token=credentials.credentials,
         id=account_id,
         outgoing_ip_id=outgoing_ip_id,
+    )
+    return await service()
+
+
+@token_proxy_accounts_router.get(
+    "/{account_id}/policies/available",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_200_OK: {
+            "description": "A page of policies to assign: not assigned yet and not global.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `token_proxy_accounts.change` or `policies.view`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Account not found.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "The account id is not an integer or a query parameter is malformed.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def list_token_proxy_account_available_policies(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    account_id: int,
+    # `Depends`, not `Query`: next to the pagination params, FastAPI documents a `Query` model as one `data` param.
+    data: Annotated[ListTokenProxyAccountAvailablePoliciesRequest, Depends()],
+) -> Page[ListTokenProxyAccountAvailablePoliciesResponse]:
+    """Policies to assign to a bearer token proxy account, by name.
+
+    Global ones apply to it anyway, so they're left out.
+
+    - `query`: search by name.
+    """
+    service: ListTokenProxyAccountAvailablePoliciesService = ListTokenProxyAccountAvailablePoliciesService(
+        token=credentials.credentials,
+        id=account_id,
+        data=data,
+    )
+    return await service()
+
+
+@token_proxy_accounts_router.get(
+    "/{account_id}/policies",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_200_OK: {
+            "description": "A page of the assigned policies, by name.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `token_proxy_accounts.view`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Account not found.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "The account id is not an integer or the page parameters are malformed.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def list_token_proxy_account_policies(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    account_id: int,
+) -> Page[ListTokenProxyAccountPoliciesResponse]:
+    """The policies assigned to a bearer token proxy account.
+
+    Global policies apply to it too, without being listed.
+    """
+    service: ListTokenProxyAccountPoliciesService = ListTokenProxyAccountPoliciesService(
+        token=credentials.credentials,
+        id=account_id,
+    )
+    return await service()
+
+
+@token_proxy_accounts_router.put(
+    "/{account_id}/policies/{policy_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Assigned, applied once the cached check of the client expires.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `token_proxy_accounts.change`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Account or policy not found.",
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": "The policy is global, or the account has as many policies as it may.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "An id is not an integer.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def add_token_proxy_account_policy(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    account_id: int,
+    policy_id: int,
+) -> None:
+    """Assign a policy to a bearer token proxy account. Assigning it again changes nothing.
+
+    At most `API_POLICIES_MAX_PER_OWNER` policies, global ones aside.
+    """
+    service: AddTokenProxyAccountPolicyService = AddTokenProxyAccountPolicyService(
+        token=credentials.credentials,
+        id=account_id,
+        policy_id=policy_id,
+    )
+    return await service()
+
+
+@token_proxy_accounts_router.delete(
+    "/{account_id}/policies/{policy_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Taken off, dropped once the cached check of the client expires.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `token_proxy_accounts.change`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Account not found, or the policy is not assigned to it.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "An id is not an integer.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def remove_token_proxy_account_policy(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    account_id: int,
+    policy_id: int,
+) -> None:
+    """Take a policy off a bearer token proxy account. The policy itself stays."""
+    service: RemoveTokenProxyAccountPolicyService = RemoveTokenProxyAccountPolicyService(
+        token=credentials.credentials,
+        id=account_id,
+        policy_id=policy_id,
     )
     return await service()

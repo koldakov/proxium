@@ -6,6 +6,7 @@ from fastapi_pagination import Page  # noqa: TC002, FastAPI reads signatures at 
 
 from proxium.api.services.trusted_networks import (
     AddTrustedNetworkOutgoingIPService,
+    AddTrustedNetworkPolicyService,
     CreateTrustedNetworkRequest,
     CreateTrustedNetworkResponse,
     CreateTrustedNetworkService,
@@ -15,12 +16,18 @@ from proxium.api.services.trusted_networks import (
     ListTrustedNetworkAvailableOutgoingIPsRequest,
     ListTrustedNetworkAvailableOutgoingIPsResponse,
     ListTrustedNetworkAvailableOutgoingIPsService,
+    ListTrustedNetworkAvailablePoliciesRequest,
+    ListTrustedNetworkAvailablePoliciesResponse,
+    ListTrustedNetworkAvailablePoliciesService,
     ListTrustedNetworkOutgoingIPsResponse,
     ListTrustedNetworkOutgoingIPsService,
+    ListTrustedNetworkPoliciesResponse,
+    ListTrustedNetworkPoliciesService,
     ListTrustedNetworksRequest,
     ListTrustedNetworksResponse,
     ListTrustedNetworksService,
     RemoveTrustedNetworkOutgoingIPService,
+    RemoveTrustedNetworkPolicyService,
     UpdateTrustedNetworkRequest,
     UpdateTrustedNetworkResponse,
     UpdateTrustedNetworkService,
@@ -67,6 +74,7 @@ async def create_trusted_network(
     """Trust a network: its clients use the proxy without credentials. Owned by the logged-in user.
 
     - `outgoingMode`, `outgoingIpIds`: the pool, IPs of one family, at least one with `pool` and none with the rest.
+    - `policyIds`: policies to assign, not global ones: those apply anyway.
     """
     service: CreateTrustedNetworkService = CreateTrustedNetworkService(token=credentials.credentials, data=data)
     return await service()
@@ -404,5 +412,178 @@ async def remove_trusted_network_outgoing_ip(
         token=credentials.credentials,
         id=network_id,
         outgoing_ip_id=outgoing_ip_id,
+    )
+    return await service()
+
+
+@trusted_networks_router.get(
+    "/{network_id}/policies/available",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_200_OK: {
+            "description": "A page of policies to assign: not assigned yet and not global.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.change` or `policies.view`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Network not found.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "The network id is not an integer or a query parameter is malformed.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def list_trusted_network_available_policies(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    network_id: int,
+    # `Depends`, not `Query`: next to the pagination params, FastAPI documents a `Query` model as one `data` param.
+    data: Annotated[ListTrustedNetworkAvailablePoliciesRequest, Depends()],
+) -> Page[ListTrustedNetworkAvailablePoliciesResponse]:
+    """Policies to assign to a trusted network, by name.
+
+    Global ones apply to it anyway, so they're left out.
+
+    - `query`: search by name.
+    """
+    service: ListTrustedNetworkAvailablePoliciesService = ListTrustedNetworkAvailablePoliciesService(
+        token=credentials.credentials,
+        id=network_id,
+        data=data,
+    )
+    return await service()
+
+
+@trusted_networks_router.get(
+    "/{network_id}/policies",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_200_OK: {
+            "description": "A page of the assigned policies, by name.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.view`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Network not found.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "The network id is not an integer or the page parameters are malformed.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def list_trusted_network_policies(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    network_id: int,
+) -> Page[ListTrustedNetworkPoliciesResponse]:
+    """The policies assigned to a trusted network.
+
+    Global policies apply to it too, without being listed.
+    """
+    service: ListTrustedNetworkPoliciesService = ListTrustedNetworkPoliciesService(
+        token=credentials.credentials,
+        id=network_id,
+    )
+    return await service()
+
+
+@trusted_networks_router.put(
+    "/{network_id}/policies/{policy_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Assigned, applied once the cached check of the client expires.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.change`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Network or policy not found.",
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": "The policy is global, or the network has as many policies as it may.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "An id is not an integer.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def add_trusted_network_policy(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    network_id: int,
+    policy_id: int,
+) -> None:
+    """Assign a policy to a trusted network. Assigning it again changes nothing.
+
+    At most `API_POLICIES_MAX_PER_OWNER` policies, global ones aside.
+    """
+    service: AddTrustedNetworkPolicyService = AddTrustedNetworkPolicyService(
+        token=credentials.credentials,
+        id=network_id,
+        policy_id=policy_id,
+    )
+    return await service()
+
+
+@trusted_networks_router.delete(
+    "/{network_id}/policies/{policy_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Taken off, dropped once the cached check of the client expires.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.change`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Network not found, or the policy is not assigned to it.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "An id is not an integer.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def remove_trusted_network_policy(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    network_id: int,
+    policy_id: int,
+) -> None:
+    """Take a policy off a trusted network. The policy itself stays."""
+    service: RemoveTrustedNetworkPolicyService = RemoveTrustedNetworkPolicyService(
+        token=credentials.credentials,
+        id=network_id,
+        policy_id=policy_id,
     )
     return await service()

@@ -17,8 +17,10 @@ from proxium.db import (
     OutgoingIPModel,
     OutgoingMode,
     Permission,
+    PolicyModel,
     TokenProxyAccountModel,
     TokenProxyAccountOutgoingIPModel,
+    TokenProxyAccountPolicyModel,
 )
 from proxium.helpers import BaseSchema
 
@@ -39,6 +41,11 @@ class CreateTokenProxyAccountRequest(BaseSchema):
     outgoing_ip_ids: set[int] = Field(
         default_factory=set,
         max_length=api_settings.outgoing_pool_max_size,
+    )
+    # Assigned policies. Global ones apply anyway, so they're refused.
+    policy_ids: set[int] = Field(
+        default_factory=set,
+        max_length=api_settings.policies_max_per_owner,
     )
 
     @field_validator("expires_at")
@@ -119,6 +126,47 @@ class CreateTokenProxyAccountService(BaseUserAuthenticatedService[CreateTokenPro
                 detail="Outgoing IPs of a pool must be of one family, IPv4 or IPv6.",
             )
 
+    def _insert_policies_statement(self, account_id: int, /) -> Insert:
+        return insert(TokenProxyAccountPolicyModel).values(
+            [
+                {
+                    "token_proxy_account_id": account_id,
+                    "policy_id": policy_id,
+                }
+                for policy_id in self.data.policy_ids
+            ],
+        )
+
+    @property
+    def _count_global_policies_statement(self) -> Select[tuple[int]]:
+        return (
+            select(func.count())
+            .select_from(PolicyModel)
+            .where(
+                PolicyModel.id.in_(self.data.policy_ids),
+                PolicyModel.is_global.is_(True),
+            )
+        )
+
+    async def _insert_policies(self, account_id: int, /) -> None:
+        """Assign the policies from the request ids, nothing is loaded. Raise 422 if one is missing or global."""
+        result: Result[tuple[int]] = await self.session.execute(self._count_global_policies_statement)
+        if result.scalars().one() > 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Global policies apply to every client already, don't assign them.",
+            )
+
+        try:
+            await self.session.execute(self._insert_policies_statement(account_id))
+        except IntegrityError as err:
+            if err.orig.sqlstate == ForeignKeyViolationError.sqlstate:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Policy not found.",
+                ) from None
+            raise
+
     async def process(self, *args, **kwargs) -> CreateTokenProxyAccountResponse:
         key: str = f"{TOKEN_PREFIX}{secrets.token_hex(8)}"
         token: str = f"{key}{TOKEN_SEPARATOR}{secrets.token_urlsafe(32)}"
@@ -136,6 +184,8 @@ class CreateTokenProxyAccountService(BaseUserAuthenticatedService[CreateTokenPro
         await self.session.flush()
         if self.data.outgoing_ip_ids:
             await self._insert_outgoing_ips(account.id)
+        if self.data.policy_ids:
+            await self._insert_policies(account.id)
         await self.session.commit()
 
         # Timestamps come from the database.

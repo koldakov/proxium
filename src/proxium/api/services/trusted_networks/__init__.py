@@ -1,4 +1,5 @@
 from ._add_trusted_network_outgoing_ip import AddTrustedNetworkOutgoingIPService
+from ._add_trusted_network_policy import AddTrustedNetworkPolicyService
 from ._create_trusted_network import (
     CreateTrustedNetworkRequest,
     CreateTrustedNetworkResponse,
@@ -11,16 +12,23 @@ from ._list_trusted_network_available_outgoing_ips import (
     ListTrustedNetworkAvailableOutgoingIPsResponse,
     ListTrustedNetworkAvailableOutgoingIPsService,
 )
+from ._list_trusted_network_available_policies import (
+    ListTrustedNetworkAvailablePoliciesRequest,
+    ListTrustedNetworkAvailablePoliciesResponse,
+    ListTrustedNetworkAvailablePoliciesService,
+)
 from ._list_trusted_network_outgoing_ips import (
     ListTrustedNetworkOutgoingIPsResponse,
     ListTrustedNetworkOutgoingIPsService,
 )
+from ._list_trusted_network_policies import ListTrustedNetworkPoliciesResponse, ListTrustedNetworkPoliciesService
 from ._list_trusted_networks import (
     ListTrustedNetworksRequest,
     ListTrustedNetworksResponse,
     ListTrustedNetworksService,
 )
 from ._remove_trusted_network_outgoing_ip import RemoveTrustedNetworkOutgoingIPService
+from ._remove_trusted_network_policy import RemoveTrustedNetworkPolicyService
 from ._update_trusted_network import (
     UpdateTrustedNetworkRequest,
     UpdateTrustedNetworkResponse,
@@ -29,6 +37,7 @@ from ._update_trusted_network import (
 
 __all__ = [
     "AddTrustedNetworkOutgoingIPService",
+    "AddTrustedNetworkPolicyService",
     "CreateTrustedNetworkRequest",
     "CreateTrustedNetworkResponse",
     "CreateTrustedNetworkService",
@@ -38,12 +47,18 @@ __all__ = [
     "ListTrustedNetworkAvailableOutgoingIPsRequest",
     "ListTrustedNetworkAvailableOutgoingIPsResponse",
     "ListTrustedNetworkAvailableOutgoingIPsService",
+    "ListTrustedNetworkAvailablePoliciesRequest",
+    "ListTrustedNetworkAvailablePoliciesResponse",
+    "ListTrustedNetworkAvailablePoliciesService",
     "ListTrustedNetworkOutgoingIPsResponse",
     "ListTrustedNetworkOutgoingIPsService",
+    "ListTrustedNetworkPoliciesResponse",
+    "ListTrustedNetworkPoliciesService",
     "ListTrustedNetworksRequest",
     "ListTrustedNetworksResponse",
     "ListTrustedNetworksService",
     "RemoveTrustedNetworkOutgoingIPService",
+    "RemoveTrustedNetworkPolicyService",
     "UpdateTrustedNetworkRequest",
     "UpdateTrustedNetworkResponse",
     "UpdateTrustedNetworkService",
