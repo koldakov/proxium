@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from ._policies import Forbidden
+from ._types import ProxyError
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
@@ -46,8 +46,8 @@ class Relay:
         except* OSError:
             # Resets and idle timeouts are a normal way for a tunnel to end.
             pass
-        except* Forbidden as group:
-            # A grant cut the tunnel: the reason ends up in the session, as a refusal's does.
+        except* ProxyError as group:
+            # A grant cut the tunnel, e.g. over a quota: the reason ends up in the session, as a refusal's does.
             self._session.error = group.exceptions[0]
 
     async def _check_sent(self, n: int, /) -> None:

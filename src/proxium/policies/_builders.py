@@ -10,12 +10,14 @@ from proxium.proxy import (
     ConnectionScope,
     GlobalScope,
     IdentityScope,
+    QuotaPolicy,
     SpeedLimitPolicy,
     TargetHostScope,
 )
 from proxium.proxy import Direction as ProxyDirection
 
 from ._conditions import DEFAULT_CONDITION_PARSER
+from ._quotas import Anchor, AssignmentAnchor, FixedAnchor, PeriodMeter
 from ._rule_sets import Rule, RuleSet
 
 if TYPE_CHECKING:
@@ -23,13 +25,24 @@ if TYPE_CHECKING:
     from collections.abc import Hashable, Mapping, Sequence
 
     from proxium.proxy import Policy, Scope
-    from proxium.watchers import ConnectionLimitSnapshot, PolicySnapshot, RuleSnapshot, SpeedLimitSnapshot
+    from proxium.watchers import (
+        ConnectionLimitSnapshot,
+        PolicySnapshot,
+        RuleSnapshot,
+        SpeedLimitSnapshot,
+        TrafficQuotaSnapshot,
+    )
 
     from ._conditions import ConditionParser
+    from ._quotas import PeriodUsage
 
 
 class UnknownScopeError(Exception):
     """A limit has a scope the builder has no `Scope` for."""
+
+
+class UnsupportedQuotaScopeError(Exception):
+    """A quota has a scope other than the identity: usage is counted per account and trusted network only."""
 
 
 # Every scope, as the admin describes it.
@@ -57,14 +70,18 @@ class RuleSetBuilder:
 
     Limits keep their state across builds: an unchanged speed limit is reused with its buckets, a connection limit
     keeps counting the connections open under its previous value. Build anew on every change, from the same builder.
+    Quotas keep no state: `usage` counts the traffic, they measure it.
     """
 
     def __init__(
         self,
+        usage: PeriodUsage,
+        /,
         *,
         conditions: ConditionParser = DEFAULT_CONDITION_PARSER,
         scopes: Mapping[LimitScope, Scope] = DEFAULT_SCOPES,
     ) -> None:
+        self._usage: PeriodUsage = usage
         self._conditions: ConditionParser = conditions
         self._scopes: dict[LimitScope, Scope] = dict(scopes)
         # Open connections per limit and scope: a new scope counts other keys, so it starts anew.
@@ -111,9 +128,31 @@ class RuleSetBuilder:
         speed_limits[limit] = policy
         return policy
 
+    def _get_anchor(self, policy: PolicySnapshot, /) -> Anchor:
+        # Global: one day for all. Assigned: each account or network has its own, e.g. the day it paid.
+        if policy.is_global:
+            return FixedAnchor(policy.global_starts_on)
+        return AssignmentAnchor(policy.id)
+
+    def _build_traffic_quota(self, quota: TrafficQuotaSnapshot, anchor: Anchor, /) -> QuotaPolicy:
+        if quota.scope != LimitScope.IDENTITY:
+            raise UnsupportedQuotaScopeError(f"Quotas are per identity, got {quota.scope}.")
+
+        return QuotaPolicy(
+            PeriodMeter(
+                self._usage,
+                anchor,
+                period=quota.period,
+                length=quota.period_length,
+            ),
+            limit=quota.max_bytes,
+            direction=DIRECTIONS[quota.direction],
+        )
+
     def _build_rule(
         self,
         rule: RuleSnapshot,
+        anchor: Anchor,
         counts: dict[tuple[int, LimitScope], Counter[Hashable]],
         speed_limits: dict[SpeedLimitSnapshot, SpeedLimitPolicy],
         /,
@@ -121,6 +160,7 @@ class RuleSetBuilder:
         limits: list[Policy] = [
             *(self._build_connection_limit(limit, counts) for limit in rule.connection_limits),
             *(self._build_speed_limit(limit, speed_limits) for limit in rule.speed_limits),
+            *(self._build_traffic_quota(quota, anchor) for quota in rule.traffic_quotas),
         ]
         return Rule(
             condition=self._conditions.parse(rule.condition),
@@ -133,7 +173,9 @@ class RuleSetBuilder:
         speed_limits: dict[SpeedLimitSnapshot, SpeedLimitPolicy] = {}
         rule_set = RuleSet(
             policies={
-                policy.id: tuple(self._build_rule(rule, counts, speed_limits) for rule in policy.rules)
+                policy.id: tuple(
+                    self._build_rule(rule, self._get_anchor(policy), counts, speed_limits) for rule in policy.rules
+                )
                 for policy in policies
             },
             global_ids=tuple(policy.id for policy in policies if policy.is_global),

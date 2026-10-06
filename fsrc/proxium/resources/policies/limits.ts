@@ -30,9 +30,33 @@ export const formatMegabytes = (bytes: number | null | undefined) =>
 export const parseMegabytes = (value: string) =>
   value === '' ? null : Math.round(parseFloat(value) * 1_000_000)
 
+export const formatGigabytes = (bytes: number | null | undefined) =>
+  bytes == null ? '' : bytes / 1_000_000_000
+
+export const parseGigabytes = (value: string) =>
+  value === '' ? null : Math.round(parseFloat(value) * 1_000_000_000)
+
+// A quota counts the two ways together, unlike a speed limit.
+export const QUOTA_DIRECTIONS = [
+  { id: 'both', name: 'Both ways' },
+  { id: 'received', name: 'Download' },
+  { id: 'sent', name: 'Upload' },
+]
+
+// How often a quota resets, `total` never does.
+export const QUOTA_PERIODS = [
+  { id: 'month', name: 'Monthly' },
+  { id: 'day', name: 'Daily' },
+  { id: 'total', name: 'Never' },
+]
+
+// Traffic days are UTC, so are quota periods: the API takes the day as `YYYY-MM-DD`.
+export const utcToday = () => new Date().toISOString().slice(0, 10)
+
 /**
  * The form edits one rule that always applies: conditions aren't there yet, so a second rule would never match.
- * Fills what the form leaves out: the rule's name and a burst of one second of the rate.
+ * Fills what the form leaves out: the rule's name, a burst of one second of the rate, and the period length of
+ * quotas that never reset.
  */
 export const toPolicyData = (data: Partial<RaRecord>) => {
   const [first = {}, ...rest] = data.rules ?? []
@@ -43,6 +67,10 @@ export const toPolicyData = (data: Partial<RaRecord>) => {
     speedLimits: (first.speedLimits ?? []).map((limit: RaRecord) => ({
       ...limit,
       burst: limit.burst ?? limit.rate,
+    })),
+    trafficQuotas: (first.trafficQuotas ?? []).map((quota: RaRecord) => ({
+      ...quota,
+      periodLength: quota.period === 'total' ? 1 : quota.periodLength,
     })),
   }
   return { ...data, rules: [rule, ...rest] }

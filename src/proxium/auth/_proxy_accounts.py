@@ -33,7 +33,8 @@ from proxium.proxy import (
 from proxium.selectors import outgoing_claims
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
+    from datetime import date
 
     from sqlalchemy import Result, Select
 
@@ -99,12 +100,15 @@ class BaseProxyAccountAuthenticator[M: BaseProxyAccountModel](Authenticator, ABC
 
         return list(result.scalars())
 
-    async def _get_policy_ids(self, account: M, /) -> list[int]:
-        """The ids of the policies assigned to the account, active or not: the proxy knows which are active."""
-        async with session_manager.session() as session:
-            result: Result[tuple[int]] = await session.execute(self._get_policies_statement(account))
+    async def _get_policies(self, account: M, /) -> dict[int, date]:
+        """The policies assigned to the account, active or not: the proxy knows which are active.
 
-        return list(result.scalars())
+        By id, the day each assignment's quota periods count from.
+        """
+        async with session_manager.session() as session:
+            result: Result[tuple[int, date]] = await session.execute(self._get_policies_statement(account))
+
+        return dict(result.tuples().all())
 
     async def authenticate(self, credentials: Credentials | None, proxy_session: Session, /) -> Identity:
         try:
@@ -130,8 +134,8 @@ class BaseProxyAccountAuthenticator[M: BaseProxyAccountModel](Authenticator, ABC
 
         # After the checks: the pool and the policies are of no use to a refused client.
         pool = await self._get_pool(account)
-        policy_ids = await self._get_policy_ids(account)
-        return self._identity(account, pool=pool, policy_ids=policy_ids)
+        policies = await self._get_policies(account)
+        return self._identity(account, pool=pool, policies=policies)
 
     @abstractmethod
     def _lookup(self, credentials: Credentials | None, /) -> tuple[Select[tuple[M]], str]:
@@ -146,8 +150,8 @@ class BaseProxyAccountAuthenticator[M: BaseProxyAccountModel](Authenticator, ABC
         """The query for the IPs of the account's pool, at most `_pool_max_size`."""
 
     @abstractmethod
-    def _get_policies_statement(self, account: M, /) -> Select[tuple[int]]:
-        """The query for the ids of the policies assigned to the account, at most `_policies_max_size`."""
+    def _get_policies_statement(self, account: M, /) -> Select[tuple[int, date]]:
+        """The query for the ids and start days of the account's policies, at most `_policies_max_size`."""
 
     @abstractmethod
     def _identity(
@@ -156,7 +160,7 @@ class BaseProxyAccountAuthenticator[M: BaseProxyAccountModel](Authenticator, ABC
         /,
         *,
         pool: Sequence[IPAddress] = (),
-        policy_ids: Sequence[int] = (),
+        policies: Mapping[int, date],
     ) -> Identity:
         pass
 
@@ -185,9 +189,9 @@ class BasicProxyAccountAuthenticator(BaseProxyAccountAuthenticator[BasicProxyAcc
             .limit(self._pool_max_size)
         )
 
-    def _get_policies_statement(self, account: BasicProxyAccountModel, /) -> Select[tuple[int]]:
+    def _get_policies_statement(self, account: BasicProxyAccountModel, /) -> Select[tuple[int, date]]:
         return (
-            select(BasicProxyAccountPolicyModel.policy_id)
+            select(BasicProxyAccountPolicyModel.policy_id, BasicProxyAccountPolicyModel.starts_on)
             .where(BasicProxyAccountPolicyModel.basic_proxy_account_id == account.id)
             .order_by(BasicProxyAccountPolicyModel.policy_id)
             .limit(self._policies_max_size)
@@ -199,14 +203,14 @@ class BasicProxyAccountAuthenticator(BaseProxyAccountAuthenticator[BasicProxyAcc
         /,
         *,
         pool: Sequence[IPAddress] = (),
-        policy_ids: Sequence[int] = (),
+        policies: Mapping[int, date],
     ) -> Identity:
         return Identity(
             subject=f"basic:{account.username}",
             claims={
                 "basic_proxy_account_id": account.id,
                 **outgoing_claims(account.outgoing_mode, ips=pool),
-                **policy_claims(policy_ids),
+                **policy_claims(policies),
             },
         )
 
@@ -239,9 +243,9 @@ class TokenProxyAccountAuthenticator(BaseProxyAccountAuthenticator[TokenProxyAcc
             .limit(self._pool_max_size)
         )
 
-    def _get_policies_statement(self, account: TokenProxyAccountModel, /) -> Select[tuple[int]]:
+    def _get_policies_statement(self, account: TokenProxyAccountModel, /) -> Select[tuple[int, date]]:
         return (
-            select(TokenProxyAccountPolicyModel.policy_id)
+            select(TokenProxyAccountPolicyModel.policy_id, TokenProxyAccountPolicyModel.starts_on)
             .where(TokenProxyAccountPolicyModel.token_proxy_account_id == account.id)
             .order_by(TokenProxyAccountPolicyModel.policy_id)
             .limit(self._policies_max_size)
@@ -253,7 +257,7 @@ class TokenProxyAccountAuthenticator(BaseProxyAccountAuthenticator[TokenProxyAcc
         /,
         *,
         pool: Sequence[IPAddress] = (),
-        policy_ids: Sequence[int] = (),
+        policies: Mapping[int, date],
     ) -> Identity:
         # The key, never the token: the subject gets logged. Names aren't unique.
         return Identity(
@@ -261,6 +265,6 @@ class TokenProxyAccountAuthenticator(BaseProxyAccountAuthenticator[TokenProxyAcc
             claims={
                 "token_proxy_account_id": account.id,
                 **outgoing_claims(account.outgoing_mode, ips=pool),
-                **policy_claims(policy_ids),
+                **policy_claims(policies),
             },
         )

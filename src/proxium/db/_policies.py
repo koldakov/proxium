@@ -73,8 +73,9 @@ class PolicyModel(BaseTimestampModel):
         default=False,
         server_default="false",
     )
-    # Quota periods of a global policy count from this day. An assigned one counts from the day of its assignment.
-    starts_on: Mapped[date] = mapped_column(
+    # Quota periods of a global policy count from this day. Unused by others: an assigned policy counts from the day
+    # of its assignment.
+    global_starts_on: Mapped[date] = mapped_column(
         Date(),
         server_default=text(UTC_TODAY),
     )

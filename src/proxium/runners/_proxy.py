@@ -164,7 +164,8 @@ class ProxyRunner:
         )
         # Kept across settings changes: their limits count open connections. Rules change in place.
         self._rule_set_policy: RuleSetPolicy = RuleSetPolicy()
-        self._rule_set_builder: RuleSetBuilder = RuleSetBuilder()
+        # Quotas measure the traffic the observer counts.
+        self._rule_set_builder: RuleSetBuilder = RuleSetBuilder(self._traffic_observer)
         self._policy_watcher: PolicyWatcher = PolicyWatcher(
             self._apply_policies,
             interval=settings_poll_interval,

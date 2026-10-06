@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, ClassVar, Literal
 
 from fastapi import HTTPException, status
@@ -8,7 +8,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import selectinload
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import Direction, LimitScope, Permission, PolicyModel, PolicyRuleModel
+from proxium.db import Direction, LimitScope, Permission, PolicyModel, PolicyRuleModel, QuotaPeriod
 from proxium.helpers import BaseSchema
 
 
@@ -30,6 +30,14 @@ class GetPolicySpeedLimitResponse(BaseSchema):
     burst: int
 
 
+class GetPolicyTrafficQuotaResponse(BaseSchema):
+    id: int
+    direction: Direction
+    max_bytes: int
+    period: QuotaPeriod
+    period_length: int
+
+
 class GetPolicyRuleResponse(BaseSchema):
     id: int
     name: Annotated[
@@ -41,6 +49,7 @@ class GetPolicyRuleResponse(BaseSchema):
     condition: GetPolicyConditionResponse
     connection_limits: list[GetPolicyConnectionLimitResponse]
     speed_limits: list[GetPolicySpeedLimitResponse]
+    traffic_quotas: list[GetPolicyTrafficQuotaResponse]
 
 
 class GetPolicyResponse(BaseSchema):
@@ -53,6 +62,8 @@ class GetPolicyResponse(BaseSchema):
     ]
     is_active: bool
     is_global: bool
+    # Quota periods of a global policy count from this day, UTC.
+    global_starts_on: date
     # In order: the first rule whose condition matches applies.
     rules: list[GetPolicyRuleResponse]
     created_by_id: int
@@ -75,6 +86,7 @@ class GetPolicyService(BaseUserAuthenticatedService[GetPolicyResponse]):
             .options(
                 rules.selectinload(PolicyRuleModel.connection_limits),
                 rules.selectinload(PolicyRuleModel.speed_limits),
+                rules.selectinload(PolicyRuleModel.traffic_quotas),
             )
         )
 

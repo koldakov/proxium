@@ -33,6 +33,7 @@ from ._limits import ConnectionLimitExceeded, ConnectionLimitPolicy, Direction, 
 from ._observers import LoggingObserver, Observer
 from ._policies import EMPTY_GRANT, Forbidden, Grant, Policy
 from ._profiles import Listener, Profile, Timeouts
+from ._quotas import Meter, QuotaExceeded, QuotaPolicy, Unmetered, Usage, UsageUnavailable
 from ._scopes import ClientIPScope, ConnectionScope, GlobalScope, IdentityScope, Scope, TargetHostScope
 from ._server import ListenError, ProxyServer
 from ._stream import Stream
@@ -104,11 +105,14 @@ __all__ = [
     "ListenerSourceSelector",
     "LoggingObserver",
     "MemoryCache",
+    "Meter",
     "Observer",
     "Policy",
     "Profile",
     "ProxyError",
     "ProxyServer",
+    "QuotaExceeded",
+    "QuotaPolicy",
     "Request",
     "Scope",
     "Session",
@@ -124,4 +128,7 @@ __all__ = [
     "TargetUnreachable",
     "Timeouts",
     "UnknownProtocol",
+    "Unmetered",
+    "Usage",
+    "UsageUnavailable",
 ]

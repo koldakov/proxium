@@ -73,7 +73,8 @@ class RuleSetPolicy(Policy):
 
     def _get_policy_ids(self, request: Request, rule_set: RuleSet, /) -> list[int]:
         # An identity without assigned policies has no claim, e.g. anonymous: only global ones apply.
-        assigned = request.identity.claims.get(POLICIES_CLAIM, ())
+        # The claim maps ids to start days, iterating it gives the ids.
+        assigned = request.identity.claims.get(POLICIES_CLAIM, {})
         # Once each: a global policy may be assigned as well.
         return list(dict.fromkeys([*rule_set.global_ids, *assigned]))
 

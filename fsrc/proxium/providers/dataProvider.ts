@@ -36,6 +36,11 @@ export interface PolicyAssignmentParams {
   policyId: Identifier
 }
 
+// The UTC day as `YYYY-MM-DD` quota periods of an assigned policy count from for the record.
+export interface PolicyStartParams extends PolicyAssignmentParams {
+  startsOn: string
+}
+
 export interface TrafficTotal {
   bytesSent: number
   bytesReceived: number
@@ -89,6 +94,7 @@ export interface ProxiumDataProvider extends DataProvider {
   removeFromOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
   assignPolicy: (resource: string, params: PolicyAssignmentParams) => Promise<void>
   unassignPolicy: (resource: string, params: PolicyAssignmentParams) => Promise<void>
+  setPolicyStart: (resource: string, params: PolicyStartParams) => Promise<void>
   // The logged-in user's own record, no permission needed.
   getProfile: () => Promise<Profile>
   updateProfile: (data: ProfileChanges) => Promise<Profile>
@@ -200,6 +206,13 @@ export const createDataProvider = (
 
     unassignPolicy: async (resource, { id, policyId }) => {
       await httpClient(resourceUrl(resource, id, 'policies', policyId), { method: 'DELETE' })
+    },
+
+    setPolicyStart: async (resource, { id, policyId, startsOn }) => {
+      await httpClient(resourceUrl(resource, id, 'policies', policyId), {
+        method: 'PATCH',
+        body: JSON.stringify({ startsOn }),
+      })
     },
 
     getProfile: async () => {

@@ -13,6 +13,7 @@ from proxium.db import PolicyModel, PolicyRuleModel, session_manager
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Mapping
+    from datetime import date
 
     from sqlalchemy import Result, Select
 
@@ -21,6 +22,8 @@ if TYPE_CHECKING:
         LimitScope,
         PolicyConnectionLimitModel,
         PolicySpeedLimitModel,
+        PolicyTrafficQuotaModel,
+        QuotaPeriod,
     )
 
 logger = logging.getLogger(__name__)
@@ -43,11 +46,22 @@ class SpeedLimitSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class TrafficQuotaSnapshot:
+    id: int
+    scope: LimitScope
+    direction: Direction
+    max_bytes: int
+    period: QuotaPeriod
+    period_length: int
+
+
+@dataclass(frozen=True, slots=True)
 class RuleSnapshot:
     id: int
     condition: Mapping[str, Any]
     connection_limits: tuple[ConnectionLimitSnapshot, ...]
     speed_limits: tuple[SpeedLimitSnapshot, ...]
+    traffic_quotas: tuple[TrafficQuotaSnapshot, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,11 +70,13 @@ class PolicySnapshot:
 
     id: int
     is_global: bool
+    # Quota periods of a global policy count from it, of an assigned one from the assignment's day.
+    global_starts_on: date
     # In order: the first that matches applies.
     rules: tuple[RuleSnapshot, ...]
 
 
-def _by_id(limit: PolicyConnectionLimitModel | PolicySpeedLimitModel, /) -> int:
+def _by_id(limit: PolicyConnectionLimitModel | PolicySpeedLimitModel | PolicyTrafficQuotaModel, /) -> int:
     return limit.id
 
 
@@ -126,6 +142,7 @@ class PolicyWatcher:
             .options(
                 rules.selectinload(PolicyRuleModel.connection_limits),
                 rules.selectinload(PolicyRuleModel.speed_limits),
+                rules.selectinload(PolicyRuleModel.traffic_quotas),
             )
         )
 
@@ -145,6 +162,16 @@ class PolicyWatcher:
             burst=limit.burst,
         )
 
+    def _snapshot_traffic_quota(self, quota: PolicyTrafficQuotaModel, /) -> TrafficQuotaSnapshot:
+        return TrafficQuotaSnapshot(
+            id=quota.id,
+            scope=quota.scope,
+            direction=quota.direction,
+            max_bytes=quota.max_bytes,
+            period=quota.period,
+            period_length=quota.period_length,
+        )
+
     def _snapshot_rule(self, rule: PolicyRuleModel, /) -> RuleSnapshot:
         # Sorted by id: the database returns limits in no particular order, equal rules must compare equal.
         return RuleSnapshot(
@@ -154,12 +181,16 @@ class PolicyWatcher:
                 self._snapshot_connection_limit(limit) for limit in sorted(rule.connection_limits, key=_by_id)
             ),
             speed_limits=tuple(self._snapshot_speed_limit(limit) for limit in sorted(rule.speed_limits, key=_by_id)),
+            traffic_quotas=tuple(
+                self._snapshot_traffic_quota(quota) for quota in sorted(rule.traffic_quotas, key=_by_id)
+            ),
         )
 
     def _snapshot_policy(self, policy: PolicyModel, /) -> PolicySnapshot:
         return PolicySnapshot(
             id=policy.id,
             is_global=policy.is_global,
+            global_starts_on=policy.global_starts_on,
             rules=tuple(self._snapshot_rule(rule) for rule in policy.rules),
         )
 

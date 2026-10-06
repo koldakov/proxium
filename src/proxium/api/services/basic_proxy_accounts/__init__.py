@@ -33,6 +33,10 @@ from ._update_basic_proxy_account import (
     UpdateBasicProxyAccountResponse,
     UpdateBasicProxyAccountService,
 )
+from ._update_basic_proxy_account_policy import (
+    UpdateBasicProxyAccountPolicyRequest,
+    UpdateBasicProxyAccountPolicyService,
+)
 
 __all__ = [
     "AddBasicProxyAccountOutgoingIPService",
@@ -57,6 +61,8 @@ __all__ = [
     "RemoveBasicProxyAccountOutgoingIPService",
     "RemoveBasicProxyAccountPolicyService",
     "RevokeBasicProxyAccountService",
+    "UpdateBasicProxyAccountPolicyRequest",
+    "UpdateBasicProxyAccountPolicyService",
     "UpdateBasicProxyAccountRequest",
     "UpdateBasicProxyAccountResponse",
     "UpdateBasicProxyAccountService",

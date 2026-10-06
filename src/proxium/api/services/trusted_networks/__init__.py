@@ -34,6 +34,7 @@ from ._update_trusted_network import (
     UpdateTrustedNetworkResponse,
     UpdateTrustedNetworkService,
 )
+from ._update_trusted_network_policy import UpdateTrustedNetworkPolicyRequest, UpdateTrustedNetworkPolicyService
 
 __all__ = [
     "AddTrustedNetworkOutgoingIPService",
@@ -59,6 +60,8 @@ __all__ = [
     "ListTrustedNetworksService",
     "RemoveTrustedNetworkOutgoingIPService",
     "RemoveTrustedNetworkPolicyService",
+    "UpdateTrustedNetworkPolicyRequest",
+    "UpdateTrustedNetworkPolicyService",
     "UpdateTrustedNetworkRequest",
     "UpdateTrustedNetworkResponse",
     "UpdateTrustedNetworkService",

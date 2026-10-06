@@ -6,6 +6,7 @@ from ._policies import (
     PolicyWatcher,
     RuleSnapshot,
     SpeedLimitSnapshot,
+    TrafficQuotaSnapshot,
 )
 from ._settings import SettingsCallback, SettingsNotLoadedError, SettingsSnapshot, SettingsWatcher
 
@@ -21,4 +22,5 @@ __all__ = [
     "SettingsSnapshot",
     "SettingsWatcher",
     "SpeedLimitSnapshot",
+    "TrafficQuotaSnapshot",
 ]

@@ -21,6 +21,8 @@ from proxium.proxy import AuthenticationRequired, Authenticator, Identity
 from proxium.selectors import outgoing_claims
 
 if TYPE_CHECKING:
+    from datetime import date
+
     from sqlalchemy import Result, Select
 
     from proxium.proxy import Credentials, IPAddress, Session
@@ -116,20 +118,23 @@ class TrustedNetworkAuthenticator(Authenticator):
 
         return list(result.scalars())
 
-    def _get_policies_statement(self, network: TrustedNetworkModel, /) -> Select[tuple[int]]:
+    def _get_policies_statement(self, network: TrustedNetworkModel, /) -> Select[tuple[int, date]]:
         return (
-            select(TrustedNetworkPolicyModel.policy_id)
+            select(TrustedNetworkPolicyModel.policy_id, TrustedNetworkPolicyModel.starts_on)
             .where(TrustedNetworkPolicyModel.trusted_network_id == network.id)
             .order_by(TrustedNetworkPolicyModel.policy_id)
             .limit(self._policies_max_size)
         )
 
-    async def _get_policy_ids(self, network: TrustedNetworkModel, /) -> list[int]:
-        """The ids of the policies assigned to the network, active or not: the proxy knows which are active."""
-        async with session_manager.session() as session:
-            result: Result[tuple[int]] = await session.execute(self._get_policies_statement(network))
+    async def _get_policies(self, network: TrustedNetworkModel, /) -> dict[int, date]:
+        """The policies assigned to the network, active or not: the proxy knows which are active.
 
-        return list(result.scalars())
+        By id, the day each assignment's quota periods count from.
+        """
+        async with session_manager.session() as session:
+            result: Result[tuple[int, date]] = await session.execute(self._get_policies_statement(network))
+
+        return dict(result.tuples().all())
 
     def _check_no_credentials(self, credentials: Credentials | None, /) -> None:
         # Registered for a credentials kind by mistake, it would let in any password from a trusted network.
@@ -153,12 +158,12 @@ class TrustedNetworkAuthenticator(Authenticator):
             raise AuthenticationRequired() from err
 
         pool = await self._get_pool(network)
-        policy_ids = await self._get_policy_ids(network)
+        policies = await self._get_policies(network)
         return Identity(
             subject=f"network:{network.network}",
             claims={
                 "trusted_network_id": network.id,
                 **outgoing_claims(network.outgoing_mode, ips=pool),
-                **policy_claims(policy_ids),
+                **policy_claims(policies),
             },
         )

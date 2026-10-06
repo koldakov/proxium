@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated, ClassVar
 
 from fastapi import HTTPException, status
@@ -8,7 +9,14 @@ from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import BasicProxyAccountModel, BasicProxyAccountPolicyModel, Permission, PolicyModel
+from proxium.db import (
+    BasicProxyAccountModel,
+    BasicProxyAccountPolicyModel,
+    Permission,
+    PolicyModel,
+    PolicyRuleModel,
+    PolicyTrafficQuotaModel,
+)
 from proxium.helpers import BaseSchema
 
 
@@ -22,6 +30,10 @@ class ListBasicProxyAccountPoliciesResponse(BaseSchema):
     ]
     is_active: bool
     is_global: bool
+    # Of the assignment: quota periods count from this UTC day.
+    starts_on: date
+    # Only then `starts_on` matters.
+    has_traffic_quotas: bool
 
 
 class ListBasicProxyAccountPoliciesService(BaseUserAuthenticatedService[Page[ListBasicProxyAccountPoliciesResponse]]):
@@ -36,10 +48,23 @@ class ListBasicProxyAccountPoliciesService(BaseUserAuthenticatedService[Page[Lis
         return select(BasicProxyAccountModel).where(BasicProxyAccountModel.id == self.id)
 
     @property
-    def _list_policies_statement(self) -> Select[tuple[PolicyModel]]:
+    def _list_policies_statement(self) -> Select[tuple[int, str, bool, bool, date, bool]]:
+        has_traffic_quotas = (
+            select(PolicyTrafficQuotaModel.id)
+            .join(PolicyRuleModel, PolicyRuleModel.id == PolicyTrafficQuotaModel.rule_id)
+            .where(PolicyRuleModel.policy_id == PolicyModel.id)
+            .exists()
+        )
         # By id after the name: names aren't unique, pages must not shuffle equal ones.
         return (
-            select(PolicyModel)
+            select(
+                PolicyModel.id,
+                PolicyModel.name,
+                PolicyModel.is_active,
+                PolicyModel.is_global,
+                BasicProxyAccountPolicyModel.starts_on,
+                has_traffic_quotas.label("has_traffic_quotas"),
+            )
             .join(
                 BasicProxyAccountPolicyModel,
                 BasicProxyAccountPolicyModel.policy_id == PolicyModel.id,

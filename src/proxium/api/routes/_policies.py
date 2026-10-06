@@ -62,6 +62,10 @@ async def create_policy(
     - `rules`: in order, the first whose condition matches applies all its limits.
     - `scope`: what a limit is counted over, e.g. `identity` for all connections of one account together.
     - `rate`, `burst`: bytes per second, and bytes that go at once after a pause.
+    - `trafficQuotas`: at most `maxBytes` per account or network in each period of `periodLength` days or months,
+      or in `total`. Past it new connections are refused and open ones cut.
+    - `globalStartsOn`: the UTC day quota periods of a global policy count from, today by default. Unused by
+      others: an assigned policy counts from the day set on its assignment.
     """
     service: CreatePolicyService = CreatePolicyService(token=credentials.credentials, data=data)
     return await service()
@@ -200,6 +204,7 @@ async def update_policy(
     - `rules`: the whole new list, in order. A rule or limit with an `id` changes in place, without one is added,
       left out is deleted. Keep the ids of what stays: a connection limit changed in place keeps counting
       the connections already open.
+    - `globalStartsOn`: the UTC day quota periods of a global policy count from.
     """
     service: UpdatePolicyService = UpdatePolicyService(token=credentials.credentials, id=policy_id, data=data)
     return await service()

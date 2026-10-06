@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, date, datetime
 from typing import Annotated, ClassVar, Literal
 
 from pydantic import Field, StringConstraints
@@ -14,8 +14,15 @@ from proxium.db import (
     PolicyModel,
     PolicyRuleModel,
     PolicySpeedLimitModel,
+    PolicyTrafficQuotaModel,
+    QuotaPeriod,
 )
 from proxium.helpers import BaseSchema
+
+
+def _get_utc_today() -> date:
+    # Traffic days are UTC: quota periods line up with them.
+    return datetime.now(UTC).date()
 
 
 class CreatePolicyConditionRequest(BaseSchema):
@@ -56,6 +63,27 @@ class CreatePolicySpeedLimitRequest(BaseSchema):
     ]
 
 
+class CreatePolicyTrafficQuotaRequest(BaseSchema):
+    direction: Direction
+    # Bytes per period. Counted per account or trusted network.
+    max_bytes: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=9_223_372_036_854_775_807,
+        ),
+    ]
+    period: QuotaPeriod
+    # Days or months in one period, e.g. 30 days or 3 months. Ignored for `total`.
+    period_length: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=3650,
+        ),
+    ] = 1
+
+
 class CreatePolicyRuleRequest(BaseSchema):
     name: Annotated[
         str,
@@ -76,6 +104,10 @@ class CreatePolicyRuleRequest(BaseSchema):
         default_factory=list,
         max_length=16,
     )
+    traffic_quotas: list[CreatePolicyTrafficQuotaRequest] = Field(
+        default_factory=list,
+        max_length=16,
+    )
 
 
 class CreatePolicyRequest(BaseSchema):
@@ -89,6 +121,10 @@ class CreatePolicyRequest(BaseSchema):
     ]
     is_active: bool = True
     is_global: bool = False
+    # Quota periods of a global policy count from this day, UTC. An assigned one counts from its assignment's day.
+    global_starts_on: date = Field(
+        default_factory=_get_utc_today,
+    )
     # In order: the first rule whose condition matches applies.
     rules: list[CreatePolicyRuleRequest] = Field(
         default_factory=list,
@@ -114,6 +150,14 @@ class CreatePolicySpeedLimitResponse(BaseSchema):
     burst: int
 
 
+class CreatePolicyTrafficQuotaResponse(BaseSchema):
+    id: int
+    direction: Direction
+    max_bytes: int
+    period: QuotaPeriod
+    period_length: int
+
+
 class CreatePolicyRuleResponse(BaseSchema):
     id: int
     name: Annotated[
@@ -125,6 +169,7 @@ class CreatePolicyRuleResponse(BaseSchema):
     condition: CreatePolicyConditionResponse
     connection_limits: list[CreatePolicyConnectionLimitResponse]
     speed_limits: list[CreatePolicySpeedLimitResponse]
+    traffic_quotas: list[CreatePolicyTrafficQuotaResponse]
 
 
 class CreatePolicyResponse(BaseSchema):
@@ -137,6 +182,7 @@ class CreatePolicyResponse(BaseSchema):
     ]
     is_active: bool
     is_global: bool
+    global_starts_on: date
     rules: list[CreatePolicyRuleResponse]
     created_by_id: int
     created_at: datetime
@@ -159,6 +205,7 @@ class CreatePolicyService(BaseUserAuthenticatedService[CreatePolicyResponse]):
             .options(
                 rules.selectinload(PolicyRuleModel.connection_limits),
                 rules.selectinload(PolicyRuleModel.speed_limits),
+                rules.selectinload(PolicyRuleModel.traffic_quotas),
             )
             .execution_options(populate_existing=True)
         )
@@ -184,6 +231,16 @@ class CreatePolicyService(BaseUserAuthenticatedService[CreatePolicyResponse]):
                 )
                 for limit in rule.speed_limits
             ],
+            traffic_quotas=[
+                PolicyTrafficQuotaModel(
+                    scope=LimitScope.IDENTITY,
+                    direction=quota.direction,
+                    max_bytes=quota.max_bytes,
+                    period=quota.period,
+                    period_length=quota.period_length,
+                )
+                for quota in rule.traffic_quotas
+            ],
         )
 
     async def process(self, *args, **kwargs) -> CreatePolicyResponse:
@@ -191,6 +248,7 @@ class CreatePolicyService(BaseUserAuthenticatedService[CreatePolicyResponse]):
             name=self.data.name,
             is_active=self.data.is_active,
             is_global=self.data.is_global,
+            global_starts_on=self.data.global_starts_on,
             created_by_id=self.user.id,
             rules=[self._create_rule(position, rule) for position, rule in enumerate(self.data.rules)],
         )

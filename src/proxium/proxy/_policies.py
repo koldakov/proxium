@@ -16,7 +16,8 @@ class Forbidden(ProxyError):
 class Grant:
     """What a policy allowed one connection, from the check to the close. Override what you need.
 
-    Byte hooks run before the bytes go on: raise `Forbidden` to cut the tunnel, wait to slow it down.
+    Byte hooks run before the bytes go on: raise a `ProxyError`, e.g. `Forbidden`, to cut the tunnel, wait to slow
+    it down.
     """
 
     async def on_sent(self, n: int, /) -> None:

@@ -28,6 +28,8 @@ from proxium.api.services.trusted_networks import (
     ListTrustedNetworksService,
     RemoveTrustedNetworkOutgoingIPService,
     RemoveTrustedNetworkPolicyService,
+    UpdateTrustedNetworkPolicyRequest,
+    UpdateTrustedNetworkPolicyService,
     UpdateTrustedNetworkRequest,
     UpdateTrustedNetworkResponse,
     UpdateTrustedNetworkService,
@@ -539,12 +541,59 @@ async def add_trusted_network_policy(
 ) -> None:
     """Assign a policy to a trusted network. Assigning it again changes nothing.
 
+    Its quota periods count from today, UTC: change the day with PATCH.
+
     At most `API_POLICIES_MAX_PER_OWNER` policies, global ones aside.
     """
     service: AddTrustedNetworkPolicyService = AddTrustedNetworkPolicyService(
         token=credentials.credentials,
         id=network_id,
         policy_id=policy_id,
+    )
+    return await service()
+
+
+@trusted_networks_router.patch(
+    "/{network_id}/policies/{policy_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_204_NO_CONTENT: {
+            "description": "Changed, applied once the cached check of the client expires.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `trusted_networks.change`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Network not found, or the policy is not assigned to it.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "An id is not an integer, or the date is invalid.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def update_trusted_network_policy(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    network_id: int,
+    policy_id: int,
+    data: UpdateTrustedNetworkPolicyRequest,
+) -> None:
+    """Change how a policy is assigned to a trusted network.
+
+    - `startsOn`: the UTC day quota periods of the policy count from for it, e.g. the day it paid.
+    """
+    service: UpdateTrustedNetworkPolicyService = UpdateTrustedNetworkPolicyService(
+        token=credentials.credentials,
+        id=network_id,
+        policy_id=policy_id,
+        data=data,
     )
     return await service()
 

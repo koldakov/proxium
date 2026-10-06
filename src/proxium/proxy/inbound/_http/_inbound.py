@@ -15,6 +15,7 @@ from proxium.proxy._connectors import (
 )
 from proxium.proxy._limits import ConnectionLimitExceeded
 from proxium.proxy._policies import Forbidden
+from proxium.proxy._quotas import QuotaExceeded
 from proxium.proxy._types import (
     Address,
     BasicCredentials,
@@ -57,6 +58,7 @@ DEFAULT_STATUSES: Final[Mapping[type[ProxyError], HTTPStatus]] = {
     AuthenticationRequired: HTTPStatus.PROXY_AUTHENTICATION_REQUIRED,
     Forbidden: HTTPStatus.FORBIDDEN,
     ConnectionLimitExceeded: HTTPStatus.TOO_MANY_REQUESTS,
+    QuotaExceeded: HTTPStatus.TOO_MANY_REQUESTS,
     TargetUnreachable: HTTPStatus.BAD_GATEWAY,
     TargetTimeout: HTTPStatus.GATEWAY_TIMEOUT,
     ProxyError: HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -67,6 +69,7 @@ DEFAULT_REASONS: Final[Mapping[type[ProxyError], str]] = {
     CredentialsExpired: "Credentials Expired",
     CredentialsRevoked: "Credentials Revoked",
     ConnectionLimitExceeded: "Too Many Connections",
+    QuotaExceeded: "Quota Exceeded",
 }
 
 

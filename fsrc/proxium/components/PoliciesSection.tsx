@@ -1,7 +1,14 @@
 import DeleteIcon from '@mui/icons-material/Delete'
+import EditCalendarIcon from '@mui/icons-material/EditCalendar'
 import {
   Autocomplete,
+  Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   Stack,
   Table,
@@ -107,6 +114,104 @@ const Assign = ({ resource, id, onAssigned }: AssignProps) => {
   )
 }
 
+// A UTC day `YYYY-MM-DD` as people read it, e.g. "Oct 6, 2026". Not shifted by the local time zone.
+const formatDay = (day: string) =>
+  new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, {
+    timeZone: 'UTC',
+    dateStyle: 'medium',
+  })
+
+interface StartsOnDialogProps {
+  resource: string
+  id: Identifier
+  policyId: Identifier
+  policyName: string
+  startsOn: string
+  onClose: () => void
+  onChanged: () => void
+}
+
+/** Picks the new day and asks to confirm it: the change recounts usage at once. */
+const StartsOnDialog = ({
+  resource,
+  id,
+  policyId,
+  policyName,
+  startsOn,
+  onClose,
+  onChanged,
+}: StartsOnDialogProps) => {
+  const dataProvider = useDataProvider<ProxiumDataProvider>()
+  const notify = useNotify()
+  const [value, setValue] = useState(startsOn)
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: (day: string) =>
+      dataProvider.setPolicyStart(resource, { id, policyId, startsOn: day }),
+    onSuccess: () => {
+      notify('Quota periods start changed', { type: 'success' })
+      onChanged()
+      onClose()
+    },
+    onError: (error: Error) => notify(error.message, { type: 'error' }),
+  })
+
+  // Empty while the date is cleared or half-typed.
+  const canSave = value !== '' && value !== startsOn && !isPending
+
+  return (
+    <Dialog open onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>Quota periods of {policyName}</DialogTitle>
+      <DialogContent>
+        <DialogContentText sx={{ mb: 2 }}>
+          Periods follow one another from this UTC day, e.g. the day the client paid. Usage is
+          recounted for the new period at once: a client over its quota may be cut, or let back in.
+        </DialogContentText>
+        <TextField
+          type="date"
+          label="Count from"
+          size="small"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          slotProps={{ inputLabel: { shrink: true } }}
+          autoFocus
+          fullWidth
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" disabled={!canSave} onClick={() => mutate(value)}>
+          Change
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
+interface StartsOnFieldProps extends Omit<StartsOnDialogProps, 'onClose'> {
+  // Unknown while the permissions load: no button until they say so.
+  canChange?: boolean
+}
+
+/** The day quota periods of an assigned policy count from for the record, changed in a dialog. */
+const StartsOnField = ({ canChange, ...dialogProps }: StartsOnFieldProps) => {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+      <Typography variant="body2">{formatDay(dialogProps.startsOn)}</Typography>
+      {canChange && (
+        <Tooltip title="Change">
+          <IconButton size="small" aria-label="Change" onClick={() => setIsOpen(true)}>
+            <EditCalendarIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
+      {isOpen && <StartsOnDialog {...dialogProps} onClose={() => setIsOpen(false)} />}
+    </Stack>
+  )
+}
+
 /** The active global policies, which apply to every client without assigning. */
 const GlobalPolicies = () => {
   const createPath = useCreatePath()
@@ -184,6 +289,8 @@ export const PoliciesSection = () => {
   const max = configs?.policiesMaxPerOwner
   // Assigning one more would be refused: no picker, the reason instead.
   const isFull = max !== undefined && total >= max
+  // Where quota periods start matters only for policies with quotas.
+  const hasQuotas = data.some((policy) => policy.hasTrafficQuotas)
 
   return (
     <ShowSection title="Policies">
@@ -212,6 +319,13 @@ export const PoliciesSection = () => {
             <TableRow>
               <TableCell>Name</TableCell>
               <TableCell>Status</TableCell>
+              {hasQuotas && (
+                <TableCell>
+                  <Tooltip title="UTC day quota periods count from for this record, e.g. the day it paid. The day of assigning unless changed">
+                    <span>Quotas count from</span>
+                  </Tooltip>
+                </TableCell>
+              )}
               {canChange && <TableCell />}
             </TableRow>
           </TableHead>
@@ -238,6 +352,25 @@ export const PoliciesSection = () => {
                     </Tooltip>
                   )}
                 </TableCell>
+                {hasQuotas && (
+                  <TableCell>
+                    {policy.hasTrafficQuotas ? (
+                      <StartsOnField
+                        canChange={canChange}
+                        resource={resource}
+                        id={record.id}
+                        policyId={policy.id}
+                        policyName={policy.name}
+                        startsOn={policy.startsOn}
+                        onChanged={() => refetch()}
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No quotas
+                      </Typography>
+                    )}
+                  </TableCell>
+                )}
                 {canChange && (
                   <TableCell align="right">
                     <Tooltip title="Take off">

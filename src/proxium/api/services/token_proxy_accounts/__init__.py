@@ -33,6 +33,10 @@ from ._update_token_proxy_account import (
     UpdateTokenProxyAccountResponse,
     UpdateTokenProxyAccountService,
 )
+from ._update_token_proxy_account_policy import (
+    UpdateTokenProxyAccountPolicyRequest,
+    UpdateTokenProxyAccountPolicyService,
+)
 
 __all__ = [
     "AddTokenProxyAccountOutgoingIPService",
@@ -57,6 +61,8 @@ __all__ = [
     "RemoveTokenProxyAccountOutgoingIPService",
     "RemoveTokenProxyAccountPolicyService",
     "RevokeTokenProxyAccountService",
+    "UpdateTokenProxyAccountPolicyRequest",
+    "UpdateTokenProxyAccountPolicyService",
     "UpdateTokenProxyAccountRequest",
     "UpdateTokenProxyAccountResponse",
     "UpdateTokenProxyAccountService",

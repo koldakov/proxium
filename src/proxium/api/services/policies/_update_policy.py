@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, Self
 
 from fastapi import HTTPException, status
@@ -16,6 +16,8 @@ from proxium.db import (
     PolicyModel,
     PolicyRuleModel,
     PolicySpeedLimitModel,
+    PolicyTrafficQuotaModel,
+    QuotaPeriod,
 )
 from proxium.helpers import BaseSchema
 
@@ -71,6 +73,29 @@ class UpdatePolicySpeedLimitRequest(BaseSchema):
     ]
 
 
+class UpdatePolicyTrafficQuotaRequest(BaseSchema):
+    # Of a quota of the same rule to change it, none to add one.
+    id: int | None = None
+    direction: Direction
+    # Bytes per period. Counted per account or trusted network.
+    max_bytes: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=9_223_372_036_854_775_807,
+        ),
+    ]
+    period: QuotaPeriod
+    # Days or months in one period, e.g. 30 days or 3 months. Ignored for `total`.
+    period_length: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=3650,
+        ),
+    ] = 1
+
+
 class UpdatePolicyRuleRequest(BaseSchema):
     # Of a rule of the same policy to change it, none to add one.
     id: int | None = None
@@ -93,11 +118,16 @@ class UpdatePolicyRuleRequest(BaseSchema):
         default_factory=list,
         max_length=16,
     )
+    traffic_quotas: list[UpdatePolicyTrafficQuotaRequest] = Field(
+        default_factory=list,
+        max_length=16,
+    )
 
     @model_validator(mode="after")
     def _check_limit_ids(self) -> Self:
         _check_unique_ids(limit.id for limit in self.connection_limits)
         _check_unique_ids(limit.id for limit in self.speed_limits)
+        _check_unique_ids(quota.id for quota in self.traffic_quotas)
         return self
 
 
@@ -114,6 +144,8 @@ class UpdatePolicyRequest(BaseSchema):
     ] = None
     is_active: bool | None = None
     is_global: bool | None = None
+    # Quota periods of a global policy count from this day, UTC.
+    global_starts_on: date | None = None
     rules: (
         Annotated[
             list[UpdatePolicyRuleRequest],
@@ -149,6 +181,14 @@ class UpdatePolicySpeedLimitResponse(BaseSchema):
     burst: int
 
 
+class UpdatePolicyTrafficQuotaResponse(BaseSchema):
+    id: int
+    direction: Direction
+    max_bytes: int
+    period: QuotaPeriod
+    period_length: int
+
+
 class UpdatePolicyRuleResponse(BaseSchema):
     id: int
     name: Annotated[
@@ -160,6 +200,7 @@ class UpdatePolicyRuleResponse(BaseSchema):
     condition: UpdatePolicyConditionResponse
     connection_limits: list[UpdatePolicyConnectionLimitResponse]
     speed_limits: list[UpdatePolicySpeedLimitResponse]
+    traffic_quotas: list[UpdatePolicyTrafficQuotaResponse]
 
 
 class UpdatePolicyResponse(BaseSchema):
@@ -172,6 +213,7 @@ class UpdatePolicyResponse(BaseSchema):
     ]
     is_active: bool
     is_global: bool
+    global_starts_on: date
     rules: list[UpdatePolicyRuleResponse]
     created_by_id: int
     created_at: datetime
@@ -273,8 +315,40 @@ class UpdatePolicyService(BaseUserAuthenticatedService[UpdatePolicyResponse]):
             limit.rate = data.rate
             limit.burst = data.burst
 
+    async def _update_traffic_quotas(
+        self,
+        rule: PolicyRuleModel,
+        quotas: list[UpdatePolicyTrafficQuotaRequest],
+        /,
+    ) -> None:
+        current = {quota.id: quota for quota in rule.traffic_quotas}
+        self._check_known("Traffic quotas of the rule", (quota.id for quota in quotas), current)
+
+        kept = {quota.id for quota in quotas}
+        for quota in current.values():
+            if quota.id not in kept:
+                await self.session.delete(quota)
+
+        for data in quotas:
+            if data.id is None:
+                rule.traffic_quotas.append(
+                    PolicyTrafficQuotaModel(
+                        scope=LimitScope.IDENTITY,
+                        direction=data.direction,
+                        max_bytes=data.max_bytes,
+                        period=data.period,
+                        period_length=data.period_length,
+                    ),
+                )
+                continue
+
+            quota = current[data.id]
+            quota.direction = data.direction
+            quota.max_bytes = data.max_bytes
+            quota.period = data.period
+            quota.period_length = data.period_length
+
     async def _delete_rule(self, rule: PolicyRuleModel, /) -> None:
-        # Quotas aren't in the API yet, but a deleted rule takes them along.
         for limit in [*rule.connection_limits, *rule.speed_limits, *rule.traffic_quotas]:
             await self.session.delete(limit)
         await self.session.delete(rule)
@@ -301,6 +375,16 @@ class UpdatePolicyService(BaseUserAuthenticatedService[UpdatePolicyResponse]):
                 )
                 for limit in data.speed_limits
             ],
+            traffic_quotas=[
+                PolicyTrafficQuotaModel(
+                    scope=LimitScope.IDENTITY,
+                    direction=quota.direction,
+                    max_bytes=quota.max_bytes,
+                    period=quota.period,
+                    period_length=quota.period_length,
+                )
+                for quota in data.traffic_quotas
+            ],
         )
 
     async def _update_rules(self, policy: PolicyModel, rules: list[UpdatePolicyRuleRequest], /) -> None:
@@ -324,6 +408,7 @@ class UpdatePolicyService(BaseUserAuthenticatedService[UpdatePolicyResponse]):
             rule.condition = data.condition.model_dump(mode="json")
             await self._update_connection_limits(rule, data.connection_limits)
             await self._update_speed_limits(rule, data.speed_limits)
+            await self._update_traffic_quotas(rule, data.traffic_quotas)
 
         # Rules are part of the policy: it shows as changed even if only they did.
         policy.updated_at = func.now()  # type: ignore[assignment]  # The database clock, as for every timestamp.
@@ -344,6 +429,8 @@ class UpdatePolicyService(BaseUserAuthenticatedService[UpdatePolicyResponse]):
             policy.is_active = self.data.is_active
         if self.data.is_global is not None:
             policy.is_global = self.data.is_global
+        if self.data.global_starts_on is not None:
+            policy.global_starts_on = self.data.global_starts_on
         if self.data.rules is not None:
             await self._update_rules(policy, self.data.rules)
 

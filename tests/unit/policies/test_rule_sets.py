@@ -40,7 +40,7 @@ class TestRuleSetPolicy:
         policy_id = faker.unique.random_int()
         limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
         policy = RuleSetPolicy(RuleSet(policies={policy_id: (Rule(condition=ALWAYS, limits=(limit,)),)}))
-        proxy_request = proxy_request_factory(claims=policy_claims([policy_id]))
+        proxy_request = proxy_request_factory(claims=policy_claims({policy_id: faker.date_object()}))
 
         # Act
         await policy.admit(proxy_request, session)
@@ -58,7 +58,7 @@ class TestRuleSetPolicy:
         policy_id = faker.unique.random_int()
         limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
         policy = RuleSetPolicy(RuleSet(policies={policy_id: (Rule(condition=ALWAYS, limits=(limit,)),)}))
-        proxy_request = proxy_request_factory(claims=policy_claims([faker.unique.random_int()]))
+        proxy_request = proxy_request_factory(claims=policy_claims({faker.unique.random_int(): faker.date_object()}))
 
         # Act
         await policy.admit(proxy_request, session)
@@ -78,7 +78,7 @@ class TestRuleSetPolicy:
         policy = RuleSetPolicy(
             RuleSet(policies={policy_id: (Rule(condition=ALWAYS, limits=(limit,)),)}, global_ids=(policy_id,)),
         )
-        proxy_request = proxy_request_factory(claims=policy_claims([policy_id]))
+        proxy_request = proxy_request_factory(claims=policy_claims({policy_id: faker.date_object()}))
 
         # Act
         await policy.admit(proxy_request, session)

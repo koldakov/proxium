@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from proxium.proxy import Address, Authenticator, Identity, Request, Session
+from proxium.proxy import Address, Authenticator, Identity, Meter, Request, Session, Unmetered, Usage
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -69,3 +69,30 @@ class FailingOnceAuthenticator(Authenticator):
 @pytest.fixture
 def failing_once_authenticator(faker: Faker) -> FailingOnceAuthenticator:
     return FailingOnceAuthenticator(Identity(subject=faker.uuid4()))
+
+
+class StaticMeter(Meter):
+    """Measures `usage` for every client, changed by the test as it goes."""
+
+    def __init__(self, usage: Usage, /) -> None:
+        self.usage: Usage = usage
+
+    async def measure(self, request: Request, session: Session, /) -> Usage:
+        return self.usage
+
+
+@pytest.fixture
+def static_meter() -> StaticMeter:
+    return StaticMeter(Usage())
+
+
+class UnmeteringMeter(Meter):
+    """Can't measure anyone, as for anonymous clients."""
+
+    async def measure(self, request: Request, session: Session, /) -> Usage:
+        raise Unmetered()
+
+
+@pytest.fixture
+def unmetering_meter() -> UnmeteringMeter:
+    return UnmeteringMeter()
