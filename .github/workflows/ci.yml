@@ -63,8 +63,9 @@ jobs:
           sync
           --locked
 
-      - name: Run pytest
+      - name: Run unit tests
         run: >-
           uv
           run
           pytest
+          tests/unit

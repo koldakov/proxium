@@ -25,8 +25,12 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "faker>=40.41.0",
     "pre-commit>=4.6.2",
     "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "pytest-env>=1.7.1",
 ]
 
 [project.scripts]
@@ -157,6 +161,32 @@ max-complexity = 10
     "S101",
 ]
 
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+]
+asyncio_mode = "auto"
+addopts = [
+    "--cov",
+    "--cov-report=term-missing",
+]
+# Settings are read on import: values only to import modules, unit tests never reach the database.
+env = [
+    "DATABASE_URL=postgres://proxium:proxium@localhost:5432/proxium",
+    "ENCRYPTION_KEY=EqgHPRUR0HwOyqh-nbzaGIrir3X2uHTf7gEL0CH8rWY=",
+    "API_SECRET_KEY=unit-tests-secret-key-not-for-production",
+]
+
+[tool.coverage.run]
+source = [
+    "proxium",
+]
+branch = true
+
+[tool.coverage.report]
+skip_covered = true
+skip_empty = true
+
 [tool.mypy]
 python_version = "3.14"
 follow_imports = "skip"
@@ -164,4 +194,5 @@ ignore_missing_imports = true
 check_untyped_defs = true
 files = [
     "src",
+    "tests",
 ]
