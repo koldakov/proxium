@@ -3,6 +3,7 @@ import { Create, type RaRecord, SimpleForm, TextInput, required, useRedirect } f
 
 import { AwareDateTimeInput } from '../../components/AwareDateTimeInput'
 import { OutgoingModeInput } from '../../components/OutgoingModeInput'
+import { NewPoliciesInput } from '../../components/NewPoliciesInput'
 import { SecretDialog } from '../../components/SecretDialog'
 import { future } from '../../components/validators'
 
@@ -23,6 +24,7 @@ export const TokenProxyAccountCreate = () => {
             validate={future()}
           />
           <OutgoingModeInput />
+          <NewPoliciesInput />
         </SimpleForm>
       </Create>
       {created !== null && (

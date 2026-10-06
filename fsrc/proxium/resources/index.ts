@@ -8,6 +8,7 @@ import { basicProxyAccounts } from './basicProxyAccounts'
 import { certificates } from './certificates'
 import { groups } from './groups'
 import { outgoingIps } from './outgoingIps'
+import { policies } from './policies'
 import { tokenProxyAccounts } from './tokenProxyAccounts'
 import { trustedNetworks } from './trustedNetworks'
 import { users } from './users'
@@ -18,6 +19,7 @@ export const resources: ResourceProps[] = [
   tokenProxyAccounts,
   trustedNetworks,
   outgoingIps,
+  policies,
   certificates,
   users,
   groups,
@@ -35,6 +37,7 @@ export const menu: MenuNode[] = [
   },
   trustedNetworks.name,
   outgoingIps.name,
+  policies.name,
   certificates.name,
   {
     label: 'Access',

@@ -14,6 +14,7 @@ import { CreatedByField } from '../../components/CreatedByField'
 import { ExpiresField } from '../../components/ExpiresField'
 import { OUTGOING_MODES } from '../../components/outgoing'
 import { OutgoingPoolSection } from '../../components/OutgoingPoolSection'
+import { PoliciesSection } from '../../components/PoliciesSection'
 import { ProxyAccountHeader } from '../../components/ProxyAccountHeader'
 import { RevokeButton } from '../../components/RevokeButton'
 import { ShowSection } from '../../components/ShowSection'
@@ -68,6 +69,9 @@ export const TokenProxyAccountShow = () => (
             )
           }
         />
+        <Grid size={12}>
+          <PoliciesSection />
+        </Grid>
         <Grid size={12}>
           <TrafficSection />
         </Grid>

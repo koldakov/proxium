@@ -1,6 +1,7 @@
-import { Box } from '@mui/material'
+import { Stack } from '@mui/material'
 import { DeleteButton, Edit, SaveButton, Toolbar } from 'react-admin'
 
+import { PoliciesSection } from '../../components/PoliciesSection'
 import { TrafficSection } from '../../components/TrafficSection'
 import { DeleteConfirmContent } from './DeleteConfirmContent'
 import { TrustedNetworkForm } from './TrustedNetworkForm'
@@ -22,9 +23,10 @@ export const TrustedNetworkEdit = () => (
     <TrustedNetworksWarning />
     <Edit redirect="list" mutationMode="pessimistic">
       <TrustedNetworkForm toolbar={<EditToolbar />} />
-      <Box sx={{ p: 2 }}>
+      <Stack spacing={2} sx={{ p: 2 }}>
+        <PoliciesSection />
         <TrafficSection />
-      </Box>
+      </Stack>
     </Edit>
   </>
 )

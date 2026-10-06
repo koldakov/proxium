@@ -10,6 +10,7 @@ export type { Me } from './authProvider'
 export type {
   OutgoingPoolParams,
   PasswordChange,
+  PolicyAssignmentParams,
   Profile,
   ProfileChanges,
   ProxiumDataProvider,

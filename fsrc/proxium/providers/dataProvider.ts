@@ -30,6 +30,12 @@ export interface OutgoingPoolParams {
   outgoingIpId: Identifier
 }
 
+// A policy assigned to the record `id`.
+export interface PolicyAssignmentParams {
+  id: Identifier
+  policyId: Identifier
+}
+
 export interface TrafficTotal {
   bytesSent: number
   bytesReceived: number
@@ -76,6 +82,8 @@ export interface ProxiumDataProvider extends DataProvider {
   getTrafficTotal: (resource: string, params: TrafficTotalParams) => Promise<TrafficTotal>
   addToOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
   removeFromOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
+  assignPolicy: (resource: string, params: PolicyAssignmentParams) => Promise<void>
+  unassignPolicy: (resource: string, params: PolicyAssignmentParams) => Promise<void>
   // The logged-in user's own record, no permission needed.
   getProfile: () => Promise<Profile>
   updateProfile: (data: ProfileChanges) => Promise<Profile>
@@ -177,6 +185,14 @@ export const createDataProvider = (
       await httpClient(resourceUrl(resource, id, 'outgoing-ips', outgoingIpId), {
         method: 'DELETE',
       })
+    },
+
+    assignPolicy: async (resource, { id, policyId }) => {
+      await httpClient(resourceUrl(resource, id, 'policies', policyId), { method: 'PUT' })
+    },
+
+    unassignPolicy: async (resource, { id, policyId }) => {
+      await httpClient(resourceUrl(resource, id, 'policies', policyId), { method: 'DELETE' })
     },
 
     getProfile: async () => {
