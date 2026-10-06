@@ -66,6 +66,7 @@ Host names are resolved once, on start.
 | `API_SECRET_KEY` | Secret that signs API user tokens, at least 32 characters. Changing it logs everyone out |
 | `API_CORS_ORIGINS` | Comma-separated browser origins allowed to call the API, e.g. the admin dev server. Empty blocks all |
 | `API_OUTGOING_POOL_MAX_SIZE` | IPs in one outgoing IP pool at most, default `256` |
+| `API_POLICIES_MAX_PER_OWNER` | Policies assigned to one account or trusted network at most, default `32` |
 
 ### Management commands
 
@@ -221,6 +222,25 @@ e.g. `ip addr add 203.0.113.11/32 dev eth0`, and routed to it. Nothing checks th
 another host: a connection from an IP that isn't there fails with "not on this host or loopback" in the log, and
 so does one from loopback, e.g. `listener` on `127.0.0.1`. Nothing falls back to another IP. Behind cloud NAT,
 use the private IPs the public ones map to. IPs of different providers need policy routing (`ip rule`) in the OS.
+
+### Policies
+
+A policy limits how clients use the proxy: how many connections they open at once and how fast data goes. Create
+policies under Policies in the admin UI. A global one applies to every client, any other to the accounts and
+trusted networks it's assigned to, on their pages. A client gets the limits of all its policies at once: a policy
+only adds limits, the strictest one wins. To give some clients more than a global policy allows, raise its limit
+and set the lower one in a policy assigned to the rest.
+
+Each limit is counted over a scope: one connection, an account or network with all its connections, a client IP,
+a target host or the whole proxy. E.g. 10 connections per account, or 100 Mbit/s for the whole proxy that all
+clients share. Past a connection limit new connections are refused, HTTP clients get `429 Too Many Connections`.
+A speed limit never cuts a connection, it slows it down. It's set per direction: download, upload or each way on
+its own. After a pause up to the burst goes at once, one second of the rate unless set.
+
+The proxy looks policies up every `PROXY_SETTINGS_POLL_INTERVAL` seconds. A change reaches new connections, open
+ones keep the limits they started with, though a connection limit changed in place keeps counting them.
+Assigning a policy reaches a client within the cache TTL. Limits are counted in the proxy's memory: with several
+proxy processes each counts its own. An account or network takes up to `API_POLICIES_MAX_PER_OWNER` policies.
 
 ### Settings
 
