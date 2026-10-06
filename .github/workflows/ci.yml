@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  lint:
+    name: Lint & type check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Python dependencies
+        run: >-
+          uv
+          sync
+          --locked
+
+      # The admin UI hooks in pre-commit use tools from fsrc/node_modules.
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: fsrc/package-lock.json
+
+      - name: Install admin UI dependencies
+        run: >-
+          npm
+          ci
+          --prefix fsrc
+
+      - name: Run pre-commit
+        run: >-
+          uv
+          run
+          pre-commit
+          run
+          --all-files
+          --show-diff-on-failure
+
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Python dependencies
+        run: >-
+          uv
+          sync
+          --locked
+
+      - name: Run pytest
+        run: >-
+          uv
+          run
+          pytest

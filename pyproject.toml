@@ -23,6 +23,12 @@ dependencies = [
     "uvloop>=0.22.1",
 ]
 
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+]
+
 [project.scripts]
 proxium = "proxium.runners:run_proxy"
 proxium-api = "proxium.runners:run_api"
@@ -158,9 +164,4 @@ ignore_missing_imports = true
 check_untyped_defs = true
 files = [
     "src",
-]
-
-[dependency-groups]
-dev = [
-    "pre-commit>=4.6.2",
 ]
