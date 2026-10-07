@@ -152,6 +152,9 @@ runtime-evaluated-base-classes = [
     "proxium.helpers.BaseSchema",
     "proxium.helpers._pydantic.BaseSchema",
 ]
+runtime-evaluated-decorators = [
+    "pydantic.dataclasses.dataclass",
+]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10

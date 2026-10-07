@@ -16,7 +16,7 @@ from proxium.proxy import (
 )
 from proxium.proxy import Direction as ProxyDirection
 
-from ._conditions import DEFAULT_CONDITION_PARSER
+from ._conditions import DEFAULT_CONDITION_PARSER, InvalidConditionError
 from ._quotas import Anchor, AssignmentAnchor, FixedAnchor, PeriodMeter
 from ._rule_sets import Rule, RuleSet
 
@@ -43,6 +43,12 @@ class UnknownScopeError(Exception):
 
 class UnsupportedQuotaScopeError(Exception):
     """A quota has a scope other than the identity: usage is counted per account and trusted network only."""
+
+
+class InvalidPolicyError(Exception):
+    """A policy can't be built, e.g. a rule's condition is of a kind this version doesn't know. Names the policy
+    and the rule, the cause has the details.
+    """
 
 
 # Every scope, as the admin describes it.
@@ -167,17 +173,30 @@ class RuleSetBuilder:
             limits=tuple(limits),
         )
 
+    def _build_policy(
+        self,
+        policy: PolicySnapshot,
+        counts: dict[tuple[int, LimitScope], Counter[Hashable]],
+        speed_limits: dict[SpeedLimitSnapshot, SpeedLimitPolicy],
+        /,
+    ) -> tuple[Rule, ...]:
+        anchor = self._get_anchor(policy)
+        rules: list[Rule] = []
+        for rule in policy.rules:
+            try:
+                rules.append(self._build_rule(rule, anchor, counts, speed_limits))
+            except (InvalidConditionError, UnknownScopeError, UnsupportedQuotaScopeError) as err:
+                raise InvalidPolicyError(f"Policy {policy.id}, rule {rule.id}: {err}") from err
+        return tuple(rules)
+
     def build(self, policies: Sequence[PolicySnapshot], /) -> RuleSet:
-        """The rule set of `policies`. Raises, keeping the state of the last build, if one can't be built."""
+        """The rule set of `policies`. Raises `InvalidPolicyError`, keeping the state of the last build, if one
+        can't be built: none of the changes apply until it's fixed.
+        """
         counts: dict[tuple[int, LimitScope], Counter[Hashable]] = {}
         speed_limits: dict[SpeedLimitSnapshot, SpeedLimitPolicy] = {}
         rule_set = RuleSet(
-            policies={
-                policy.id: tuple(
-                    self._build_rule(rule, self._get_anchor(policy), counts, speed_limits) for rule in policy.rules
-                )
-                for policy in policies
-            },
+            policies={policy.id: self._build_policy(policy, counts, speed_limits) for policy in policies},
             global_ids=tuple(policy.id for policy in policies if policy.is_global),
         )
 

@@ -21,7 +21,7 @@ from proxium.db import (
     session_manager,
 )
 from proxium.observers import TrafficObserver
-from proxium.policies import RuleSetBuilder, RuleSetPolicy
+from proxium.policies import InvalidPolicyError, RuleSetBuilder, RuleSetPolicy
 from proxium.proxy import (
     AddressGuard,
     BasicCredentials,
@@ -326,6 +326,10 @@ class ProxyRunner:
             logger.warning("Forced shutdown")
         except ListenError as error:
             logger.error("%s", error)
+            raise SystemExit(1) from None
+        except InvalidPolicyError as error:
+            # Only at the start: later the proxy keeps the policies it has, see `PolicyWatcher`.
+            logger.error("Can't start: %s", error)
             raise SystemExit(1) from None
 
     async def _serve(self) -> None:

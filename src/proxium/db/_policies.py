@@ -261,7 +261,8 @@ class PolicyRuleModel(BaseTimestampModel):
     name: Mapped[str] = mapped_column(
         VARCHAR(length=255),
     )
-    # When the rule applies, a tree of blocks by `kind`, e.g. a schedule or all/any/not of other blocks.
+    # When the rule applies, a tree of blocks by `kind`, e.g. a schedule or all/any/not of other blocks. The kinds and
+    # their fields: `DEFAULT_CONDITION_KINDS` in `proxium.policies`, the parser the proxy and the API check them with.
     condition: Mapped[dict[str, Any]] = mapped_column(
         JSONB(),
         default=lambda: dict(ALWAYS),
