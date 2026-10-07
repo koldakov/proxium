@@ -187,6 +187,10 @@ source = [
 branch = true
 
 [tool.coverage.report]
+# Abstract methods have no body to run.
+exclude_also = [
+    "@(abc\\.)?abstractmethod",
+]
 skip_covered = true
 skip_empty = true
 

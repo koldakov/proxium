@@ -1,11 +1,20 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pytest
 
-from proxium.policies import InvalidPolicyError, RuleSetBuilder, RuleSetPolicy, policy_claims
+from proxium.db import LimitScope
+from proxium.policies import (
+    InvalidPolicyError,
+    RuleSetBuilder,
+    RuleSetPolicy,
+    UnknownScopeError,
+    UnsupportedQuotaScopeError,
+    policy_claims,
+)
 from proxium.proxy import ConnectionLimitExceeded
 
 if TYPE_CHECKING:
@@ -113,3 +122,41 @@ class TestRuleSetBuilder:
 
         # Assert
         assert recording_period_usage.asked_since == [assigned_on]
+
+    def test_build_raises_invalid_policy_error_when_scope_has_no_scope_object(
+        self,
+        recording_period_usage: RecordingPeriodUsage,
+        connection_limit_snapshot_factory: Callable[..., ConnectionLimitSnapshot],
+        policy_snapshot_factory: Callable[..., PolicySnapshot],
+    ) -> None:
+        # Arrange
+        # E.g. a scope added to the database before the proxy learned it.
+        builder = RuleSetBuilder(recording_period_usage, scopes={})
+        policy = policy_snapshot_factory(connection_limits=(connection_limit_snapshot_factory(),))
+
+        # Act
+        with pytest.raises(InvalidPolicyError) as error:
+            builder.build([policy])
+
+        # Assert
+        assert isinstance(error.value.__cause__, UnknownScopeError)
+
+    def test_build_raises_invalid_policy_error_when_quota_scope_not_identity(
+        self,
+        faker: Faker,
+        rule_set_builder: RuleSetBuilder,
+        total_traffic_quota_snapshot: TrafficQuotaSnapshot,
+        policy_snapshot_factory: Callable[..., PolicySnapshot],
+    ) -> None:
+        # Arrange
+        # Usage is counted per identity only: another scope would be counted wrong, not refused.
+        scope = faker.random_element([scope for scope in LimitScope if scope != LimitScope.IDENTITY])
+        quota = replace(total_traffic_quota_snapshot, scope=scope)
+        policy = policy_snapshot_factory(traffic_quotas=(quota,))
+
+        # Act
+        with pytest.raises(InvalidPolicyError) as error:
+            rule_set_builder.build([policy])
+
+        # Assert
+        assert isinstance(error.value.__cause__, UnsupportedQuotaScopeError)

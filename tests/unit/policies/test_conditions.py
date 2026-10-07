@@ -115,6 +115,159 @@ class TestConditionParser:
         assert to_other_port
         assert not to_port
 
+    def test_parse_raises_invalid_condition_error_when_kind_missing(self, faker: Faker) -> None:
+        # Act
+        with pytest.raises(InvalidConditionError) as error:
+            DEFAULT_CONDITION_PARSER.parse({"domains": [faker.domain_name()]})
+
+        # Assert
+        # The root block itself: nothing to lead to.
+        assert error.value.path == ()
+
+    def test_parse_raises_invalid_condition_error_when_domain_not_encodable(self, faker: Faker) -> None:
+        # Arrange
+        # A DNS label is at most 63 characters: the proxy couldn't encode the name later.
+        domain = f"{faker.pystr(min_chars=64, max_chars=100)}.{faker.tld()}"
+
+        # Act & Assert
+        with pytest.raises(InvalidConditionError, match="Not a domain"):
+            DEFAULT_CONDITION_PARSER.parse({"kind": "target_host", "domains": [domain]})
+
+    def test_parse_raises_invalid_condition_error_when_time_has_offset(self, faker: Faker) -> None:
+        # Arrange
+        # An offset would fight the time zone given apart.
+        condition = {
+            "kind": "schedule",
+            "days": [faker.pyint(min_value=1, max_value=7)],
+            "start": f"09:00+{faker.pyint(min_value=1, max_value=12):02}:00",
+            "end": "18:00",
+            "timezone": faker.timezone(),
+        }
+
+        # Act & Assert
+        with pytest.raises(InvalidConditionError, match="without an offset"):
+            DEFAULT_CONDITION_PARSER.parse(condition)
+
+    def test_parse_builds_any_matching_when_one_block_matches(
+        self,
+        faker: Faker,
+        proxy_request_factory: Callable[..., Request],
+        session: Session,
+    ) -> None:
+        # Arrange
+        port = faker.port_number()
+        other_port = port % 65535 + 1
+        condition = DEFAULT_CONDITION_PARSER.parse(
+            {
+                "kind": "any",
+                "conditions": [
+                    {"kind": "target_port", "ports": [{"first": port, "last": port}]},
+                    {"kind": "target_port", "ports": [{"first": other_port, "last": other_port}]},
+                ],
+            },
+        )
+        request = proxy_request_factory(target=Address(faker.domain_name(), other_port))
+
+        # Act
+        matches = condition.matches(request, session)
+
+        # Assert
+        assert matches
+
+    def test_parse_builds_target_network_matching_when_target_ip_inside(
+        self,
+        faker: Faker,
+        proxy_request_factory: Callable[..., Request],
+        session: Session,
+    ) -> None:
+        # Arrange
+        ip = faker.ipv4()
+        condition = DEFAULT_CONDITION_PARSER.parse({"kind": "target_network", "networks": [ip]})
+        request = proxy_request_factory(target=Address(ip, faker.port_number()))
+
+        # Act
+        matches = condition.matches(request, session)
+
+        # Assert
+        assert matches
+
+    def test_parse_builds_client_network_matching_when_client_ip_inside(
+        self,
+        faker: Faker,
+        proxy_request: Request,
+        session: Session,
+    ) -> None:
+        # Arrange
+        ip = faker.ipv4()
+        session.client = Address(ip, faker.port_number())
+        condition = DEFAULT_CONDITION_PARSER.parse({"kind": "client_network", "networks": [ip]})
+
+        # Act
+        matches = condition.matches(proxy_request, session)
+
+        # Assert
+        assert matches
+
+    def test_parse_builds_protocol_matching_when_protocol_listed(
+        self,
+        proxy_request: Request,
+        session: Session,
+    ) -> None:
+        # Arrange
+        condition = DEFAULT_CONDITION_PARSER.parse({"kind": "protocol", "protocols": [proxy_request.protocol]})
+
+        # Act
+        matches = condition.matches(proxy_request, session)
+
+        # Assert
+        assert matches
+
+    def test_parse_builds_encrypted_matching_when_client_came_over_tls(
+        self,
+        proxy_request: Request,
+        session: Session,
+    ) -> None:
+        # Arrange
+        session.encrypted = True
+        condition = DEFAULT_CONDITION_PARSER.parse({"kind": "encrypted"})
+
+        # Act
+        matches = condition.matches(proxy_request, session)
+
+        # Assert
+        assert matches
+
+    def test_parse_builds_schedule_matching_now_when_whole_week(
+        self,
+        faker: Faker,
+        proxy_request: Request,
+        session: Session,
+    ) -> None:
+        # Arrange
+        # Every day all day: matches on the real clock, whenever the test runs.
+        hour = f"{faker.pyint(min_value=0, max_value=23):02}:00"
+        condition = DEFAULT_CONDITION_PARSER.parse(
+            {"kind": "schedule", "days": list(range(1, 8)), "start": hour, "end": hour, "timezone": faker.timezone()},
+        )
+
+        # Act
+        matches = condition.matches(proxy_request, session)
+
+        # Assert
+        assert matches
+
+
+class TestInvalidConditionError:
+    def test_str_returns_reason_alone_when_path_empty(self, faker: Faker) -> None:
+        # Arrange
+        reason = faker.sentence()
+
+        # Act
+        message = str(InvalidConditionError(reason))
+
+        # Assert
+        assert message == reason
+
 
 class TestTargetHostCondition:
     def test_matches_returns_true_when_target_is_subdomain(
@@ -198,6 +351,23 @@ class TestClientNetworkCondition:
         client_ip = faker.ipv4()
         condition = ClientNetworkCondition([ipaddress.ip_network(client_ip)])
         session.client = Address(f"::ffff:{client_ip}", faker.port_number())
+
+        # Act
+        matches = condition.matches(proxy_request, session)
+
+        # Assert
+        assert matches
+
+    def test_matches_returns_true_when_client_ipv6_inside(
+        self,
+        faker: Faker,
+        proxy_request: Request,
+        session: Session,
+    ) -> None:
+        # Arrange
+        client_ip = faker.ipv6()
+        condition = ClientNetworkCondition([ipaddress.ip_network(client_ip)])
+        session.client = Address(client_ip, faker.port_number())
 
         # Act
         matches = condition.matches(proxy_request, session)

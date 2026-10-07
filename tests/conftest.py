@@ -3,4 +3,5 @@ pytest_plugins = [
     "tests.fixtures.policies",
     "tests.fixtures.proxy",
     "tests.fixtures.runners",
+    "tests.fixtures.users",
 ]

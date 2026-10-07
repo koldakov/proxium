@@ -36,9 +36,17 @@ class Relay:
         self._grants: tuple[Grant, ...] = tuple(grants)
         # Directions whose data the grants hold back right now.
         self._held: int = 0
+        # Set by `run` for its duration, see `timeout`.
         self._timeout: asyncio.Timeout | None = None
         # Relay is created inside a running loop, so it can be looked up once.
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+
+    @property
+    def timeout(self) -> asyncio.Timeout:
+        """The idle timeout of the running tunnel."""
+        if self._timeout is None:
+            raise RuntimeError("The relay isn't running.")
+        return self._timeout
 
     async def run(self) -> None:
         try:
@@ -69,7 +77,8 @@ class Relay:
         self._touch()
 
     async def _pipe_both_ways(self) -> None:
-        async with asyncio.timeout(self._idle_timeout) as self._timeout, asyncio.TaskGroup() as group:
+        async with asyncio.timeout(self._idle_timeout) as timeout, asyncio.TaskGroup() as group:
+            self._timeout = timeout
             group.create_task(self._pipe(self._client, self._target, self._check_sent, self._on_sent))
             group.create_task(self._pipe(self._target, self._client, self._check_received, self._on_received))
 
@@ -97,8 +106,6 @@ class Relay:
         self._touch()
 
     def _touch(self) -> None:
-        if self._timeout is None:
-            return
         # No deadline while the grants hold data back: it restarts when they let go.
         when = None if self._held else self._loop.time() + self._idle_timeout
-        self._timeout.reschedule(when)
+        self.timeout.reschedule(when)
