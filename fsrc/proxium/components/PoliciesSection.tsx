@@ -23,6 +23,7 @@ import {
 import { keepPreviousData, useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
+  Confirm,
   type Identifier,
   Link,
   useCanAccess,
@@ -49,17 +50,32 @@ const OPTIONS_LIMIT = 5
 // Global policies named next to the assigned ones, the rest are behind the link to the list.
 const GLOBAL_LIMIT = 10
 
+// When an assignment change takes effect, told before confirming it.
+const TAKES_EFFECT =
+  'New connections of the client get it within the cache TTL from the settings, open ones keep the terms they started with.'
+
+interface PolicyRef {
+  id: Identifier
+  name: string
+}
+
 interface AssignProps {
   resource: string
   id: Identifier
   onAssigned: () => void
 }
 
-/** Offers only policies the record can take: not assigned yet and not global, the API picks them. */
+/**
+ * Offers only policies the record can take: not assigned yet and not global, the API picks them.
+ * The pick is assigned once confirmed.
+ */
 const Assign = ({ resource, id, onAssigned }: AssignProps) => {
   const dataProvider = useDataProvider<ProxiumDataProvider>()
   const notify = useNotify()
   const [query, setQuery] = useState('')
+  // Kept while the dialog closes: its text stays until it's gone.
+  const [picked, setPicked] = useState<PolicyRef | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
   const {
     data: options = [],
     total = 0,
@@ -75,42 +91,63 @@ const Assign = ({ resource, id, onAssigned }: AssignProps) => {
   const { mutate, isPending } = useMutation({
     mutationFn: (policyId: Identifier) => dataProvider.assignPolicy(resource, { id, policyId }),
     onSuccess: () => {
+      setIsConfirming(false)
       setQuery('')
       notify('Policy assigned', { type: 'success' })
       // The assigned policy leaves the options.
       refetch()
       onAssigned()
     },
-    onError: (error: Error) => notify(error.message, { type: 'error' }),
+    onError: (error: Error) => {
+      setIsConfirming(false)
+      notify(error.message, { type: 'error' })
+    },
   })
 
   return (
-    <Autocomplete
-      options={options}
-      getOptionLabel={(policy) => (policy.isActive ? policy.name : `${policy.name} (inactive)`)}
-      filterOptions={(items) => items}
-      loading={isFetching}
-      disabled={isPending}
-      noOptionsText="No policies to assign"
-      inputValue={query}
-      onInputChange={(_, value, reason) => reason === 'input' && setQuery(value)}
-      // Cleared after every pick: the input is for assigning, not for holding a value.
-      value={null}
-      onChange={(_, policy) => policy && mutate(policy.id)}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          size="small"
-          label="Assign a policy"
-          helperText={
-            total > options.length && `First ${options.length} of ${total}, type to find the rest`
+    <>
+      <Autocomplete
+        options={options}
+        getOptionLabel={(policy) => (policy.isActive ? policy.name : `${policy.name} (inactive)`)}
+        filterOptions={(items) => items}
+        loading={isFetching}
+        disabled={isPending}
+        noOptionsText="No policies to assign"
+        inputValue={query}
+        onInputChange={(_, value, reason) => reason === 'input' && setQuery(value)}
+        // Cleared after every pick: the input is for assigning, not for holding a value.
+        value={null}
+        onChange={(_, policy) => {
+          if (policy) {
+            setPicked(policy)
+            setIsConfirming(true)
           }
-          // Inside a form Enter would submit it.
-          onKeyDown={(event) => event.key === 'Enter' && event.preventDefault()}
-        />
-      )}
-      sx={{ maxWidth: 480 }}
-    />
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            size="small"
+            label="Assign a policy"
+            helperText={
+              total > options.length && `First ${options.length} of ${total}, type to find the rest`
+            }
+            // Inside a form Enter would submit it.
+            onKeyDown={(event) => event.key === 'Enter' && event.preventDefault()}
+          />
+        )}
+        sx={{ maxWidth: 480 }}
+      />
+      <Confirm
+        isOpen={isConfirming}
+        loading={isPending}
+        title={`Assign ${picked?.name}?`}
+        content={`Its limits apply to the client along with the other policies. ${TAKES_EFFECT}`}
+        confirm="Assign"
+        // Not `picked!.id`: React Compiler reads it on render as a dependency, while still null.
+        onConfirm={() => picked && mutate(picked.id)}
+        onClose={() => setIsConfirming(false)}
+      />
+    </>
   )
 }
 
@@ -261,6 +298,9 @@ export const PoliciesSection = () => {
   const { canAccess: canPick } = useCanAccess({ resource: 'policies', action: 'list' })
 
   const configs = useConfigs()
+  // Kept while the dialog closes: its text stays until it's gone.
+  const [takingOff, setTakingOff] = useState<PolicyRef | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
 
   const {
     data = [],
@@ -276,10 +316,14 @@ export const PoliciesSection = () => {
     mutationFn: (policyId: Identifier) =>
       dataProvider.unassignPolicy(resource!, { id: record!.id, policyId }),
     onSuccess: () => {
+      setIsConfirming(false)
       notify('Policy taken off', { type: 'success' })
       refetch()
     },
-    onError: (error: Error) => notify(error.message, { type: 'error' }),
+    onError: (error: Error) => {
+      setIsConfirming(false)
+      notify(error.message, { type: 'error' })
+    },
   })
 
   if (resource === undefined || record === undefined) {
@@ -379,7 +423,10 @@ export const PoliciesSection = () => {
                           size="small"
                           aria-label="Take off"
                           disabled={isUnassigning}
-                          onClick={() => unassign(policy.id)}
+                          onClick={() => {
+                            setTakingOff(policy)
+                            setIsConfirming(true)
+                          }}
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
@@ -392,6 +439,16 @@ export const PoliciesSection = () => {
           </TableBody>
         </Table>
       )}
+      <Confirm
+        isOpen={isConfirming}
+        loading={isUnassigning}
+        title={`Take off ${takingOff?.name}?`}
+        content={`Its limits stop applying to the client. ${TAKES_EFFECT}`}
+        confirm="Take off"
+        confirmColor="warning"
+        onConfirm={() => takingOff && unassign(takingOff.id)}
+        onClose={() => setIsConfirming(false)}
+      />
     </ShowSection>
   )
 }
