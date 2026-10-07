@@ -246,6 +246,21 @@ e.g. the day the client paid. Assigning sets it to that day. Monthly periods fro
 of shorter months. Usage is the traffic in the database plus what the proxy hasn't written yet: traffic of other
 proxy processes counts within a minute.
 
+The limits of a policy sit in rules, each with a condition. In each policy the first rule whose condition matches
+applies, so put the narrow rules first and a rule without conditions last for everything else: e.g. 10 Mbit/s on
+weekdays from 9:00 till 18:00 in your time zone, 100 Mbit/s otherwise. A rule without a match leaves the client
+free of that policy. A condition checks the time (days of the week and hours, past midnight too), the target host
+with its subdomains, the target IP, the target port, the protocol (HTTP, HTTP CONNECT tunnels, SOCKS5), the client
+IP or TLS to the proxy. Conditions of a rule must all match or any one of them, each can be turned into its
+opposite. Open connections switch rules on their next data, checked once a second, e.g. when the night starts: the
+old limits let go, the new ones apply, and if those refuse, e.g. no connection is free, the connection is cut.
+Hosts compare by the name the client asked for: a target IP is matched by networks, not names.
+
+E.g. to slow everything down in working hours except work sites, one rule is enough: all conditions match, Time
+Mon–Fri 09:00–18:00, Target domain `company.com, github.com` with Not, speed 5 Mbit/s per account. Off hours or to
+work sites the rule doesn't match and the policy limits nothing. SOCKS5 clients must leave DNS to the proxy, e.g.
+`socks5h://` in curl: a client that resolves names itself sends an IP, which no domain matches.
+
 The proxy looks policies up every `PROXY_SETTINGS_POLL_INTERVAL` seconds. A change reaches new connections, open
 ones keep the limits they started with, though a connection limit changed in place keeps counting them.
 Assigning a policy reaches a client within the cache TTL of passed checks. Limits are counted in the proxy's memory: with several
