@@ -1,5 +1,7 @@
 import type { RaRecord } from 'react-admin'
 
+import { toApiCondition } from './conditions'
+
 // What a limit is counted over, as the API names it: connections with the same value share it.
 export const LIMIT_SCOPES = [
   { id: 'identity', name: 'Per account or network' },
@@ -54,24 +56,22 @@ export const QUOTA_PERIODS = [
 export const utcToday = () => new Date().toISOString().slice(0, 10)
 
 /**
- * The form edits one rule that always applies: conditions aren't there yet, so a second rule would never match.
- * Fills what the form leaves out: the rule's name, a burst of one second of the rate, and the period length of
- * quotas that never reset.
+ * The form's rules as the API takes them: the condition from its form fields, a burst of one second of the rate
+ * unless set, and the period length of quotas that never reset.
  */
-export const toPolicyData = (data: Partial<RaRecord>) => {
-  const [first = {}, ...rest] = data.rules ?? []
-  const rule = {
-    ...first,
-    name: first.name ?? 'Always',
-    connectionLimits: first.connectionLimits ?? [],
-    speedLimits: (first.speedLimits ?? []).map((limit: RaRecord) => ({
+export const toPolicyData = (data: Partial<RaRecord>) => ({
+  ...data,
+  rules: (data.rules ?? []).map(({ match, blocks, complexCondition, ...rule }: RaRecord) => ({
+    ...rule,
+    condition: toApiCondition({ match, blocks, complexCondition }),
+    connectionLimits: rule.connectionLimits ?? [],
+    speedLimits: (rule.speedLimits ?? []).map((limit: RaRecord) => ({
       ...limit,
       burst: limit.burst ?? limit.rate,
     })),
-    trafficQuotas: (first.trafficQuotas ?? []).map((quota: RaRecord) => ({
+    trafficQuotas: (rule.trafficQuotas ?? []).map((quota: RaRecord) => ({
       ...quota,
       periodLength: quota.period === 'total' ? 1 : quota.periodLength,
     })),
-  }
-  return { ...data, rules: [rule, ...rest] }
-}
+  })),
+})

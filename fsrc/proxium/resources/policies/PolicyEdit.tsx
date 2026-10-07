@@ -1,6 +1,7 @@
-import { DeleteButton, Edit, SaveButton, SimpleForm, Toolbar } from 'react-admin'
+import { DeleteButton, Edit, SaveButton, Toolbar } from 'react-admin'
 
 import { toPolicyData } from './limits'
+import { PolicyForm } from './PolicyForm'
 import { PolicyInputs } from './PolicyInputs'
 
 const EditToolbar = () => (
@@ -14,11 +15,11 @@ const EditToolbar = () => (
   </Toolbar>
 )
 
-// The proxy applies a change to new connections within seconds, open ones keep the limits they started with.
+// The proxy applies a change to new connections within seconds, open ones keep the rules they started with.
 export const PolicyEdit = () => (
   <Edit redirect="list" mutationMode="pessimistic" transform={toPolicyData}>
-    <SimpleForm toolbar={<EditToolbar />}>
+    <PolicyForm toolbar={<EditToolbar />}>
       <PolicyInputs />
-    </SimpleForm>
+    </PolicyForm>
   </Edit>
 )

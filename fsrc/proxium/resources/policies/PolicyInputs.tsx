@@ -1,5 +1,6 @@
-import { Typography } from '@mui/material'
+import { Alert, Typography } from '@mui/material'
 import {
+  AddItemButton,
   ArrayInput,
   BooleanInput,
   DateInput,
@@ -11,8 +12,11 @@ import {
   maxValue,
   minValue,
   required,
+  useSimpleFormIteratorItem,
 } from 'react-admin'
+import type { RaRecord } from 'react-admin'
 
+import { ConditionInputs } from './ConditionInputs'
 import {
   DIRECTIONS,
   LIMIT_SCOPES,
@@ -26,11 +30,11 @@ import {
   parseMegabytes,
 } from './limits'
 
-/** Read-only, an empty list of limits says so instead of showing nothing under its heading. */
+/** Read-only, an empty list of limits says so instead of showing nothing under its heading. Inside a rule. */
 const NoLimits = ({ field }: { field: 'connectionLimits' | 'speedLimits' | 'trafficQuotas' }) => (
   <FormDataConsumer>
-    {({ formData }) =>
-      formData.rules?.[0]?.[field]?.length ? null : (
+    {({ scopedFormData }) =>
+      scopedFormData?.[field]?.length ? null : (
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           No limits
         </Typography>
@@ -39,35 +43,36 @@ const NoLimits = ({ field }: { field: 'connectionLimits' | 'speedLimits' | 'traf
   </FormDataConsumer>
 )
 
-/** The fields of a policy, shared by create and edit, read-only on the show page. */
-export const PolicyInputs = ({ readOnly = false }: { readOnly?: boolean }) => (
-  <>
-    <TextInput
-      source="name"
-      readOnly={readOnly}
-      validate={required()}
-      helperText="E.g. Basic 50 Mbit/s"
-    />
-    <BooleanInput
-      source="isActive"
-      label="Active"
-      readOnly={readOnly}
-      helperText="Off: the policy applies to no one"
-    />
-    <BooleanInput
-      source="isGlobal"
-      label="Global"
-      readOnly={readOnly}
-      helperText="Applies to every client. Otherwise assign it on the page of an account or network"
-    />
+const appliesAlways = (rule: RaRecord | undefined) =>
+  !rule?.complexCondition && !(rule?.blocks?.length > 0)
 
-    <Typography variant="subtitle1" sx={{ mt: 2 }}>
+/** A rule after one without conditions never applies: the first match wins. */
+const UnreachableRuleWarning = () => {
+  const { index } = useSimpleFormIteratorItem()
+  return (
+    <FormDataConsumer>
+      {({ formData }) =>
+        (formData.rules ?? []).slice(0, index).some(appliesAlways) && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Never applies: a rule above has no conditions and always applies first. Move this one up
+            or add conditions to that one
+          </Alert>
+        )
+      }
+    </FormDataConsumer>
+  )
+}
+
+/** The limits of one rule. */
+const RuleLimits = ({ readOnly }: { readOnly: boolean }) => (
+  <>
+    <Typography variant="subtitle2" sx={{ mt: 2 }}>
       Connections
     </Typography>
     {readOnly && <NoLimits field="connectionLimits" />}
-    <ArrayInput source="rules.0.connectionLimits" label={false}>
+    <ArrayInput source="connectionLimits" label={false}>
       {/* The iterator holds the add and remove buttons. */}
-      <SimpleFormIterator inline disableReordering disabled={readOnly}>
+      <SimpleFormIterator inline disableReordering disableClear disabled={readOnly}>
         <SelectInput
           source="scope"
           choices={LIMIT_SCOPES}
@@ -84,12 +89,12 @@ export const PolicyInputs = ({ readOnly = false }: { readOnly?: boolean }) => (
       </SimpleFormIterator>
     </ArrayInput>
 
-    <Typography variant="subtitle1" sx={{ mt: 2 }}>
+    <Typography variant="subtitle2" sx={{ mt: 2 }}>
       Speed
     </Typography>
     {readOnly && <NoLimits field="speedLimits" />}
-    <ArrayInput source="rules.0.speedLimits" label={false}>
-      <SimpleFormIterator inline disableReordering disabled={readOnly}>
+    <ArrayInput source="speedLimits" label={false}>
+      <SimpleFormIterator inline disableReordering disableClear disabled={readOnly}>
         <SelectInput
           source="scope"
           choices={LIMIT_SCOPES}
@@ -124,15 +129,15 @@ export const PolicyInputs = ({ readOnly = false }: { readOnly?: boolean }) => (
       </SimpleFormIterator>
     </ArrayInput>
 
-    <Typography variant="subtitle1" sx={{ mt: 2 }}>
+    <Typography variant="subtitle2" sx={{ mt: 2 }}>
       Traffic
     </Typography>
     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
       Per account or network. Past a quota new connections are refused and open ones are cut
     </Typography>
     {readOnly && <NoLimits field="trafficQuotas" />}
-    <ArrayInput source="rules.0.trafficQuotas" label={false}>
-      <SimpleFormIterator inline disableReordering disabled={readOnly}>
+    <ArrayInput source="trafficQuotas" label={false}>
+      <SimpleFormIterator inline disableReordering disableClear disabled={readOnly}>
         <SelectInput
           source="direction"
           choices={QUOTA_DIRECTIONS}
@@ -174,10 +179,70 @@ export const PolicyInputs = ({ readOnly = false }: { readOnly?: boolean }) => (
         </FormDataConsumer>
       </SimpleFormIterator>
     </ArrayInput>
+  </>
+)
+
+const hasQuotas = (rules: RaRecord[] | undefined) =>
+  (rules ?? []).some((rule) => rule?.trafficQuotas?.length > 0)
+
+/**
+ * The fields of a policy, shared by create and edit, read-only on the show page. Edits the policy as
+ * `toFormPolicy` gives it: each rule's condition split into form fields.
+ */
+export const PolicyInputs = ({ readOnly = false }: { readOnly?: boolean }) => (
+  <>
+    <TextInput
+      source="name"
+      readOnly={readOnly}
+      validate={required()}
+      helperText="E.g. Basic 50 Mbit/s"
+    />
+    <BooleanInput
+      source="isActive"
+      label="Active"
+      readOnly={readOnly}
+      helperText="Off: the policy applies to no one"
+    />
+    <BooleanInput
+      source="isGlobal"
+      label="Global"
+      readOnly={readOnly}
+      helperText="Applies to every client. Otherwise assign it on the page of an account or network"
+    />
+
+    <Typography variant="subtitle1" sx={{ mt: 2 }}>
+      Rules
+    </Typography>
+    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+      The first rule whose conditions match applies its limits, the rest are skipped. Without a
+      match the policy limits nothing. Open connections switch rules as conditions change, e.g. at
+      night
+    </Typography>
+    <ArrayInput source="rules" label={false}>
+      <SimpleFormIterator
+        fullWidth
+        disableClear
+        disabled={readOnly}
+        getItemLabel={(index) => `Rule ${index + 1}`}
+        addButton={<AddItemButton label="Add rule" />}
+      >
+        <TextInput
+          source="name"
+          readOnly={readOnly}
+          validate={required()}
+          helperText="E.g. Working hours"
+        />
+        <UnreachableRuleWarning />
+        <Typography variant="subtitle2">When</Typography>
+        <ConditionInputs readOnly={readOnly} />
+        <RuleLimits readOnly={readOnly} />
+      </SimpleFormIterator>
+    </ArrayInput>
+
     {/* Where periods start matters only with quotas. */}
     <FormDataConsumer>
       {({ formData }) =>
-        formData.rules?.[0]?.trafficQuotas?.length > 0 &&
+        hasQuotas(formData.rules) &&
         (formData.isGlobal ? (
           <DateInput
             source="globalStartsOn"

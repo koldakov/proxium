@@ -1,12 +1,13 @@
-import { Show, SimpleForm } from 'react-admin'
+import { Show } from 'react-admin'
 
+import { PolicyForm } from './PolicyForm'
 import { PolicyInputs } from './PolicyInputs'
 
 /** The edit form, read-only: for those who may only view policies. */
 export const PolicyShow = () => (
   <Show>
-    <SimpleForm toolbar={false}>
+    <PolicyForm toolbar={false}>
       <PolicyInputs readOnly />
-    </SimpleForm>
+    </PolicyForm>
   </Show>
 )
