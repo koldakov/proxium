@@ -47,17 +47,8 @@ def upgrade() -> None:
             f"{column} > 0",
         )
 
-    # Every cache keeps the TTL it had.
-    op.execute(
-        "UPDATE settings SET "
-        "basic_account_cache_ttl = cache_ttl, "
-        "basic_account_refusal_cache_ttl = cache_ttl, "
-        "token_account_cache_ttl = cache_ttl, "
-        "token_account_refusal_cache_ttl = cache_ttl, "
-        "trusted_network_cache_ttl = cache_ttl, "
-        "trusted_network_refusal_cache_ttl = cache_ttl, "
-        "certificate_cache_ttl = cache_ttl",
-    )
+    # Every cache keeps the TTL it had. Only column names from `COLUMNS` go in, nothing from outside: no injection.
+    op.execute(f"UPDATE settings SET {', '.join(f'{column} = cache_ttl' for column in COLUMNS)}")  # noqa: S608
 
     op.drop_constraint(
         "ck_settings_cache_ttl_positive",
@@ -83,17 +74,8 @@ def downgrade() -> None:
         "cache_ttl > 0",
     )
 
-    # The shortest: no change waits longer than it did.
-    op.execute(
-        "UPDATE settings SET cache_ttl = LEAST("
-        "basic_account_cache_ttl, "
-        "basic_account_refusal_cache_ttl, "
-        "token_account_cache_ttl, "
-        "token_account_refusal_cache_ttl, "
-        "trusted_network_cache_ttl, "
-        "trusted_network_refusal_cache_ttl, "
-        "certificate_cache_ttl)",
-    )
+    # The shortest: no change waits longer than it did. Only column names from `COLUMNS` go in: no injection.
+    op.execute(f"UPDATE settings SET cache_ttl = LEAST({', '.join(COLUMNS)})")  # noqa: S608
 
     for column in COLUMNS:
         op.drop_constraint(
