@@ -1,8 +1,8 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Annotated, ClassVar, Literal
 
 from fastapi import HTTPException, status
-from pydantic import Field
+from pydantic import Field, IPvAnyNetwork
 from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import selectinload
@@ -11,9 +11,84 @@ from proxium.api.services import BaseUserAuthenticatedService
 from proxium.db import Direction, LimitScope, Permission, PolicyModel, PolicyRuleModel, QuotaPeriod
 from proxium.helpers import BaseSchema
 
+# Declared before its blocks: they hold one another.
+type GetPolicyConditionResponse = Annotated[
+    GetPolicyAlwaysConditionResponse
+    | GetPolicyAllConditionResponse
+    | GetPolicyAnyConditionResponse
+    | GetPolicyNotConditionResponse
+    | GetPolicyTargetHostConditionResponse
+    | GetPolicyTargetNetworkConditionResponse
+    | GetPolicyTargetPortConditionResponse
+    | GetPolicyProtocolConditionResponse
+    | GetPolicyClientNetworkConditionResponse
+    | GetPolicyEncryptedConditionResponse
+    | GetPolicyScheduleConditionResponse,
+    Field(
+        discriminator="kind",
+    ),
+]
 
-class GetPolicyConditionResponse(BaseSchema):
+
+class GetPolicyAlwaysConditionResponse(BaseSchema):
     kind: Literal["always"]
+
+
+class GetPolicyAllConditionResponse(BaseSchema):
+    kind: Literal["all"]
+    conditions: list[GetPolicyConditionResponse]
+
+
+class GetPolicyAnyConditionResponse(BaseSchema):
+    kind: Literal["any"]
+    conditions: list[GetPolicyConditionResponse]
+
+
+class GetPolicyNotConditionResponse(BaseSchema):
+    kind: Literal["not"]
+    condition: GetPolicyConditionResponse
+
+
+class GetPolicyTargetHostConditionResponse(BaseSchema):
+    kind: Literal["target_host"]
+    domains: list[str]
+
+
+class GetPolicyTargetNetworkConditionResponse(BaseSchema):
+    kind: Literal["target_network"]
+    networks: list[IPvAnyNetwork]
+
+
+class GetPolicyPortRangeResponse(BaseSchema):
+    first: int
+    last: int
+
+
+class GetPolicyTargetPortConditionResponse(BaseSchema):
+    kind: Literal["target_port"]
+    ports: list[GetPolicyPortRangeResponse]
+
+
+class GetPolicyProtocolConditionResponse(BaseSchema):
+    kind: Literal["protocol"]
+    protocols: list[str]
+
+
+class GetPolicyClientNetworkConditionResponse(BaseSchema):
+    kind: Literal["client_network"]
+    networks: list[IPvAnyNetwork]
+
+
+class GetPolicyEncryptedConditionResponse(BaseSchema):
+    kind: Literal["encrypted"]
+
+
+class GetPolicyScheduleConditionResponse(BaseSchema):
+    kind: Literal["schedule"]
+    days: list[int]
+    start: time
+    end: time
+    timezone: str
 
 
 class GetPolicyConnectionLimitResponse(BaseSchema):

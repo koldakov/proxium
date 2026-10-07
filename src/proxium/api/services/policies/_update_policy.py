@@ -1,8 +1,8 @@
-from datetime import date, datetime
-from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, Self
+from datetime import date, datetime, time
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Final, Literal, Self
 
 from fastapi import HTTPException, status
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import Field, IPvAnyNetwork, StringConstraints, model_validator
 from sqlalchemy import Result, Select, func, select
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import selectinload
@@ -20,9 +20,10 @@ from proxium.db import (
     QuotaPeriod,
 )
 from proxium.helpers import BaseSchema
+from proxium.policies import DEFAULT_CONDITION_PARSER, InvalidConditionError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping
 
 
 def _check_unique_ids(ids: Iterable[int | None], /) -> None:
@@ -31,10 +32,205 @@ def _check_unique_ids(ids: Iterable[int | None], /) -> None:
         raise ValueError("Ids must be unique.")
 
 
-class UpdatePolicyConditionRequest(BaseSchema):
-    """When the rule applies. Only `always` for now."""
+# Bounded: the proxy checks a condition on every connection.
+_MAX_CONDITION_BLOCKS: Final[int] = 64
+
+
+def _count_condition_blocks(condition: Mapping[str, Any], /) -> int:
+    children = [*condition.get("conditions", ())]
+    if "condition" in condition:
+        children.append(condition["condition"])
+    return 1 + sum(_count_condition_blocks(child) for child in children)
+
+
+# Declared before its blocks: they hold one another. Checked by the proxy's parser too, see the rule.
+type UpdatePolicyConditionRequest = Annotated[
+    UpdatePolicyAlwaysConditionRequest
+    | UpdatePolicyAllConditionRequest
+    | UpdatePolicyAnyConditionRequest
+    | UpdatePolicyNotConditionRequest
+    | UpdatePolicyTargetHostConditionRequest
+    | UpdatePolicyTargetNetworkConditionRequest
+    | UpdatePolicyTargetPortConditionRequest
+    | UpdatePolicyProtocolConditionRequest
+    | UpdatePolicyClientNetworkConditionRequest
+    | UpdatePolicyEncryptedConditionRequest
+    | UpdatePolicyScheduleConditionRequest,
+    Field(
+        discriminator="kind",
+    ),
+]
+
+
+class UpdatePolicyAlwaysConditionRequest(BaseSchema):
+    """Matches every connection: a rule for everything the rules above it left."""
 
     kind: Literal["always"] = "always"
+
+
+class UpdatePolicyAllConditionRequest(BaseSchema):
+    """Every one of `conditions` matches."""
+
+    kind: Literal["all"]
+    conditions: Annotated[
+        list[UpdatePolicyConditionRequest],
+        Field(
+            min_length=1,
+            max_length=_MAX_CONDITION_BLOCKS,
+        ),
+    ]
+
+
+class UpdatePolicyAnyConditionRequest(BaseSchema):
+    """At least one of `conditions` matches."""
+
+    kind: Literal["any"]
+    conditions: Annotated[
+        list[UpdatePolicyConditionRequest],
+        Field(
+            min_length=1,
+            max_length=_MAX_CONDITION_BLOCKS,
+        ),
+    ]
+
+
+class UpdatePolicyNotConditionRequest(BaseSchema):
+    """Matches when `condition` doesn't."""
+
+    kind: Literal["not"]
+    condition: UpdatePolicyConditionRequest
+
+
+class UpdatePolicyTargetHostConditionRequest(BaseSchema):
+    """The target is one of `domains` or their subdomains, by the name the client sent."""
+
+    kind: Literal["target_host"]
+    domains: Annotated[
+        list[
+            Annotated[
+                str,
+                StringConstraints(
+                    strip_whitespace=True,
+                    min_length=1,
+                    max_length=253,
+                ),
+            ]
+        ],
+        Field(
+            min_length=1,
+            max_length=256,
+        ),
+    ]
+
+
+class UpdatePolicyTargetNetworkConditionRequest(BaseSchema):
+    """The client asked for an IP in one of `networks`. A target given by name doesn't match."""
+
+    kind: Literal["target_network"]
+    networks: Annotated[
+        list[IPvAnyNetwork],
+        Field(
+            min_length=1,
+            max_length=256,
+        ),
+    ]
+
+
+class UpdatePolicyPortRangeRequest(BaseSchema):
+    # Both included, e.g. 443 to 443 for one port.
+    first: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=65535,
+        ),
+    ]
+    last: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=65535,
+        ),
+    ]
+
+
+class UpdatePolicyTargetPortConditionRequest(BaseSchema):
+    """The target port is in one of `ports`."""
+
+    kind: Literal["target_port"]
+    ports: Annotated[
+        list[UpdatePolicyPortRangeRequest],
+        Field(
+            min_length=1,
+            max_length=256,
+        ),
+    ]
+
+
+class UpdatePolicyProtocolConditionRequest(BaseSchema):
+    """The client came in over one of `protocols`."""
+
+    kind: Literal["protocol"]
+    # As the proxy names them: plain HTTP, HTTPS tunnels by CONNECT, SOCKS5.
+    protocols: Annotated[
+        list[Literal["http", "http-connect", "socks5"]],
+        Field(
+            min_length=1,
+            max_length=3,
+        ),
+    ]
+
+
+class UpdatePolicyClientNetworkConditionRequest(BaseSchema):
+    """The client connects from an IP in one of `networks`."""
+
+    kind: Literal["client_network"]
+    networks: Annotated[
+        list[IPvAnyNetwork],
+        Field(
+            min_length=1,
+            max_length=256,
+        ),
+    ]
+
+
+class UpdatePolicyEncryptedConditionRequest(BaseSchema):
+    """The client came over TLS."""
+
+    kind: Literal["encrypted"]
+
+
+class UpdatePolicyScheduleConditionRequest(BaseSchema):
+    """From `start` till `end` on `days`, in `timezone`. `end` before `start` runs past midnight, equal is all day."""
+
+    kind: Literal["schedule"]
+    # ISO weekdays: 1 is Monday.
+    days: Annotated[
+        list[
+            Annotated[
+                int,
+                Field(
+                    ge=1,
+                    le=7,
+                ),
+            ]
+        ],
+        Field(
+            min_length=1,
+            max_length=7,
+        ),
+    ]
+    start: time
+    end: time
+    # IANA, e.g. Europe/Berlin.
+    timezone: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+            max_length=64,
+        ),
+    ]
 
 
 class UpdatePolicyConnectionLimitRequest(BaseSchema):
@@ -107,8 +303,9 @@ class UpdatePolicyRuleRequest(BaseSchema):
             max_length=255,
         ),
     ]
+    # When the rule applies, by default always.
     condition: UpdatePolicyConditionRequest = Field(
-        default_factory=UpdatePolicyConditionRequest,
+        default_factory=UpdatePolicyAlwaysConditionRequest,
     )
     connection_limits: list[UpdatePolicyConnectionLimitRequest] = Field(
         default_factory=list,
@@ -128,6 +325,18 @@ class UpdatePolicyRuleRequest(BaseSchema):
         _check_unique_ids(limit.id for limit in self.connection_limits)
         _check_unique_ids(limit.id for limit in self.speed_limits)
         _check_unique_ids(quota.id for quota in self.traffic_quotas)
+        return self
+
+    @model_validator(mode="after")
+    def _check_condition(self) -> Self:
+        condition = self.condition.model_dump(mode="json")
+        if _count_condition_blocks(condition) > _MAX_CONDITION_BLOCKS:
+            raise ValueError(f"A condition has at most {_MAX_CONDITION_BLOCKS} blocks.")
+        # By the proxy's own parser: what's saved, the proxy can build.
+        try:
+            DEFAULT_CONDITION_PARSER.parse(condition)
+        except InvalidConditionError as err:
+            raise ValueError(f"Condition: {err}") from err
         return self
 
 
@@ -163,8 +372,84 @@ class UpdatePolicyRequest(BaseSchema):
         return self
 
 
-class UpdatePolicyConditionResponse(BaseSchema):
+# Declared before its blocks: they hold one another.
+type UpdatePolicyConditionResponse = Annotated[
+    UpdatePolicyAlwaysConditionResponse
+    | UpdatePolicyAllConditionResponse
+    | UpdatePolicyAnyConditionResponse
+    | UpdatePolicyNotConditionResponse
+    | UpdatePolicyTargetHostConditionResponse
+    | UpdatePolicyTargetNetworkConditionResponse
+    | UpdatePolicyTargetPortConditionResponse
+    | UpdatePolicyProtocolConditionResponse
+    | UpdatePolicyClientNetworkConditionResponse
+    | UpdatePolicyEncryptedConditionResponse
+    | UpdatePolicyScheduleConditionResponse,
+    Field(
+        discriminator="kind",
+    ),
+]
+
+
+class UpdatePolicyAlwaysConditionResponse(BaseSchema):
     kind: Literal["always"]
+
+
+class UpdatePolicyAllConditionResponse(BaseSchema):
+    kind: Literal["all"]
+    conditions: list[UpdatePolicyConditionResponse]
+
+
+class UpdatePolicyAnyConditionResponse(BaseSchema):
+    kind: Literal["any"]
+    conditions: list[UpdatePolicyConditionResponse]
+
+
+class UpdatePolicyNotConditionResponse(BaseSchema):
+    kind: Literal["not"]
+    condition: UpdatePolicyConditionResponse
+
+
+class UpdatePolicyTargetHostConditionResponse(BaseSchema):
+    kind: Literal["target_host"]
+    domains: list[str]
+
+
+class UpdatePolicyTargetNetworkConditionResponse(BaseSchema):
+    kind: Literal["target_network"]
+    networks: list[IPvAnyNetwork]
+
+
+class UpdatePolicyPortRangeResponse(BaseSchema):
+    first: int
+    last: int
+
+
+class UpdatePolicyTargetPortConditionResponse(BaseSchema):
+    kind: Literal["target_port"]
+    ports: list[UpdatePolicyPortRangeResponse]
+
+
+class UpdatePolicyProtocolConditionResponse(BaseSchema):
+    kind: Literal["protocol"]
+    protocols: list[str]
+
+
+class UpdatePolicyClientNetworkConditionResponse(BaseSchema):
+    kind: Literal["client_network"]
+    networks: list[IPvAnyNetwork]
+
+
+class UpdatePolicyEncryptedConditionResponse(BaseSchema):
+    kind: Literal["encrypted"]
+
+
+class UpdatePolicyScheduleConditionResponse(BaseSchema):
+    kind: Literal["schedule"]
+    days: list[int]
+    start: time
+    end: time
+    timezone: str
 
 
 class UpdatePolicyConnectionLimitResponse(BaseSchema):

@@ -60,6 +60,18 @@ async def create_policy(
 
     - `isGlobal`: applies to every client, otherwise only to the accounts and networks it's assigned to.
     - `rules`: in order, the first whose condition matches applies all its limits.
+    - `condition`: a tree of blocks by `kind`, `always` by default. Open tunnels switch rules when it changes,
+      e.g. at night:
+      - `always`: every connection.
+      - `all`, `any`: every one or at least one of `conditions` matches. `not`: `condition` doesn't.
+      - `schedule`: `days` (ISO, 1 is Monday) from `start` till `end` in `timezone` (IANA). `end` before `start`
+        runs past midnight, equal is all day.
+      - `target_host`: one of `domains` or their subdomains, by the name the client sent.
+      - `target_network`: the client asked for an IP in one of `networks`.
+      - `target_port`: the port is in one of `ports`, ranges of `first` to `last`.
+      - `protocol`: one of `protocols`: `http`, `http-connect`, `socks5`.
+      - `client_network`: the client's IP is in one of `networks`.
+      - `encrypted`: the client came over TLS.
     - `scope`: what a limit is counted over, e.g. `identity` for all connections of one account together.
     - `rate`, `burst`: bytes per second, and bytes that go at once after a pause.
     - `trafficQuotas`: at most `maxBytes` per account or network in each period of `periodLength` days or months,
@@ -204,6 +216,7 @@ async def update_policy(
     - `rules`: the whole new list, in order. A rule or limit with an `id` changes in place, without one is added,
       left out is deleted. Keep the ids of what stays: a connection limit changed in place keeps counting
       the connections already open.
+    - `condition`: of each rule, as on create.
     - `globalStartsOn`: the UTC day quota periods of a global policy count from.
     """
     service: UpdatePolicyService = UpdatePolicyService(token=credentials.credentials, id=policy_id, data=data)
