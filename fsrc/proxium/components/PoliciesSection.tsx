@@ -20,7 +20,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
-import { keepPreviousData, useMutation } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
   Confirm,
@@ -291,6 +291,7 @@ export const PoliciesSection = () => {
   const record = useRecordContext()
   const dataProvider = useDataProvider<ProxiumDataProvider>()
   const notify = useNotify()
+  const queryClient = useQueryClient()
   const createPath = useCreatePath()
   const detailPage = useDetailPage('policies')
   // Assigning is changing the record, picking a policy needs seeing them.
@@ -319,6 +320,10 @@ export const PoliciesSection = () => {
       setIsConfirming(false)
       notify('Policy taken off', { type: 'success' })
       refetch()
+      // The policy taken off is offered again.
+      void queryClient.invalidateQueries({
+        queryKey: [`${resource}/${record!.id}/policies/available`],
+      })
     },
     onError: (error: Error) => {
       setIsConfirming(false)
