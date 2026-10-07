@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from faker import Faker
 
     from proxium.proxy import Request, Session
+    from tests.fixtures.policies import SwitchCondition
 
 
 class TestRuleSetPolicy:
@@ -156,3 +157,99 @@ class TestRuleSetPolicy:
 
         # Assert
         assert all(proxy_request.identity.subject not in limit.counts for limit in limits)
+
+    async def test_grant_switches_to_next_rule_when_condition_stops_matching(
+        self,
+        faker: Faker,
+        proxy_request: Request,
+        session: Session,
+        switch_condition: SwitchCondition,
+    ) -> None:
+        # Arrange
+        policy_id = faker.unique.random_int()
+        first_limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
+        second_limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
+        policy = RuleSetPolicy(
+            RuleSet(
+                policies={
+                    policy_id: (
+                        Rule(condition=switch_condition, limits=(first_limit,)),
+                        Rule(condition=ALWAYS, limits=(second_limit,)),
+                    ),
+                },
+                global_ids=(policy_id,),
+            ),
+            check_interval=0,
+        )
+        grant = await policy.admit(proxy_request, session)
+        switch_condition.matching = False
+
+        # Act
+        await grant.on_sent(faker.pyint(min_value=1))
+
+        # Assert
+        assert proxy_request.identity.subject not in first_limit.counts
+        assert second_limit.counts[proxy_request.identity.subject] == 1
+
+    async def test_grant_applies_rule_when_condition_starts_matching(
+        self,
+        faker: Faker,
+        proxy_request: Request,
+        session: Session,
+        switch_condition: SwitchCondition,
+    ) -> None:
+        # Arrange
+        policy_id = faker.unique.random_int()
+        limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
+        policy = RuleSetPolicy(
+            RuleSet(
+                policies={policy_id: (Rule(condition=switch_condition, limits=(limit,)),)},
+                global_ids=(policy_id,),
+            ),
+            check_interval=0,
+        )
+        switch_condition.matching = False
+        grant = await policy.admit(proxy_request, session)
+        switch_condition.matching = True
+
+        # Act
+        await grant.on_received(faker.pyint(min_value=1))
+
+        # Assert
+        assert limit.counts[proxy_request.identity.subject] == 1
+
+    async def test_grant_raises_and_holds_no_limit_when_next_rule_refuses(
+        self,
+        faker: Faker,
+        proxy_request: Request,
+        session: Session,
+        switch_condition: SwitchCondition,
+    ) -> None:
+        # Arrange
+        policy_id = faker.unique.random_int()
+        first_limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
+        full_limit = ConnectionLimitPolicy(IdentityScope(), limit=1)
+        await full_limit.admit(proxy_request, session)
+        policy = RuleSetPolicy(
+            RuleSet(
+                policies={
+                    policy_id: (
+                        Rule(condition=switch_condition, limits=(first_limit,)),
+                        Rule(condition=ALWAYS, limits=(full_limit,)),
+                    ),
+                },
+                global_ids=(policy_id,),
+            ),
+            check_interval=0,
+        )
+        grant = await policy.admit(proxy_request, session)
+        switch_condition.matching = False
+
+        # Act
+        with pytest.raises(ConnectionLimitExceeded):
+            await grant.on_sent(faker.pyint(min_value=1))
+        await grant.release()
+
+        # Assert
+        assert proxy_request.identity.subject not in first_limit.counts
+        assert full_limit.counts[proxy_request.identity.subject] == 1

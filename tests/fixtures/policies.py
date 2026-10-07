@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from proxium.db import Direction, LimitScope, QuotaPeriod
-from proxium.policies import PeriodUsage, RuleSetBuilder
+from proxium.policies import Condition, PeriodUsage, RuleSetBuilder
 from proxium.proxy import Usage
 from proxium.watchers import (
     ConnectionLimitSnapshot,
@@ -16,12 +16,12 @@ from proxium.watchers import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from datetime import date
+    from collections.abc import Callable, Mapping
+    from datetime import date, datetime
 
     from faker import Faker
 
-    from proxium.proxy import Identity
+    from proxium.proxy import Identity, Request, Session
 
 
 @pytest.fixture
@@ -64,14 +64,16 @@ def total_traffic_quota_snapshot(faker: Faker) -> TrafficQuotaSnapshot:
 
 @pytest.fixture
 def policy_snapshot_factory(faker: Faker) -> Callable[..., PolicySnapshot]:
-    """Policies of one rule that always applies these limits, global unless told. A new one on every call unless
-    `id` is given, the same rule for equal `id`.
+    """Policies of one rule that applies these limits, always unless `condition` is given, global unless told.
+    A new one on every call unless `id` is given, the same rule for equal `id`.
     """
 
-    def create(
+    # Keyword-only, one per field of the snapshot a test may set.
+    def create(  # noqa: PLR0913
         *,
         id: int | None = None,  # noqa: A002
         is_global: bool = True,
+        condition: Mapping[str, Any] | None = None,
         connection_limits: tuple[ConnectionLimitSnapshot, ...] = (),
         speed_limits: tuple[SpeedLimitSnapshot, ...] = (),
         traffic_quotas: tuple[TrafficQuotaSnapshot, ...] = (),
@@ -79,7 +81,7 @@ def policy_snapshot_factory(faker: Faker) -> Callable[..., PolicySnapshot]:
         policy_id = faker.unique.random_int() if id is None else id
         rule = RuleSnapshot(
             id=policy_id,
-            condition={"kind": "always"},
+            condition={"kind": "always"} if condition is None else condition,
             connection_limits=connection_limits,
             speed_limits=speed_limits,
             traffic_quotas=traffic_quotas,
@@ -113,3 +115,28 @@ def recording_period_usage() -> RecordingPeriodUsage:
 @pytest.fixture
 def rule_set_builder(recording_period_usage: RecordingPeriodUsage) -> RuleSetBuilder:
     return RuleSetBuilder(recording_period_usage)
+
+
+class SwitchCondition(Condition):
+    """Matches while `matching` is on, switched by the test as it goes, e.g. as a schedule would at night."""
+
+    def __init__(self, *, matching: bool) -> None:
+        self.matching: bool = matching
+
+    def matches(self, request: Request, session: Session, /) -> bool:
+        return self.matching
+
+
+@pytest.fixture
+def switch_condition() -> SwitchCondition:
+    return SwitchCondition(matching=True)
+
+
+class ManualClock:
+    """The time `now`, set by the test: a schedule checked at any moment without waiting for it."""
+
+    def __init__(self, now: datetime, /) -> None:
+        self.now: datetime = now
+
+    def __call__(self) -> datetime:
+        return self.now

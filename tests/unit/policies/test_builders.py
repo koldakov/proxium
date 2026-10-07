@@ -5,11 +5,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from proxium.policies import RuleSetBuilder, RuleSetPolicy, policy_claims
+from proxium.policies import InvalidPolicyError, RuleSetBuilder, RuleSetPolicy, policy_claims
 from proxium.proxy import ConnectionLimitExceeded
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from faker import Faker
 
     from proxium.proxy import Request, Session
     from proxium.watchers import ConnectionLimitSnapshot, PolicySnapshot, SpeedLimitSnapshot, TrafficQuotaSnapshot
@@ -17,6 +19,19 @@ if TYPE_CHECKING:
 
 
 class TestRuleSetBuilder:
+    def test_build_raises_invalid_policy_error_naming_policy_and_rule_when_condition_unknown(
+        self,
+        faker: Faker,
+        rule_set_builder: RuleSetBuilder,
+        policy_snapshot_factory: Callable[..., PolicySnapshot],
+    ) -> None:
+        # Arrange
+        policy = policy_snapshot_factory(condition={"kind": f"unknown-{faker.word()}"})
+
+        # Act & Assert
+        with pytest.raises(InvalidPolicyError, match=f"Policy {policy.id}, rule {policy.rules[0].id}:"):
+            rule_set_builder.build([policy])
+
     async def test_build_keeps_counting_open_connections_when_max_connections_changed(
         self,
         rule_set_builder: RuleSetBuilder,
