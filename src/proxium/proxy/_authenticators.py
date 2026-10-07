@@ -147,18 +147,20 @@ class ClientKey:
 
 
 class CachedAuthenticator(Authenticator):
-    """Reuses outcomes of another `Authenticator` for `ttl` seconds, refusals too, for connections with equal `key`.
+    """Reuses outcomes of another `Authenticator` for connections with equal `key`: identities for `ttl` seconds,
+    refusals for `refusal_ttl`.
 
     Saves the inner one's work on every connection, e.g. a database lookup and slow secret hashing. Connections
     arriving during a check wait for it instead of starting their own. Changes, e.g. a revoked account, reach new
-    connections within `ttl`, so does expiry. `key` must cover all the inner one looks at: the first connection's
-    outcome serves the rest. Other errors aren't cached, the next connection retries.
+    connections within `ttl`, so does expiry, a new or fixed one within `refusal_ttl`. `key` must cover all the
+    inner one looks at: the first connection's outcome serves the rest. Other errors aren't cached, the next
+    connection retries.
 
     Identities are kept in `cache`, refusals in `refusals`: a flood of wrong passwords, each with its own key,
     evicts only other refusals. Refusals save repeats, e.g. a client of a revoked account reconnecting in a loop.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         authenticator: Authenticator,
         /,
@@ -167,12 +169,14 @@ class CachedAuthenticator(Authenticator):
         cache: Cache[Identity],
         refusals: Cache[AuthenticationRequired],
         ttl: float = 10.0,
+        refusal_ttl: float = 10.0,
     ) -> None:
         self._authenticator: Authenticator = authenticator
         self._key: CacheKey = key
         self._cache: Cache[Identity] = cache
         self._refusals: Cache[AuthenticationRequired] = refusals
         self._ttl: float = ttl
+        self._refusal_ttl: float = refusal_ttl
         # Checks in progress, so connections with the same key share one. In process: a check can't be awaited
         # from another one.
         self._pending: dict[bytes, asyncio.Task[AuthenticationOutcome]] = {}
@@ -187,7 +191,7 @@ class CachedAuthenticator(Authenticator):
         try:
             identity = await self._authenticator.authenticate(credentials, session)
         except AuthenticationRequired as error:
-            await self._refusals.set(key, error, ttl=self._ttl)
+            await self._refusals.set(key, error, ttl=self._refusal_ttl)
             return error
 
         await self._cache.set(key, identity, ttl=self._ttl)

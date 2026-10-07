@@ -32,8 +32,32 @@ class SettingsModel(BaseTimestampModel):
             name="ck_settings_connect_timeout_positive",
         ),
         CheckConstraint(
-            "cache_ttl > 0",
-            name="ck_settings_cache_ttl_positive",
+            "basic_account_cache_ttl > 0",
+            name="ck_settings_basic_account_cache_ttl_positive",
+        ),
+        CheckConstraint(
+            "basic_account_refusal_cache_ttl > 0",
+            name="ck_settings_basic_account_refusal_cache_ttl_positive",
+        ),
+        CheckConstraint(
+            "token_account_cache_ttl > 0",
+            name="ck_settings_token_account_cache_ttl_positive",
+        ),
+        CheckConstraint(
+            "token_account_refusal_cache_ttl > 0",
+            name="ck_settings_token_account_refusal_cache_ttl_positive",
+        ),
+        CheckConstraint(
+            "trusted_network_cache_ttl > 0",
+            name="ck_settings_trusted_network_cache_ttl_positive",
+        ),
+        CheckConstraint(
+            "trusted_network_refusal_cache_ttl > 0",
+            name="ck_settings_trusted_network_refusal_cache_ttl_positive",
+        ),
+        CheckConstraint(
+            "certificate_cache_ttl > 0",
+            name="ck_settings_certificate_cache_ttl_positive",
         ),
     )
 
@@ -60,9 +84,36 @@ class SettingsModel(BaseTimestampModel):
         default=10.0,
         server_default="10",
     )
-    # Seconds the proxy reuses checks of accounts and trusted networks and the TLS certificate:
-    # how soon new connections see changes to them.
-    cache_ttl: Mapped[float] = mapped_column(
+    # Seconds the proxy reuses a passed check of a basic account: how soon new connections see it revoked or changed.
+    basic_account_cache_ttl: Mapped[float] = mapped_column(
+        default=10.0,
+        server_default="10",
+    )
+    # Seconds the proxy reuses a refused check of basic account credentials: how soon a new or fixed account works.
+    basic_account_refusal_cache_ttl: Mapped[float] = mapped_column(
+        default=10.0,
+        server_default="10",
+    )
+    # The same for token accounts.
+    token_account_cache_ttl: Mapped[float] = mapped_column(
+        default=10.0,
+        server_default="10",
+    )
+    token_account_refusal_cache_ttl: Mapped[float] = mapped_column(
+        default=10.0,
+        server_default="10",
+    )
+    # The same for trusted networks, checked by the client's IP.
+    trusted_network_cache_ttl: Mapped[float] = mapped_column(
+        default=10.0,
+        server_default="10",
+    )
+    trusted_network_refusal_cache_ttl: Mapped[float] = mapped_column(
+        default=10.0,
+        server_default="10",
+    )
+    # Seconds the proxy reuses the active TLS certificate, or that there's none: how soon activating one applies.
+    certificate_cache_ttl: Mapped[float] = mapped_column(
         default=10.0,
         server_default="10",
     )

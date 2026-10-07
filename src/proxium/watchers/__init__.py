@@ -8,10 +8,11 @@ from ._policies import (
     SpeedLimitSnapshot,
     TrafficQuotaSnapshot,
 )
-from ._settings import SettingsCallback, SettingsNotLoadedError, SettingsSnapshot, SettingsWatcher
+from ._settings import CacheTtlsSnapshot, SettingsCallback, SettingsNotLoadedError, SettingsSnapshot, SettingsWatcher
 from ._watchers import Watcher, Watchers
 
 __all__ = [
+    "CacheTtlsSnapshot",
     "ConnectionLimitSnapshot",
     "PoliciesCallback",
     "PoliciesNotLoadedError",

@@ -43,7 +43,7 @@ from proxium.proxy import (
     Timeouts,
 )
 from proxium.selectors import OUTGOING_IPS_CLAIM, OutgoingSourceSelector
-from proxium.watchers import PolicyWatcher, SettingsSnapshot, SettingsWatcher, Watchers
+from proxium.watchers import PolicyWatcher, SettingsWatcher, Watchers
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -60,7 +60,7 @@ if TYPE_CHECKING:
         Observer,
         SourceSelector,
     )
-    from proxium.watchers import PolicySnapshot
+    from proxium.watchers import CacheTtlsSnapshot, PolicySnapshot, SettingsSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ def _get_identity_size(identity: Identity, /) -> int:
 
 
 @dataclass(frozen=True, slots=True)
-class _Caches:
+class ProxyCaches:
     """Where the proxy keeps checks of clients and the certificate between connections."""
 
     basic: Cache[Identity]
@@ -84,21 +84,58 @@ class _Caches:
     trusted_network_refusals: Cache[AuthenticationRequired]
     encryption: Cache[EncryptionOutcome]
 
-    async def clear(self) -> None:
-        await self.basic.clear()
-        await self.basic_refusals.clear()
-        await self.bearer.clear()
-        await self.bearer_refusals.clear()
-        await self.trusted_network.clear()
-        await self.trusted_network_refusals.clear()
-        await self.encryption.clear()
+    async def clear_shortened(self, previous: CacheTtlsSnapshot, current: CacheTtlsSnapshot, /) -> None:
+        """Drop what each cache keeps if its TTL got shorter: entries keep the TTL they were stored with."""
+        shortened = [
+            cache
+            for cache, before, after in (
+                (
+                    self.basic,
+                    previous.basic_account,
+                    current.basic_account,
+                ),
+                (
+                    self.basic_refusals,
+                    previous.basic_account_refusal,
+                    current.basic_account_refusal,
+                ),
+                (
+                    self.bearer,
+                    previous.token_account,
+                    current.token_account,
+                ),
+                (
+                    self.bearer_refusals,
+                    previous.token_account_refusal,
+                    current.token_account_refusal,
+                ),
+                (
+                    self.trusted_network,
+                    previous.trusted_network,
+                    current.trusted_network,
+                ),
+                (
+                    self.trusted_network_refusals,
+                    previous.trusted_network_refusal,
+                    current.trusted_network_refusal,
+                ),
+                (
+                    self.encryption,
+                    previous.certificate,
+                    current.certificate,
+                ),
+            )
+            if after < before
+        ]
+        # Independent of each other: no order, e.g. Redis ones clear at once.
+        await asyncio.gather(*(cache.clear() for cache in shortened))
 
 
 @dataclass(frozen=True, slots=True)
 class _Checks:
-    """Checks of clients and the certificate, reusing what's cached for `ttl` seconds."""
+    """Checks of clients and the certificate, reusing what's cached for `ttls`."""
 
-    ttl: float
+    ttls: CacheTtlsSnapshot
     authenticator: Authenticator
     encryption: Encryption
 
@@ -138,7 +175,7 @@ class ProxyRunner:
         ]
         # Kept across settings changes, so what's cached survives them. In memory: one process, nothing to share.
         # Identities sized in pool IPs, see `_get_identity_size`: about 100 bytes each.
-        self._caches: _Caches = _Caches(
+        self._caches: ProxyCaches = ProxyCaches(
             basic=MemoryCache(maxsize=100_000, getsizeof=_get_identity_size),
             basic_refusals=MemoryCache(),
             bearer=MemoryCache(maxsize=100_000, getsizeof=_get_identity_size),
@@ -181,7 +218,7 @@ class ProxyRunner:
         self._server: ProxyServer = ProxyServer()
         self._stop: asyncio.Event = asyncio.Event()
 
-    def _create_authenticator(self, ttl: float, /) -> Authenticator:
+    def _create_authenticator(self, ttls: CacheTtlsSnapshot, /) -> Authenticator:
         return DispatchAuthenticator(
             {
                 BasicCredentials: CachedAuthenticator(
@@ -189,14 +226,16 @@ class ProxyRunner:
                     key=self._credentials_key,
                     cache=self._caches.basic,
                     refusals=self._caches.basic_refusals,
-                    ttl=ttl,
+                    ttl=ttls.basic_account,
+                    refusal_ttl=ttls.basic_account_refusal,
                 ),
                 BearerCredentials: CachedAuthenticator(
                     TokenProxyAccountAuthenticator(),
                     key=self._credentials_key,
                     cache=self._caches.bearer,
                     refusals=self._caches.bearer_refusals,
-                    ttl=ttl,
+                    ttl=ttls.token_account,
+                    refusal_ttl=ttls.token_account_refusal,
                 ),
             },
             without_credentials=CachedAuthenticator(
@@ -204,22 +243,23 @@ class ProxyRunner:
                 key=self._client_key,
                 cache=self._caches.trusted_network,
                 refusals=self._caches.trusted_network_refusals,
-                ttl=ttl,
+                ttl=ttls.trusted_network,
+                refusal_ttl=ttls.trusted_network_refusal,
             ),
         )
 
-    def _create_encryption(self, ttl: float, /) -> Encryption:
+    def _create_encryption(self, ttls: CacheTtlsSnapshot, /) -> Encryption:
         return CachedEncryption(
             CertificateEncryption(),
             cache=self._caches.encryption,
-            ttl=ttl,
+            ttl=ttls.certificate,
         )
 
-    def _create_checks(self, ttl: float, /) -> _Checks:
+    def _create_checks(self, ttls: CacheTtlsSnapshot, /) -> _Checks:
         return _Checks(
-            ttl=ttl,
-            authenticator=self._create_authenticator(ttl),
-            encryption=self._create_encryption(ttl),
+            ttls=ttls,
+            authenticator=self._create_authenticator(ttls),
+            encryption=self._create_encryption(ttls),
         )
 
     def _create_default_profile(self, settings: SettingsSnapshot, checks: _Checks, /) -> Profile:
@@ -228,7 +268,7 @@ class ProxyRunner:
         Each goes out from the IP its account or network says, within the limits of its and the global policies.
         Their traffic is counted in the database.
         Both may come wrapped in TLS with the active certificate from the database.
-        Checks of clients and the certificate are reused for the cache TTL from `settings`, by `checks`.
+        Checks of clients and the certificate are reused for the cache TTLs from `settings`, by `checks`.
         Private networks are reachable only if `settings` allow them, timeouts come from `settings` too.
         """
         return Profile(
@@ -263,17 +303,17 @@ class ProxyRunner:
         # Kept on other changes: old and new connections share the checks in progress.
         previous = self._checks
         checks = previous
-        if checks is None or checks.ttl != settings.cache_ttl:
-            checks = self._create_checks(settings.cache_ttl)
+        if checks is None or checks.ttls != settings.cache_ttls:
+            checks = self._create_checks(settings.cache_ttls)
         self._checks = checks
 
         # The same addresses: no socket is opened or closed, only the profile changes.
         await self._server.update(self._create_listeners(self._create_default_profile(settings, checks)))
 
-        # What's cached keeps the TTL it was stored with: a shorter one mustn't wait the longer one out.
-        # After the update, so no new connection stores with the old TTL. A check in progress still may, once.
-        if previous is not None and settings.cache_ttl < previous.ttl:
-            await self._caches.clear()
+        # A shorter TTL mustn't wait the longer one out. After the update, so no new connection stores with the old
+        # TTL. A check in progress still may, once.
+        if previous is not None:
+            await self._caches.clear_shortened(previous.ttls, settings.cache_ttls)
 
     async def _apply_policies(self, policies: tuple[PolicySnapshot, ...], /) -> None:
         self._rule_set_policy.update(self._rule_set_builder.build(policies))

@@ -40,8 +40,50 @@ class UpdateSettingsRequest(BaseSchema):
             le=86400,
         ),
     ]
-    # Seconds, up to an hour: a revoked account keeps working for this long.
-    cache_ttl: Annotated[
+    # Cache TTLs, seconds, up to an hour: a revoked account keeps working for this long.
+    basic_account_cache_ttl: Annotated[
+        float,
+        Field(
+            gt=0,
+            le=3600,
+        ),
+    ]
+    basic_account_refusal_cache_ttl: Annotated[
+        float,
+        Field(
+            gt=0,
+            le=3600,
+        ),
+    ]
+    token_account_cache_ttl: Annotated[
+        float,
+        Field(
+            gt=0,
+            le=3600,
+        ),
+    ]
+    token_account_refusal_cache_ttl: Annotated[
+        float,
+        Field(
+            gt=0,
+            le=3600,
+        ),
+    ]
+    trusted_network_cache_ttl: Annotated[
+        float,
+        Field(
+            gt=0,
+            le=3600,
+        ),
+    ]
+    trusted_network_refusal_cache_ttl: Annotated[
+        float,
+        Field(
+            gt=0,
+            le=3600,
+        ),
+    ]
+    certificate_cache_ttl: Annotated[
         float,
         Field(
             gt=0,
@@ -66,7 +108,13 @@ class UpdateSettingsResponse(BaseSchema):
     handshake_timeout: float
     idle_timeout: float
     connect_timeout: float
-    cache_ttl: float
+    basic_account_cache_ttl: float
+    basic_account_refusal_cache_ttl: float
+    token_account_cache_ttl: float
+    token_account_refusal_cache_ttl: float
+    trusted_network_cache_ttl: float
+    trusted_network_refusal_cache_ttl: float
+    certificate_cache_ttl: float
     created_at: datetime
     updated_at: datetime
 

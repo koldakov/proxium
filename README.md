@@ -115,8 +115,8 @@ curl -x https://username:password@proxy.example.com:8080 https://example.com
 
 The certificate must be for the host name clients connect to. One certificate is active at a time and serves all
 ports, for several names use one with all of them in it. Activating another one, on adding it or later on its
-page, turns the active one off: new connections get it within the cache TTL ([settings](#settings)), open ones keep
-theirs, no restart needed. The proxy looks the certificate up once per cache TTL, not on every connection: TLS
+page, turns the active one off: new connections get it within the certificate cache TTL ([settings](#settings)), open
+ones keep theirs, no restart needed. The proxy looks the certificate up once per that TTL, not on every connection: TLS
 clients can't load the database before they authenticate. The admin UI names the one turned off, and if another admin has activated one meanwhile, it refuses and shows the new state
 instead of turning off a certificate you haven't seen. The active one can't be deleted, deactivate it first.
 
@@ -183,7 +183,7 @@ curl -x http://127.0.0.1:8080 https://example.com         # from a trusted netwo
 curl -x socks5h://127.0.0.1:8080 https://example.com
 ```
 
-New connections follow changes within the cache TTL ([settings](#settings)). Clients connected right now keep
+New connections follow changes within the trusted network cache TTLs ([settings](#settings)). Clients connected right now keep
 their open connections until they close: removing a network doesn't cut them off at once.
 
 A client that sends credentials is checked as an account even from a trusted network. The trusted network
@@ -210,7 +210,7 @@ On a server with several IPs, each account and trusted network picks the one sit
 
 First add the server's IPs under Outgoing IPs in the admin UI. Then pick the mode on the account or trusted
 network form: for `pool`, the IPs of the pool go right under it, on creating too. Later the pool is edited on the
-account's page or the network's form, and changes apply to new connections within the cache TTL.
+account's page or the network's form, and changes apply to new connections within the cache TTL of passed checks.
 
 A pool takes IPs of one family, IPv4 or IPv6: an IPv4 IP can't reach IPv6-only sites and back, so a mixed pool
 would fail at random. The admin offers only the IPs a pool can take. A pool in use keeps at least one IP, switch
@@ -248,7 +248,7 @@ proxy processes counts within a minute.
 
 The proxy looks policies up every `PROXY_SETTINGS_POLL_INTERVAL` seconds. A change reaches new connections, open
 ones keep the limits they started with, though a connection limit changed in place keeps counting them.
-Assigning a policy reaches a client within the cache TTL. Limits are counted in the proxy's memory: with several
+Assigning a policy reaches a client within the cache TTL of passed checks. Limits are counted in the proxy's memory: with several
 proxy processes each counts its own. An account or network takes up to `API_POLICIES_MAX_PER_OWNER` policies.
 
 ### Settings
@@ -262,11 +262,12 @@ ones keep the old.
   client gets them, accounts and trusted networks alike.
 - Timeouts, seconds: handshake, for a client to authenticate and send its request, `10` by default; idle, after
   which a silent tunnel is closed, `300`; connect, to resolve and reach a target, `10`.
-- Cache TTL, seconds, `10` by default: how long the proxy reuses checks of accounts and trusted networks, refusals
-  too, and the TLS certificate, instead of looking them up and hashing secrets on every connection. Changes to
-  them reach new connections within it: a revoked or expired account keeps connecting, a removed trusted network
-  stays trusted, a new one isn't yet. Lowering it drops what's cached, so it applies at once. If the database is
-  down, clients without a cached check are refused.
+- Cache TTLs, seconds, `10` by default each: how long the proxy reuses checks instead of looking them up and
+  hashing secrets on every connection. Basic accounts, token accounts and trusted networks have two each: passed,
+  within which a revoked or expired account keeps connecting and a removed trusted network stays trusted, and
+  refused, within which a new or re-enabled one isn't let in yet. The TLS certificate has one: how soon activating
+  another one applies. Lowering a TTL drops what it cached, so it applies at once. If the database is down,
+  clients without a cached check are refused.
 
 Check an account with a site that shows the caller's IP:
 

@@ -70,13 +70,19 @@ export interface UserPasswordParams {
   password: string
 }
 
-// Timeouts and the cache TTL in seconds. Networks in CIDR notation, a bare address is taken as /32 or /128.
+// Timeouts and cache TTLs in seconds. Networks in CIDR notation, a bare address is taken as /32 or /128.
 export interface Settings {
   guardAllow: string[]
   handshakeTimeout: number
   idleTimeout: number
   connectTimeout: number
-  cacheTtl: number
+  basicAccountCacheTtl: number
+  basicAccountRefusalCacheTtl: number
+  tokenAccountCacheTtl: number
+  tokenAccountRefusalCacheTtl: number
+  trustedNetworkCacheTtl: number
+  trustedNetworkRefusalCacheTtl: number
+  certificateCacheTtl: number
 }
 
 // Read-only, from the API's environment.

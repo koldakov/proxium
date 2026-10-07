@@ -65,7 +65,7 @@ async def get_settings(
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
                 "The body is malformed, e.g. a network has host bits or repeats, "
-                "or a timeout or the cache TTL is out of range."
+                "or a timeout or a cache TTL is out of range."
             ),
         },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
@@ -82,8 +82,10 @@ async def update_settings(
     - `guardAllow`: private networks the proxy may connect to, e.g. 10.0.0.0/8. Empty: the public internet only.
     - Timeouts, seconds: `handshakeTimeout` to authenticate and send a request, `idleTimeout` for a silent tunnel,
       `connectTimeout` to reach a target.
-    - `cacheTtl`, seconds: how long checks of accounts and trusted networks and the TLS certificate are reused,
-      so how soon new connections see changes to them.
+    - Cache TTLs, seconds: how long the proxy reuses checks, so how soon new connections see changes. For basic
+      accounts, token accounts and trusted networks each: `...CacheTtl` for passed checks, how soon a revoked one
+      is refused, and `...RefusalCacheTtl` for refused ones, how soon a new or fixed one works. Prefixes are
+      `basicAccount`, `tokenAccount`, `trustedNetwork`. `certificateCacheTtl` for the active TLS certificate.
     """
     service: UpdateSettingsService = UpdateSettingsService(token=credentials.credentials, data=data)
     return await service()

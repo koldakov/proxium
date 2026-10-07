@@ -1,5 +1,6 @@
-import { Alert, Card, CardContent, Typography } from '@mui/material'
+import { Alert, Box, Card, CardContent, Typography } from '@mui/material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Fragment } from 'react'
 import {
   ArrayInput,
   Form,
@@ -46,7 +47,13 @@ const fromForm = (form: SettingsForm): Settings => ({
   handshakeTimeout: form.handshakeTimeout,
   idleTimeout: form.idleTimeout,
   connectTimeout: form.connectTimeout,
-  cacheTtl: form.cacheTtl,
+  basicAccountCacheTtl: form.basicAccountCacheTtl,
+  basicAccountRefusalCacheTtl: form.basicAccountRefusalCacheTtl,
+  tokenAccountCacheTtl: form.tokenAccountCacheTtl,
+  tokenAccountRefusalCacheTtl: form.tokenAccountRefusalCacheTtl,
+  trustedNetworkCacheTtl: form.trustedNetworkCacheTtl,
+  trustedNetworkRefusalCacheTtl: form.trustedNetworkRefusalCacheTtl,
+  certificateCacheTtl: form.certificateCacheTtl,
   guardAllow: form.guardAllow.map(({ network }) => network.trim()),
 })
 
@@ -129,22 +136,67 @@ const TimeoutInputs = ({ readOnly }: InputsProps) => (
   </>
 )
 
+// Client kinds, each with `<prefix>CacheTtl` for passed checks and `<prefix>RefusalCacheTtl` for refused ones.
+const CLIENT_CACHES = [
+  { prefix: 'basicAccount', label: 'Basic accounts' },
+  { prefix: 'tokenAccount', label: 'Token accounts' },
+  { prefix: 'trustedNetwork', label: 'Trusted networks' },
+]
+
+interface CacheTtlInputProps extends InputsProps {
+  source: string
+  label: string
+}
+
+const CacheTtlInput = ({ readOnly, source, label }: CacheTtlInputProps) => (
+  <NumberInput
+    source={source}
+    readOnly={readOnly}
+    label={label}
+    validate={cacheTtlValidators}
+    helperText={false}
+    fullWidth
+  />
+)
+
+// The kind's name, a row of its own on narrow screens.
+const CacheRowLabel = ({ children }: { children: string }) => (
+  <Typography variant="body2" sx={{ gridColumn: { xs: '1 / -1', sm: 'auto' } }}>
+    {children}
+  </Typography>
+)
+
+/** A row per client kind with its passed and refused TTLs side by side, the certificate below. */
 const CacheInputs = ({ readOnly }: InputsProps) => (
   <>
-    <Typography variant="h6">Cache</Typography>
+    <Typography variant="h6">Cache, seconds</Typography>
     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-      The proxy reuses checks of accounts and trusted networks and the TLS certificate for this long
-      instead of looking them up on every connection. Changes to them reach new connections within
-      it, e.g. a revoked account keeps connecting until it passes. Lowering it drops what&apos;s
-      cached, so it applies at once.
+      The proxy reuses checks instead of looking them up and hashing secrets on every connection.
+      Passed: a revoked account, a removed trusted network, a changed pool or policy reach new
+      connections within it. Refused: a new or re-enabled one starts working within it. Shorter
+      applies changes sooner, longer saves the database. Lowering one drops what it cached, so it
+      applies at once. 10 by default, up to {MAX_CACHE_TTL}.
     </Typography>
-    <NumberInput
-      source="cacheTtl"
-      readOnly={readOnly}
-      label="Cache TTL, seconds"
-      validate={cacheTtlValidators}
-      helperText="Shorter applies changes sooner, longer saves the database. Default 10"
-    />
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr 1fr', sm: '160px 160px 160px' },
+        columnGap: 2,
+        rowGap: 1,
+        alignItems: 'center',
+        mb: 2,
+      }}
+    >
+      {CLIENT_CACHES.map(({ prefix, label }) => (
+        <Fragment key={prefix}>
+          <CacheRowLabel>{label}</CacheRowLabel>
+          <CacheTtlInput readOnly={readOnly} source={`${prefix}CacheTtl`} label="Passed" />
+          <CacheTtlInput readOnly={readOnly} source={`${prefix}RefusalCacheTtl`} label="Refused" />
+        </Fragment>
+      ))}
+      <CacheRowLabel>TLS certificate</CacheRowLabel>
+      <CacheTtlInput readOnly={readOnly} source="certificateCacheTtl" label="Active one" />
+    </Box>
   </>
 )
 

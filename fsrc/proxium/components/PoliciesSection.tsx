@@ -52,7 +52,7 @@ const GLOBAL_LIMIT = 10
 
 // When an assignment change takes effect, told before confirming it.
 const TAKES_EFFECT =
-  'New connections of the client get it within the cache TTL from the settings, open ones keep the terms they started with.'
+  'New connections of the client get it within the cache TTL of passed checks from the settings, open ones keep the terms they started with.'
 
 interface PolicyRef {
   id: Identifier
@@ -345,7 +345,8 @@ export const PoliciesSection = () => {
     <ShowSection title="Policies">
       <Typography variant="body2" color="text.secondary">
         Limits of every policy apply at once.
-        {canChange && ' Changes reach the proxy within the cache TTL from the settings.'}
+        {canChange &&
+          ' Changes reach the proxy within the cache TTL of passed checks from the settings.'}
         {max !== undefined && ` Assigned ${total} of ${max} at most.`}
       </Typography>
       {canPick && <GlobalPolicies />}

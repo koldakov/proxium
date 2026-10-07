@@ -15,7 +15,13 @@ class GetSettingsResponse(BaseSchema):
     handshake_timeout: float
     idle_timeout: float
     connect_timeout: float
-    cache_ttl: float
+    basic_account_cache_ttl: float
+    basic_account_refusal_cache_ttl: float
+    token_account_cache_ttl: float
+    token_account_refusal_cache_ttl: float
+    trusted_network_cache_ttl: float
+    trusted_network_refusal_cache_ttl: float
+    certificate_cache_ttl: float
     created_at: datetime
     updated_at: datetime
 
