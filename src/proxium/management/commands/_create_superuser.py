@@ -29,7 +29,8 @@ class PasswordMismatchError(Exception):
 class CreateSuperuserCommand(BaseAsyncCommand):
     """Like Django's `createsuperuser`: prompts for the email and password, unless --no-input.
 
-    Flags default to `settings`. Name and surname are never prompted, blank if unset.
+    `settings` (env) fill in missing flags only with --no-input: a prompt never gets skipped by a forgotten variable.
+    Name and surname are never prompted, blank if unset.
     """
 
     name: ClassVar[str] = "createsuperuser"
@@ -51,28 +52,34 @@ class CreateSuperuserCommand(BaseAsyncCommand):
     def add_arguments(self, parser: ArgumentParser, /) -> None:
         parser.add_argument(
             "--email",
-            default=self._settings.email,
-            help="Superuser's email, SUPERUSER_EMAIL by default.",
+            help="Superuser's email, not prompted then. With --no-input SUPERUSER_EMAIL by default.",
         )
         parser.add_argument(
             "--name",
-            default=self._settings.name,
-            help="Superuser's name, SUPERUSER_NAME by default, else blank.",
+            help="Superuser's name, blank by default. With --no-input SUPERUSER_NAME by default.",
         )
         parser.add_argument(
             "--surname",
-            default=self._settings.surname,
-            help="Superuser's surname, SUPERUSER_SURNAME by default, else blank.",
+            help="Superuser's surname, blank by default. With --no-input SUPERUSER_SURNAME by default.",
         )
         parser.add_argument(
             "--no-input",
             "--noinput",
             action="store_false",
             dest="interactive",
-            help="Don't prompt. The email must be given, the password comes only from SUPERUSER_PASSWORD.",
+            help="Don't prompt, take what's missing from SUPERUSER_* variables. "
+            "The email must be given, the password comes only from SUPERUSER_PASSWORD.",
+        )
+        parser.add_argument(
+            "--if-missing",
+            action="store_true",
+            help="With --no-input: skip, not fail, if the email is taken. Other errors still fail. "
+            "For start scripts, e.g. in Docker.",
         )
 
     async def ahandle(self, args: Namespace, /) -> None:
+        if args.if_missing and args.interactive:
+            raise CommandError("--if-missing works only with --no-input.")
         if args.interactive and not sys.stdin.isatty():
             raise CommandError("Not running in a TTY, use --no-input.")
 
@@ -103,6 +110,9 @@ class CreateSuperuserCommand(BaseAsyncCommand):
             try:
                 await session.commit()
             except IntegrityError as err:
+                if err.orig.sqlstate == UniqueViolationError.sqlstate and args.if_missing:
+                    self.stdout.write("That email is already taken, skipped.\n")
+                    return
                 if err.orig.sqlstate == UniqueViolationError.sqlstate:
                     raise CommandError(
                         "That email is already taken.",
@@ -112,14 +122,24 @@ class CreateSuperuserCommand(BaseAsyncCommand):
         self.stdout.write("Superuser created successfully.\n")
 
     def _get_settings(self, args: Namespace, /) -> SuperuserSettings:
-        """A copy of `settings` with the flags on top: flags are checked against the same limits."""
-        # Init values win over env.
+        """The flags, checked against the same limits as env. Env fills in missing ones only with --no-input."""
+        email: str | None = args.email
+        password: SecretStr | None = None
+        name: str | None = args.name
+        surname: str | None = args.surname
+        if not args.interactive:
+            email = self._settings.email if email is None else email
+            password = self._settings.password
+            name = self._settings.name if name is None else name
+            surname = self._settings.surname if surname is None else surname
+
+        # Init values win over env, None included: interactively nothing comes from env.
         try:
             return SuperuserSettings(
-                email=args.email,
-                password=self._settings.password,
-                name=args.name,
-                surname=args.surname,
+                email=email,
+                password=password,
+                name=name,
+                surname=surname,
             )
         except ValidationError as err:
             raise CommandError(self._format(err)) from None

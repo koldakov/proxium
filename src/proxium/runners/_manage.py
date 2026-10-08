@@ -5,6 +5,7 @@ from proxium.management.commands import (
     ChangePasswordCommand,
     CreateSuperuserCommand,
     ImportCertificateCommand,
+    MigrateCommand,
     RotateEncryptionKeyCommand,
 )
 
@@ -19,6 +20,7 @@ def run_manage(args: Sequence[str] | None = None) -> int:
             ChangePasswordCommand(),
             CreateSuperuserCommand(),
             ImportCertificateCommand(),
+            MigrateCommand(),
             RotateEncryptionKeyCommand(),
         ],
     )
