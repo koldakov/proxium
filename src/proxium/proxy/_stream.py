@@ -74,7 +74,13 @@ class Stream:
             raise asyncio.LimitOverrunError("Separator is found beyond limit.", end)
         return self._take(end)
 
+    def _ensure_open(self) -> None:
+        # The peer is gone: uvloop raises RuntimeError then, asyncio drops the data. Both become a reset.
+        if self._writer.is_closing():
+            raise ConnectionResetError("The connection is closed.")
+
     def write(self, data: bytes, /) -> None:
+        self._ensure_open()
         self._writer.write(data)
 
     async def drain(self) -> None:
@@ -82,6 +88,7 @@ class Stream:
 
     def write_eof(self) -> None:
         """Tell the other side nothing more comes. TLS can't half-close, so it closes the whole connection."""
+        self._ensure_open()
         if self._writer.can_write_eof():
             self._writer.write_eof()
         else:
