@@ -7,7 +7,8 @@ ARG S6_OVERLAY_VERSION=3.2.1.0
 ARG POSTGRES_VERSION=17
 
 
-FROM node:24-alpine AS admin
+# The build platform: the output is static files, the same for any architecture, built once without emulation.
+FROM --platform=$BUILDPLATFORM node:24-alpine AS admin
 
 WORKDIR /app
 
@@ -47,7 +48,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-editable
 
 
-FROM python:3.14-slim AS s6
+# The build platform: it only unpacks archives, TARGETARCH picks the one for the image.
+FROM --platform=$BUILDPLATFORM python:3.14-slim AS s6
 
 ARG S6_OVERLAY_VERSION
 ARG TARGETARCH

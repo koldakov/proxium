@@ -1,7 +1,11 @@
-name: CI
+name: Test
 
 on:
+  # main runs it from release.yml, before publishing the image.
   push:
+    branches-ignore:
+      - main
+  workflow_call:
 
 jobs:
   lint:
