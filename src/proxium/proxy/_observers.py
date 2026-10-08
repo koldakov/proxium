@@ -1,10 +1,16 @@
+import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
+
+from ._types import ProxyError
 
 if TYPE_CHECKING:
     from ._types import Session
 
 logger = logging.getLogger(__name__)
+
+# Normal ways for a connection to end: refusals, resets, timeouts, a client gone mid-handshake.
+EXPECTED_ERRORS: Final[tuple[type[Exception], ...]] = (ProxyError, OSError, asyncio.IncompleteReadError)
 
 
 class Observer:
@@ -22,9 +28,15 @@ class Observer:
 
 
 class LoggingObserver(Observer):
+    @staticmethod
+    def _error_level(error: Exception, /) -> int:
+        """INFO for a normal end, ERROR for a bug: the connection logs its traceback separately."""
+        return logging.INFO if isinstance(error, EXPECTED_ERRORS) else logging.ERROR
+
     async def on_close(self, session: Session, /) -> None:
         if session.request is None:
-            logger.info("%s rejected: %r", session.client, session.error)
+            level = logging.INFO if session.error is None else self._error_level(session.error)
+            logger.log(level, "%s rejected: %r", session.client, session.error)
             return
 
         logger.info(
@@ -36,6 +48,12 @@ class LoggingObserver(Observer):
             session.bytes_received,
             session.encrypted,
         )
-        # After the request was accepted, e.g. a policy cut the tunnel.
+        # After the request was accepted, e.g. a policy cut the tunnel, a side reset it or it idled out.
         if session.error is not None:
-            logger.info("%s %s ended: %r", session.client, session.request.identity.subject, session.error)
+            logger.log(
+                self._error_level(session.error),
+                "%s %s ended: %r",
+                session.client,
+                session.request.identity.subject,
+                session.error,
+            )

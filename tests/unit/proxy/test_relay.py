@@ -64,7 +64,7 @@ class TestRelay:
         assert not target.written
         assert session.bytes_sent == 0
 
-    async def test_run_ends_without_error_when_nothing_moves_for_idle_timeout(self, session: Session) -> None:
+    async def test_run_records_timeout_when_nothing_moves_for_idle_timeout(self, session: Session) -> None:
         # Arrange
         relay = Relay(StalledStream(), StalledStream(), session, idle_timeout=IDLE_TIMEOUT)
 
@@ -72,7 +72,7 @@ class TestRelay:
         await asyncio.wait_for(relay.run(), timeout=TEST_TIMEOUT)
 
         # Assert
-        assert session.error is None
+        assert isinstance(session.error, TimeoutError)
 
     async def test_run_delivers_chunk_when_grant_holds_it_longer_than_idle_timeout(
         self,
@@ -92,9 +92,10 @@ class TestRelay:
         # A slow tunnel isn't an idle one.
         assert target.written == data
 
-    async def test_run_ends_without_error_when_peer_resets(self, faker: Faker, session: Session) -> None:
+    async def test_run_records_reset_when_peer_resets(self, faker: Faker, session: Session) -> None:
         # Arrange
-        client = ScriptedStream(error=ConnectionResetError())
+        error = ConnectionResetError()
+        client = ScriptedStream(error=error)
         target = ScriptedStream([faker.binary(length=faker.pyint(min_value=1, max_value=100))])
         relay = Relay(client, target, session, idle_timeout=TEST_TIMEOUT)
 
@@ -102,7 +103,7 @@ class TestRelay:
         await asyncio.wait_for(relay.run(), timeout=TEST_TIMEOUT)
 
         # Assert
-        assert session.error is None
+        assert session.error is error
 
     async def test_timeout_raises_runtime_error_when_not_running(self, session: Session) -> None:
         # Arrange

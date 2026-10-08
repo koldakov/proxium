@@ -51,9 +51,9 @@ class Relay:
     async def run(self) -> None:
         try:
             await self._pipe_both_ways()
-        except* OSError:
-            # Resets and idle timeouts are a normal way for a tunnel to end.
-            pass
+        except* OSError as group:
+            # Resets and idle timeouts are a normal way for a tunnel to end, kept to show how it ended.
+            self._session.error = group.exceptions[0]
         except* ProxyError as group:
             # A grant cut the tunnel, e.g. over a quota: the reason ends up in the session, as a refusal's does.
             self._session.error = group.exceptions[0]
