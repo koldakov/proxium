@@ -1,0 +1,11 @@
+#!/command/with-contenv sh
+set -eu
+. /etc/s6-overlay/scripts/common.sh
+
+if ! service_enabled admin; then
+  stay_down
+fi
+
+# Certificates and Caddy's own CA go to the volume: Let's Encrypt isn't asked again on each start.
+export XDG_DATA_HOME="$PROXIUM_DATA" XDG_CONFIG_HOME="$PROXIUM_DATA/.config"
+exec s6-setuidgid proxium caddy run --config /etc/caddy/Caddyfile --adapter caddyfile

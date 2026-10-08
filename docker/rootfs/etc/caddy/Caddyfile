@@ -1,0 +1,65 @@
+# Admin UI: static files, /api/* goes to the API. ADMIN_TLS picks how it's served: off, auto, files or internal.
+
+{
+	# Its admin endpoint would take port 2019 on the host with --network host.
+	admin off
+	http_port {$ADMIN_HTTP_PORT:80}
+	https_port {$ADMIN_HTTPS_PORT:443}
+	# Not root: the system trust store can't be changed, the CA is in the volume instead.
+	skip_install_trust
+}
+
+(admin) {
+	encode
+
+	handle /api/* {
+		# The API in this container, or elsewhere when it runs apart: PROXIUM_SERVICES.
+		reverse_proxy {$ADMIN_API_UPSTREAM:unix//run/proxium/api.sock}
+	}
+
+	handle {
+		# Vite puts a content hash in asset names: a new build gets new names.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+
+		root * /srv/admin
+		# Client-side routes, e.g. /policies/1/show, all load the same page.
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# Plain HTTP for any host name: inside a closed network or behind your own load balancer.
+(admin-tls-off) {
+	:{$ADMIN_HTTP_PORT:80} {
+		import admin
+	}
+}
+
+# ACME certificate for ADMIN_HOST: Let's Encrypt, or your own ACME server in ADMIN_ACME_CA.
+(admin-tls-auto) {
+	{$ADMIN_HOST} {
+		tls {
+			ca {$ADMIN_ACME_CA:https://acme-v02.api.letsencrypt.org/directory}
+		}
+		import admin
+	}
+}
+
+# Own certificate for ADMIN_HOST, mounted to /certs.
+(admin-tls-files) {
+	{$ADMIN_HOST} {
+		tls /certs/cert.pem /certs/key.pem
+		import admin
+	}
+}
+
+# Self-signed by Caddy's own CA, no internet needed. Its root: /var/lib/proxium/caddy/pki/authorities/local/root.crt.
+(admin-tls-internal) {
+	{$ADMIN_HOST:localhost} {
+		tls internal
+		import admin
+	}
+}
+
+import admin-tls-{$ADMIN_TLS:off}

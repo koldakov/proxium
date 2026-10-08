@@ -1,0 +1,76 @@
+# Proxium as separate containers: the same image as `docker run`, split by PROXIUM_SERVICES.
+#   docker compose -f docker/compose.yaml up -d --build
+# Settings come from the environment only, e.g. `SUPERUSER_CREATE=true SUPERUSER_EMAIL=... docker compose ...`.
+
+name: proxium
+
+x-proxium: &proxium
+  image: ikoldakov/proxium:latest
+  build: ..
+  restart: unless-stopped
+
+# The same for the API and the proxy. Keys without values come from the environment and stay unset when missing there.
+x-shared-environment: &shared-environment
+  DATABASE_URL: postgresql://proxium:${POSTGRES_PASSWORD:-proxium}@database:5432/proxium
+  # Unset: generated once into the secrets volume.
+  ENCRYPTION_KEY:
+  API_SECRET_KEY:
+
+services:
+  # Reached only inside the compose network, no published port.
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: proxium
+      POSTGRES_DB: proxium
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-proxium}
+    volumes:
+      - database:/var/lib/postgresql/data
+
+  # The API and the admin UI. Starts first: generates the shared secrets, applies migrations.
+  admin:
+    <<: *proxium
+    environment:
+      <<: *shared-environment
+      PROXIUM_SERVICES: api,admin
+      SUPERUSER_CREATE:
+      SUPERUSER_EMAIL:
+      SUPERUSER_PASSWORD:
+      ADMIN_TLS:
+      ADMIN_HOST:
+      ADMIN_ACME_CA:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - admin:/var/lib/proxium
+      - secrets:/var/lib/proxium/secrets
+    # The API socket appears once secrets and migrations are done.
+    healthcheck:
+      test: ["CMD", "test", "-S", "/run/proxium/api.sock"]
+      interval: 2s
+      retries: 60
+    depends_on:
+      - database
+
+  # The proxy, with the same secrets as the API.
+  proxy:
+    <<: *proxium
+    environment:
+      <<: *shared-environment
+      PROXIUM_SERVICES: proxy
+    # The image's PROXY_LISTEN, 0.0.0.0:8080. For more ports set it here and publish them.
+    ports:
+      - "8080:8080"
+    volumes:
+      - secrets:/var/lib/proxium/secrets
+    stop_grace_period: 40s
+    depends_on:
+      admin:
+        condition: service_healthy
+
+volumes:
+  database:
+  admin:
+  secrets:

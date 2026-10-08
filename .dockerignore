@@ -1,0 +1,15 @@
+# Only what the image needs.
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE.md
+!src
+!fsrc
+!docker/rootfs
+**/__pycache__
+fsrc/node_modules
+fsrc/dist
+# Local settings, e.g. VITE_API_URL of the dev server.
+fsrc/.env
+fsrc/*.local

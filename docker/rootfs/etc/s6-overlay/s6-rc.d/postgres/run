@@ -1,0 +1,13 @@
+#!/command/with-contenv sh
+set -eu
+. /etc/s6-overlay/scripts/common.sh
+
+if [ "$PROXIUM_DATABASE" != bundled ]; then
+  stay_down
+fi
+
+# No TCP: only the socket, for the services in this container.
+exec s6-setuidgid postgres postgres \
+  -D "$PGDATA" \
+  -c listen_addresses= \
+  -c unix_socket_directories=/run/postgresql

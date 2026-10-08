@@ -1,0 +1,10 @@
+#!/command/with-contenv sh
+set -eu
+. /etc/s6-overlay/scripts/common.sh
+
+if ! service_enabled api; then
+  stay_down
+fi
+
+# A socket by default: no port taken on the host with --network host. Caddy proxies /api/* to it.
+exec s6-setuidgid proxium proxium-api --bind "${API_BIND:-unix:/run/proxium/api.sock}"

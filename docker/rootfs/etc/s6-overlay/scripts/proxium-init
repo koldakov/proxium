@@ -1,0 +1,63 @@
+#!/command/with-contenv sh
+# Fills in what wasn't passed: services, secrets kept in the volume, the bundled database.
+set -eu
+. /etc/s6-overlay/scripts/common.sh
+
+set_env() {
+  printf '%s' "$2" > "$CONTAINER_ENV/$1"
+}
+
+PROXIUM_SERVICES="${PROXIUM_SERVICES:-proxy,api,admin}"
+# A typo would silently start nothing.
+for service in $(echo "$PROXIUM_SERVICES" | tr ',' ' '); do
+  case "$service" in
+    proxy | api | admin) ;;
+    *)
+      echo "PROXIUM_SERVICES: unknown service '$service', expected proxy, api or admin." >&2
+      exit 1
+      ;;
+  esac
+done
+set_env PROXIUM_SERVICES "$PROXIUM_SERVICES"
+
+# Checked now, not after the database starts: a typo shouldn't silently skip the superuser.
+SUPERUSER_CREATE="${SUPERUSER_CREATE:-false}"
+case "$SUPERUSER_CREATE" in
+  true | false) ;;
+  *)
+    echo "SUPERUSER_CREATE: expected true or false, got '$SUPERUSER_CREATE'." >&2
+    exit 1
+    ;;
+esac
+set_env SUPERUSER_CREATE "$SUPERUSER_CREATE"
+
+# The root stays traversable: the bundled database lives under it as the postgres user.
+install -d -o proxium -g proxium -m 0755 "$PROXIUM_DATA"
+install -d -o proxium -g proxium -m 0700 "$PROXIUM_DATA/secrets"
+install -d -o proxium -g proxium /run/proxium
+
+# Passed secrets win, else generated once and kept in the volume: every start needs the same ones.
+keep_secret() {
+  name="$1"
+  generate="$2"
+  file="$PROXIUM_DATA/secrets/$name"
+  if [ -n "$(printenv "$name" || true)" ]; then
+    return
+  fi
+  if [ ! -s "$file" ]; then
+    (umask 077 && python3 -c "$generate" > "$file")
+    chown proxium:proxium "$file"
+    echo "Generated $name, kept in $file."
+  fi
+  set_env "$name" "$(cat "$file")"
+}
+keep_secret ENCRYPTION_KEY "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
+keep_secret API_SECRET_KEY "import secrets; print(secrets.token_urlsafe(64))"
+
+# No DATABASE_URL: the bundled PostgreSQL, reached over its socket as the proxium OS user, no password.
+if [ -z "${DATABASE_URL:-}" ]; then
+  set_env PROXIUM_DATABASE bundled
+  set_env DATABASE_URL "postgresql://proxium@localhost/proxium?host=/run/postgresql"
+else
+  set_env PROXIUM_DATABASE external
+fi

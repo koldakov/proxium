@@ -1,0 +1,32 @@
+#!/command/with-contenv sh
+# The bundled PostgreSQL: a cluster in the volume on the first start, the proxium role and database in it.
+set -eu
+. /etc/s6-overlay/scripts/common.sh
+
+if [ "$PROXIUM_DATABASE" != bundled ]; then
+  exit 0
+fi
+
+install -d -o postgres -g postgres -m 0700 "$PGDATA"
+install -d -o postgres -g postgres -m 0755 /run/postgresql
+# Left by a killed container. Nothing runs yet: the PID in it may now belong to another process.
+rm -f "$PGDATA/postmaster.pid" /run/postgresql/.s.PGSQL.*
+
+if [ -s "$PGDATA/PG_VERSION" ]; then
+  exit 0
+fi
+
+# Socket only, peer auth: the proxium OS user is the proxium role, no password.
+s6-setuidgid postgres initdb \
+  --pgdata="$PGDATA" \
+  --username=postgres \
+  --auth-local=peer \
+  --auth-host=reject \
+  --encoding=UTF8 \
+  --locale=C.UTF-8
+# Single-user mode: no server to start yet, one statement per line.
+s6-setuidgid postgres postgres --single -D "$PGDATA" postgres > /dev/null <<'SQL'
+CREATE ROLE proxium LOGIN
+CREATE DATABASE proxium OWNER proxium
+SQL
+echo "Created the bundled database in $PGDATA."

@@ -1,0 +1,7 @@
+#!/command/with-contenv sh
+# For `docker exec`: it gets only what `docker run` was given, with-contenv adds what the start filled in,
+# e.g. generated secrets and the bundled database. Runs as proxium, the bundled database knows only that user.
+if [ "$(id -u)" = 0 ]; then
+  exec s6-setuidgid proxium /app/.venv/bin/proxium-manage "$@"
+fi
+exec /app/.venv/bin/proxium-manage "$@"
