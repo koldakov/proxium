@@ -161,7 +161,8 @@ class DirectConnector(Connector):
                 # The same for every target address: the IP isn't on this host, or it's loopback and can't go out.
                 if error.errno == errno.EADDRNOTAVAIL:
                     raise SourceUnavailable(
-                        f"Can't connect from {source}: not on this host or loopback.",
+                        f"Can't connect from {source}: not on this host or loopback. "
+                        "In Docker, the host's IPs are seen only with --network host.",
                     ) from error
                 last_error = error
             else:
