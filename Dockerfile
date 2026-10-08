@@ -76,6 +76,8 @@ RUN case "$TARGETARCH" in \
 FROM python:3.14-slim
 
 ARG POSTGRES_VERSION
+# No prompts from apt; ARG, not ENV: only for the build.
+ARG DEBIAN_FRONTEND=noninteractive
 
 # The package would create its own cluster: the bundled one is made on the first start, in the volume.
 RUN mkdir -p /etc/postgresql-common \
@@ -93,8 +95,9 @@ COPY --from=caddy:2 /usr/bin/caddy /usr/bin/caddy
 RUN setcap cap_net_bind_service=+ep /usr/bin/caddy
 
 # A fixed UID: files mounted into the container, e.g. the admin certificate, must be readable by it.
-RUN groupadd --system --gid 10001 proxium \
-    && useradd --system --uid 10001 --gid proxium --no-create-home proxium
+# Not --system: system accounts are meant to be below 1000.
+RUN groupadd --gid 10001 proxium \
+    && useradd --uid 10001 --gid proxium --no-create-home proxium
 
 COPY --from=s6 /s6/ /
 COPY --from=app /app/.venv /app/.venv
