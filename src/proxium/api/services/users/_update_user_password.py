@@ -83,5 +83,5 @@ class UpdateUserPasswordService(BaseUserAuthenticatedService[None]):
         await self._check_access(user)
 
         # Hashing is slow CPU work, it would stall the loop.
-        user.password = await asyncio.to_thread(Hash.create, self.data.password.get_secret_value())
+        user.set_password(await asyncio.to_thread(Hash.create, self.data.password.get_secret_value()))
         await self.session.commit()

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import VARCHAR
+from sqlalchemy import VARCHAR, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ._base import BaseTimestampModel
@@ -31,6 +32,11 @@ class UserModel(BaseTimestampModel):
     )
     password: Mapped[Hash] = mapped_column(
         HashField(length=255),
+    )
+    # Tokens carry it, a new one revokes the tokens issued before. Random, so a token tells nothing about the password.
+    session_key: Mapped[uuid.UUID] = mapped_column(
+        default=uuid.uuid4,
+        server_default=func.gen_random_uuid(),
     )
     is_active: Mapped[bool] = mapped_column(
         default=False,
@@ -62,3 +68,8 @@ class UserModel(BaseTimestampModel):
         back_populates="created_by",
         passive_deletes="all",
     )
+
+    def set_password(self, password: Hash, /) -> None:
+        """Also revokes the tokens issued before, like Django's session auth hash."""
+        self.password = password
+        self.session_key = uuid.uuid4()

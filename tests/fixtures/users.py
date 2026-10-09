@@ -13,4 +13,9 @@ if TYPE_CHECKING:
 @pytest.fixture
 def user_model(faker: Faker) -> UserModel:
     """A user that never reaches the database. The hash is random: only its value matters, not the password."""
-    return UserModel(id=faker.pyint(min_value=1), password=Hash(faker.sha256()))
+    # Column defaults apply on insert only, so the session key is set here.
+    return UserModel(
+        id=faker.pyint(min_value=1),
+        password=Hash(faker.sha256()),
+        session_key=faker.uuid4(cast_to=None),
+    )

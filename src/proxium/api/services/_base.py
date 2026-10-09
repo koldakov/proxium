@@ -1,4 +1,3 @@
-import hashlib
 import hmac
 import uuid
 from abc import ABC, abstractmethod
@@ -50,28 +49,19 @@ class InvalidTokenPayloadError(TokenError):
 
 class TokenUser(BaseSchema):
     id: int
-    # Follows the password, like Django's session auth hash: a new password revokes the tokens issued before.
-    password_key: str
-
-    @staticmethod
-    def get_password_key(user: UserModel, /) -> str:
-        # Keyed, so a token tells nothing about the hash.
-        return hmac.new(
-            api_settings.secret_key.get_secret_value().encode(),
-            f"password:{user.password}".encode(),
-            hashlib.sha256,
-        ).hexdigest()
+    # A string, not UUID: PyJWT serializes the payload as plain JSON.
+    session_key: str
 
     @classmethod
     def from_user(cls, user: UserModel, /) -> Self:
         return cls(
             id=user.id,
-            password_key=cls.get_password_key(user),
+            session_key=user.session_key.hex,
         )
 
-    def has_password_of(self, user: UserModel, /) -> bool:
+    def has_session_of(self, user: UserModel, /) -> bool:
         """False once the user's password has changed since the token was issued."""
-        return hmac.compare_digest(self.password_key, self.get_password_key(user))
+        return hmac.compare_digest(self.session_key, user.session_key.hex)
 
 
 class BaseToken(BaseSchema):
@@ -253,7 +243,7 @@ class BaseUserAuthenticatedService[R](BaseSessionService[R], ABC):
             ) from None
 
         # The same answer as for an expired token: the holder isn't told why, the token may be stolen.
-        if not self._access_token.user.has_password_of(user):
+        if not self._access_token.user.has_session_of(user):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Your session has expired, log in again.",

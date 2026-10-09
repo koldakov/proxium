@@ -23,27 +23,27 @@ if TYPE_CHECKING:
 
 
 class TestTokenUser:
-    def test_has_password_of_returns_true_when_password_unchanged(self, user_model: UserModel) -> None:
+    def test_has_session_of_returns_true_when_password_unchanged(self, user_model: UserModel) -> None:
         # Arrange
         token_user = TokenUser.from_user(user_model)
 
         # Act
-        has_password = token_user.has_password_of(user_model)
+        has_session = token_user.has_session_of(user_model)
 
         # Assert
-        assert has_password
+        assert has_session
 
-    def test_has_password_of_returns_false_when_password_changed(self, faker: Faker, user_model: UserModel) -> None:
+    def test_has_session_of_returns_false_when_password_changed(self, faker: Faker, user_model: UserModel) -> None:
         # Arrange
         token_user = TokenUser.from_user(user_model)
-        user_model.password = Hash(faker.unique.sha256())
+        user_model.set_password(Hash(faker.unique.sha256()))
 
         # Act
-        has_password = token_user.has_password_of(user_model)
+        has_session = token_user.has_session_of(user_model)
 
         # Assert
         # Tokens issued before the change are revoked.
-        assert not has_password
+        assert not has_session
 
 
 class TestAccessToken:
