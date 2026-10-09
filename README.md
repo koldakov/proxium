@@ -512,6 +512,8 @@ uv run --env-file .env proxium-manage rotateencryptionkey
 
 ## Development
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+
 Install the git hooks:
 
 ```bash

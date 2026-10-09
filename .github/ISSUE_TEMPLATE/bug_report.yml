@@ -1,0 +1,67 @@
+name: Bug report
+description: Something doesn't work as expected.
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Vulnerabilities go to a private report, see SECURITY.md, not here.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Proxy
+        - API
+        - Admin UI
+        - Management commands
+        - Docker image
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release, image tag or commit.
+      placeholder: 0.1.0, edge, 1ca8e04
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options:
+        - Single container
+        - Separate containers
+        - From source
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output. Remove secrets, passwords and keys.
+      render: shell
