@@ -1,7 +1,7 @@
 [project]
 name = "proxium"
 version = "0.1.0"
-description = "A lightweight proxy server written in Python."
+description = "Self-hosted HTTP/SOCKS5 proxy gateway with accounts, ACLs, TLS, outgoing IP pools and an admin UI."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE.md"]

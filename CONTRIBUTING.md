@@ -44,9 +44,22 @@ CI runs both on every push.
 
 ## Code
 
-- Model changes need a migration, see [Database migrations](README.md#database-migrations).
+- Model changes need a migration, see [Database migrations](#database-migrations).
 - Tests cover critical logic and mirror the `src` structure.
-- User-facing changes update the README.
+- User-facing changes update the README and [docs](docs).
+
+## Database migrations
+
+Migrations are managed with [Alembic](https://alembic.sqlalchemy.org/) and live in `src/proxium/db/migrations`.
+Models must be imported in `src/proxium/db/models.py` so autogenerate can see them.
+
+```bash
+# Apply migrations
+uv run --env-file .env proxium-manage migrate
+
+# Create a new migration from model changes
+uv run --env-file .env alembic revision --autogenerate -m "description"
+```
 
 ## Commits and pull requests
 

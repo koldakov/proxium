@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # All in one image: the proxy, the API, the admin UI on Caddy and a bundled PostgreSQL, run by s6-overlay.
-# Usage: README, Containerization. Start scripts: docker/rootfs.
+# Usage: docs/installation.md. Start scripts: docker/rootfs.
 
 ARG S6_OVERLAY_VERSION=3.2.1.0
 ARG POSTGRES_VERSION=17

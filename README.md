@@ -1,546 +1,191 @@
 # Proxium
 
-A lightweight proxy server written in Python.
+[![Test](https://github.com/koldakov/proxium/actions/workflows/test.yml/badge.svg)](https://github.com/koldakov/proxium/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
+[![Docker](https://img.shields.io/badge/docker-ikoldakov%2Fproxium-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/ikoldakov/proxium)
 
-## Requirements
+**Your own proxy service in one `docker run`.**
 
-- Python 3.14+
-- [uv](https://docs.astral.sh/uv/)
+HTTP and SOCKS5 proxy with accounts, quotas, speed limits, outgoing IP pools and a web admin panel. Self-hosted.
+Open source. No config files.
 
-## Installation
+![Policy rule: 1 Mbit/s in working hours, except work sites](docs/images/policy-rules.png)
 
-```bash
-git clone <repository-url>
-cd proxium
-uv sync
-```
+<sub>A policy rule: 1 Mbit/s in working hours, except GitHub and Atlassian. Applies in seconds, no restart.</sub>
 
-## Containerization
+## Built for
 
-One image runs everything: the proxy, the API, the admin UI and PostgreSQL. State lives in one volume.
+- **AI agents.** Give each agent its own token, cap its connections, speed and traffic, see what it used per day.
+  An agent browsing the web can't reach your internal network or cloud metadata, even if a prompt injection tells
+  it to.
+- **Company gateways.** The office network connects without passwords, everyone else with an account. Throttle
+  everything but work sites in working hours. Internal networks and cloud metadata stay unreachable.
+- **Selling proxies.** Accounts with expiry, monthly traffic quotas counted from the day the client paid, speed
+  tiers, dedicated IPs, traffic per day. Revoke a client in one click.
+- **Scraping and automation.** Listen on many IPs and port ranges at once, go out from a random IP of a pool on
+  every connection, cap connections per target host.
+- **A personal proxy.** A TLS-encrypted proxy on your VPS with an HTTPS admin panel, set up in minutes.
 
-The image is `ikoldakov/proxium` on Docker Hub and `ghcr.io/koldakov/proxium` on GitHub, for amd64 and arm64.
-`latest` is the last release, a version like `0.1.0` pins it, `edge` is the current `main`, not released yet.
-
-### Quickstart
+## Try it in 30 seconds
 
 ```bash
 docker run -d --name proxium -p 80:80 -p 8080:8080 -v proxium:/var/lib/proxium \
-  -e SUPERUSER_CREATE=true -e SUPERUSER_EMAIL=admin@example.com -e SUPERUSER_PASSWORD=... \
+  -e SUPERUSER_CREATE=true -e SUPERUSER_EMAIL=admin@example.com -e SUPERUSER_PASSWORD=change-me \
   ikoldakov/proxium
 ```
 
-`SUPERUSER_CREATE=true` creates the first admin on start, the email and the password are required then. Later
-starts skip it: changing `SUPERUSER_PASSWORD` doesn't change the stored password.
-
-Without it no admin is created, create one later in the running container:
+1. Open the admin UI at http://localhost and log in.
+2. Add an account under Proxy accounts → Basic, copy its password: it's shown once.
+3. Use it:
 
 ```bash
-docker exec -it proxium proxium-manage createsuperuser
+curl -x http://username:password@localhost:8080 https://ifconfig.me
+curl -x socks5h://username:password@localhost:8080 https://ifconfig.me
 ```
 
-The admin UI is at http://localhost, the proxy at `localhost:8080`. Superuser variables: `SUPERUSER_CREATE`,
-`SUPERUSER_EMAIL`, `SUPERUSER_PASSWORD`, `SUPERUSER_NAME`, `SUPERUSER_SURNAME`, see [Configuration](#configuration)
-for these and the rest.
+One image runs the proxy, the API, the admin UI and PostgreSQL, for amd64 and arm64. Own certificates, own
+database, separate containers and running from source: see [Installation](docs/installation.md).
 
-### Domain and HTTPS for the admin UI
+## Admin panel
 
-| Want | Add |
+Everything is managed in the browser: accounts, networks, policies, certificates, admins.
+
+| An account: outgoing IP, policies, daily traffic | A read-only group: permissions per section and action |
 |---|---|
-| Let's Encrypt | `-p 443:443 -e ADMIN_HOST=admin.example.com -e ADMIN_TLS=auto` |
-| Own ACME server, no internet | the same plus `-e ADMIN_ACME_CA=https://ca.corp.lan/acme/directory` |
-| Own certificate | `-p 443:443 -e ADMIN_HOST=admin.example.com -e ADMIN_TLS=files -v /etc/ssl/proxium:/certs:ro` |
-| Self-signed, no internet | `-p 443:443 -e ADMIN_HOST=admin.corp.lan -e ADMIN_TLS=internal` |
+| ![Proxy account page](docs/images/account-page.png) | ![Group permissions](docs/images/group-permissions.png) |
 
-`ADMIN_HOST` must point to this server: add a DNS A or AAAA record for it at your DNS provider. `auto` also needs
-port 80 or 443 reachable by the ACME server: from the internet for Let's Encrypt, from your network for
-`ADMIN_ACME_CA`. Behind your own load balancer or Kubernetes ingress that terminates TLS,
-keep `ADMIN_TLS=off` and route the host to the container's port 80.
+## Own domains and HTTPS
 
-`files` reads `cert.pem` and `key.pem`, readable by UID 10001. `internal` signs with Caddy's own CA: trust
-`/var/lib/proxium/caddy/pki/authorities/local/root.crt` from the volume on client machines.
-
-The proxy's own TLS doesn't depend on this: its certificates are managed in the admin UI, see [TLS](#tls).
-
-### Ports and IPs
-
-`PROXY_LISTEN` is what the proxy listens on inside the container, `-p` publishes it. Container ports must match.
-`EXPOSE` in the image lists only the defaults, any port works with `-p`:
+The admin UI and the proxy each get their own domain and certificate, e.g. `admin.example.com` and
+`proxy.example.com`, on one server or on different ones. Recreate the container, the volume keeps the data:
 
 ```bash
-docker run -d --name proxium -p 80:80 -p 8090-8092:8090-8092 -e PROXY_LISTEN=0.0.0.0:8090-8092 \
-  -v proxium:/var/lib/proxium ikoldakov/proxium
+docker rm -f proxium
+docker run -d --name proxium -p 80:80 -p 443:443 -p 8080:8080 -v proxium:/var/lib/proxium \
+  -e ADMIN_HOST=admin.example.com -e ADMIN_TLS=auto \
+  ikoldakov/proxium
 ```
 
-Several IPs require the host network: in a bridge network the container doesn't see the host's IPs. `-p` isn't used
-then, `PROXY_LISTEN` takes the host's addresses as is:
+Point both domains to the server with DNS A or AAAA records. The admin UI gets a Let's Encrypt certificate on
+start. Add a certificate for `proxy.example.com` in the admin UI under TLS certificates, then clients connect
+over TLS:
 
 ```bash
-docker run -d --name proxium --network host -e PROXY_LISTEN=10.0.0.0/29:10000-10999 \
-  -v proxium:/var/lib/proxium ikoldakov/proxium
+curl -x https://username:password@proxy.example.com:8080 https://ifconfig.me
 ```
 
-| | `-p` | `--network host` |
+## Why Proxium?
+
+Squid, Dante and 3proxy are solid engines, but users, ACLs and limits live in their config files: every change is
+an edit and a reload, every admin needs shell access. Proxium keeps all of it in a database behind an admin panel
+and an API:
+
+- **Change anything live.** Accounts, networks, policies and certificates reach the proxy within seconds, open
+  connections keep working.
+- **Give access, not root.** Admins get per-section permissions through groups: a support engineer revokes
+  accounts, an accountant sees traffic, neither touches TLS.
+- **One port for everything.** HTTP, SOCKS5 and TLS on the same port, detected automatically.
+
+## Features
+
+**Proxy**
+
+- HTTP (CONNECT tunnels and plain forwarding) and SOCKS5 on the same port, detected by the first byte
+- TLS to the proxy on the same ports, credentials never travel in the clear
+- Listen on many IPs and port ranges at once, e.g. `10.0.0.0/29:10000-10999`
+- Graceful shutdown: open connections get time to finish
+
+**Identity and access**
+
+- Basic (username/password) and bearer token accounts, with expiry and revocation
+- Trusted networks: clients from your networks connect without credentials, nested networks supported
+- Outbound ACL: loopback, private networks and cloud metadata are blocked unless you allow them
+
+**Policies**
+
+- Connection limits, speed limits per direction, traffic quotas per day, month or in total
+- Counted per connection, account, client IP, target host or the whole proxy
+- Rules with conditions: time of day and week, target domain, IP and port, protocol, client IP, TLS
+- Global policies for everyone, assigned ones for chosen accounts and networks
+
+**Outgoing IPs**
+
+- `system`, `listener` or `pool` mode per account and trusted network
+- A pool of one IP is a dedicated IP
+
+**Administration**
+
+- Web admin UI and a REST API
+- Users, groups and per-action permissions, no privilege escalation
+- TLS certificates: upload, generate self-signed, import from certbot, encryption key rotation
+- Traffic per account and network
+
+## How it works
+
+```
+                 ┌──────────────────────────────┐
+  Clients ──────→│           Proxium            │──────→ Internet
+  HTTP           │                              │        from the outgoing IP
+  SOCKS5         │  Authentication              │        you pick
+  over TLS       │  Network ACL                 │
+                 │  Policies and quotas         │
+                 │  Outgoing IP selection       │
+                 │  Traffic accounting          │
+                 └──────────────┬───────────────┘
+                                │ reads accounts and policies,
+                                │ writes traffic
+                 ┌──────────────┴───────────────┐
+  Admins ───────→│  Admin UI → API → PostgreSQL │
+                 └──────────────────────────────┘
+```
+
+### Components
+
+| | What it does | Runs as |
 |---|---|---|
-| Ports and port ranges | yes | yes |
-| Several listening IPs | no, the proxy sees one | yes, Linux only |
-| [Outgoing IPs](#outgoing-ips) | no, one host IP | yes, Linux only |
+| **Proxy** | Accepts clients, authenticates, applies policies, forwards traffic, counts it | `proxium` |
+| **API** | REST API over the database for the admin UI and your scripts | `proxium-api` |
+| **Admin UI** | Web interface for admins, talks only to the API | static files behind Caddy |
+| **PostgreSQL** | Single source of truth: accounts, policies, certificates, traffic | bundled or your own |
 
-Linux only: Docker Desktop on macOS and Windows runs containers in a VM, they don't see the computer's IPs even
-with `--network host`. Run proxium without Docker there, see [Installation](#installation).
+The proxy never takes commands from the API: it reads the database on its own, so the API and the admin UI can run
+on another host or be stopped without touching client traffic.
 
-### Own database and secrets
+## Security model
 
-| Want | Add |
-|---|---|
-| Own PostgreSQL | `-e DATABASE_URL=postgres://user:password@db.example.com:5432/proxium` |
-| Own keys | `-e ENCRYPTION_KEY=... -e API_SECRET_KEY=...`, else generated once and kept in the volume |
+- **No anonymous access.** Every client authenticates or comes from a trusted network you added. There are none by
+  default.
+- **Secrets are hashed.** Passwords and tokens are stored as salted PBKDF2-SHA256 hashes.
+- **Private keys are encrypted.** TLS keys are encrypted at rest, the API never returns them, the encryption key
+  rotates without downtime.
+- **No SSRF by default.** The proxy reaches only the public internet: loopback, private networks and
+  `169.254.169.254` are blocked unless allowed in the settings.
+- **Least privilege for admins.** A user grants only the permissions they have, only superusers manage superusers,
+  a new password logs the user out everywhere.
 
-Every variable from [Configuration](#configuration) works with `-e`, Docker-only ones are under [Docker](#docker).
-Give `docker stop` time for open connections: `--stop-timeout 40`.
+### Threat model
 
-### Separate containers
+Proxium protects your proxy from unauthorized use and your network from being reached through it. It doesn't:
 
-`docker/compose.yaml` runs the same image as three containers: PostgreSQL, the API with the admin UI, and the proxy.
-They share the secrets, settings come from the environment as with `docker run`:
+- **Inspect traffic.** HTTPS goes through as an end-to-end tunnel, the proxy sees only the target host and port.
+- **Hide credentials without TLS.** Plain HTTP and SOCKS5 send passwords and tokens in the clear: enable TLS for clients outside
+  your network.
+- **Revoke instantly.** A revoked account keeps connecting for the cache TTL, 10 seconds by default, configurable.
+- **Vouch for trusted networks.** Anyone inside one gets in, add only networks you control.
 
-```bash
-SUPERUSER_CREATE=true SUPERUSER_EMAIL=admin@example.com SUPERUSER_PASSWORD=... \
-  docker compose -f docker/compose.yaml up -d --build
-```
+Report vulnerabilities privately, see [SECURITY.md](SECURITY.md).
 
-`ENCRYPTION_KEY` and `API_SECRET_KEY`, if not set, are generated on the first start and kept in the `secrets`
-volume. Set them, and the volume stores no secrets. Keys generated by an earlier start stay there unused: delete
-them from the volume once you set your own. To move to your own keys later, pass the generated ones from the volume,
-or rotate `ENCRYPTION_KEY` with `ENCRYPTION_OLD_KEYS`, see [TLS](#tls): with a new key stored certificates can't be
-read. A new `API_SECRET_KEY` only logs everyone out.
+## Documentation
 
-To customize ports, the database, TLS and the rest, take
-[docker/compose.yaml](https://github.com/koldakov/proxium/blob/main/docker/compose.yaml) as a starting point and
-edit your copy.
+- [Installation](docs/installation.md): Docker, HTTPS for the admin UI, ports and IPs, compose, from source
+- [Configuration](docs/configuration.md): environment variables
+- [Proxy](docs/proxy.md): protocols, TLS, trusted networks, outgoing IPs, policies, settings
+- [Admin UI](docs/admin.md): users, groups and permissions
+- [Management commands](docs/management.md): superusers, migrations, certificates, key rotation
 
-### Commands
+## Contributing
 
-```bash
-docker exec -it proxium proxium-manage createsuperuser
-docker exec -it proxium proxium-manage changepassword admin@example.com
-```
-
-## Configuration
-
-Settings are read from environment variables. Copy the template and fill it in:
-
-```bash
-cp .env.template .env
-```
-
-### Common
-
-Read by the proxy, the API and the management commands.
-
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | PostgreSQL URL, e.g. `postgres://user:password@host/db_name` |
-| `ENCRYPTION_KEY` | Fernet key that encrypts private keys of TLS certificates in the database, see [TLS](#tls) |
-| `ENCRYPTION_OLD_KEYS` | Comma-separated previous keys, they still decrypt during [key rotation](#tls) |
-| `DATABASE_ECHO` | Log every SQL query, default `false`. Parameters are always hidden |
-| `DATABASE_POOL_SIZE` | Connections each process keeps open, default `5` |
-| `DATABASE_POOL_MAX_OVERFLOW` | Extra connections under load, default `10` |
-| `DATABASE_POOL_TIMEOUT` | Seconds to wait for a free connection, default `30` |
-| `DATABASE_POOL_RECYCLE` | Seconds after which a connection is replaced, default `-1` (never) |
-
-### Proxy
-
-| Variable | Description |
-|---|---|
-| `PROXY_LISTEN` | Addresses to listen on, default `127.0.0.1:8080`, see below |
-| `PROXY_GRACEFUL_TIMEOUT` | Seconds open connections get to finish on shutdown, default `30` |
-| `PROXY_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`, default `INFO` |
-| `PROXY_SETTINGS_POLL_INTERVAL` | Seconds between lookups of the [settings](#settings) from the admin UI, default `5` |
-
-`PROXY_LISTEN` is a comma-separated list of `host:port` pairs. A host is an IP address, a network or a host name,
-IPv6 goes in brackets. A port may be an inclusive range. Every host listens on every port of its pair:
-
-```bash
-PROXY_LISTEN=127.0.0.1:8080                          # one socket
-PROXY_LISTEN=localhost:8080                          # every address localhost resolves to
-PROXY_LISTEN=0.0.0.0:8080,[::]:8080                  # all IPv4 and IPv6 interfaces
-PROXY_LISTEN=10.0.0.0/29:10000-10999                 # 6 host addresses x 1000 ports
-```
-
-Host names are resolved once, on start.
-
-### API
-
-| Variable | Description |
-|---|---|
-| `API_SECRET_KEY` | Secret that signs API user tokens, at least 32 characters. Changing it logs everyone out |
-| `API_CORS_ORIGINS` | Comma-separated browser origins allowed to call the API, e.g. the admin dev server. Empty blocks all |
-| `API_OUTGOING_POOL_MAX_SIZE` | IPs in one outgoing IP pool at most, default `256` |
-| `API_POLICIES_MAX_PER_OWNER` | Policies assigned to one account or trusted network at most, up to `100`, default `32` |
-
-### Management commands
-
-| Variable | Description |
-|---|---|
-| `SUPERUSER_EMAIL` | `createsuperuser --no-input`: email, if `--email` isn't passed |
-| `SUPERUSER_PASSWORD` | `createsuperuser --no-input`: password, there is no flag for it |
-| `SUPERUSER_NAME` | `createsuperuser --no-input`: name, if `--name` isn't passed, default blank |
-| `SUPERUSER_SURNAME` | `createsuperuser --no-input`: surname, if `--surname` isn't passed, default blank |
-
-Without `--no-input` these are ignored: `createsuperuser` always prompts.
-
-### Docker
-
-Read only by the [image](#containerization). There `DATABASE_URL`, `ENCRYPTION_KEY` and `API_SECRET_KEY` are
-optional: unset, the bundled PostgreSQL runs and the keys are generated once, all kept in the volume.
-
-| Variable | Description |
-|---|---|
-| `PROXIUM_SERVICES` | Services to run, comma-separated: `proxy`, `api`, `admin`. Default all |
-| `SUPERUSER_CREATE` | `true` creates the superuser from `SUPERUSER_*` on start, an existing one is skipped. Default `false` |
-| `ADMIN_TLS` | How the admin UI is served: `off`, `auto`, `files` or `internal`, see [Containerization](#domain-and-https-for-the-admin-ui). Default `off` |
-| `ADMIN_HOST` | Admin host name, e.g. `admin.example.com`. Needed by `auto` and `files`, `internal` defaults to `localhost` |
-| `ADMIN_ACME_CA` | Own ACME server for `auto` instead of Let's Encrypt |
-| `ADMIN_HTTP_PORT` | Admin HTTP port, default `80` |
-| `ADMIN_HTTPS_PORT` | Admin HTTPS port, default `443` |
-| `API_BIND` | Where the API listens, default the socket `unix:/run/proxium/api.sock` |
-| `ADMIN_API_UPSTREAM` | Where the admin UI finds the API, default the same socket. `host:port` when the API runs in another container |
-
-## Usage
-
-```bash
-uv run --env-file .env proxium
-```
-
-or
-
-```bash
-uv run --env-file .env python -m proxium
-```
-
-Every port speaks HTTP and SOCKS5, the protocol is detected by the first byte of the connection.
-Clients authenticate with proxy accounts from the database, inactive and expired ones are refused:
-
-```bash
-curl -x http://username:password@127.0.0.1:8080 https://example.com                  # basic account
-curl -x http://127.0.0.1:8080 --proxy-header "Proxy-Authorization: Bearer <token>" https://example.com  # token account
-curl -x socks5h://username:password@127.0.0.1:8080 https://example.com                # basic account over SOCKS5
-```
-
-HTTP supports CONNECT tunnels and plain HTTP forwarding. SOCKS5 supports only CONNECT, with IPv4, IPv6 and domain
-targets, and only basic accounts: the protocol has username/password authentication but no tokens.
-Use `socks5h://` so the proxy resolves domains, with `socks5://` curl resolves them itself.
-
-### TLS
-
-Clients may encrypt the connection to the proxy, on the same ports: a connection starting with a TLS handshake is
-decrypted, and HTTP or SOCKS5 is detected inside. Credentials then don't travel in the clear. TLS is on while a
-certificate is active: add one under TLS certificates in the admin UI, the first one is activated right away.
-Without one, TLS clients get a handshake failure, plain HTTP and SOCKS5 keep working.
-
-```bash
-curl -x https://username:password@proxy.example.com:8080 https://example.com
-```
-
-The certificate must be for the host name clients connect to. One certificate is active at a time and serves all
-ports, for several names use one with all of them in it. Activating another one, on adding it or later on its
-page, turns the active one off: new connections get it within the certificate cache TTL ([settings](#settings)), open
-ones keep theirs, no restart needed. The proxy looks the certificate up once per that TTL, not on every connection: TLS
-clients can't load the database before they authenticate. The admin UI names the one turned off, and if another admin has activated one meanwhile, it refuses and shows the new state
-instead of turning off a certificate you haven't seen. The active one can't be deleted, deactivate it first.
-
-A self-signed certificate works too, the admin UI generates one for given names. Clients trust it only if told
-to: download the certificate from its page for curl's `--proxy-cacert`, or skip the check with `--proxy-insecure`.
-
-```bash
-curl -x https://username:password@proxy.example.com:8080 --proxy-cacert proxium-1.pem https://example.com
-```
-
-Private keys are stored encrypted with `ENCRYPTION_KEY`, the API never returns them. Generate the key once and give
-the same one to the proxy, the API and the management commands:
-
-```bash
-python3 -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
-```
-
-Losing or changing it makes the stored keys unreadable: TLS clients are refused with "can't be decrypted" in the
-log until the certificate is uploaded again.
-
-To replace the key without downtime, e.g. after a leak:
-
-1. Generate a new key. Set it as `ENCRYPTION_KEY` and the current one as `ENCRYPTION_OLD_KEYS` for the proxy, the
-   API and the management commands, then restart them. Both keys now decrypt, new secrets get the new one.
-2. Re-encrypt the stored secrets with the new key. Stopped halfway, it's just run again:
-
-   ```bash
-   uv run --env-file .env proxium-manage rotateencryptionkey
-   ```
-
-3. Remove `ENCRYPTION_OLD_KEYS` everywhere and restart again.
-
-The proxy needs a writable temporary directory: Python's `ssl` loads a key only from a file, not from memory
-([python/cpython#60691](https://github.com/python/cpython/issues/60691)), so the decrypted key goes to a file
-readable by the proxy's user alone and is removed right after loading. In a container with a read-only root, point
-`TMPDIR` to a tmpfs, e.g. an `emptyDir` with `medium: Memory` in Kubernetes: the key then never reaches a disk.
-Without it, TLS clients are refused with "Can't write the certificate to a temporary file" in the log.
-
-A renewed certificate, e.g. from Let's Encrypt, goes in with `importcert`, see
-[Management commands](#management-commands). certbot can run it after every renewal, with the same environment as
-the proxy:
-
-```bash
-certbot renew --deploy-hook 'cd /opt/proxium && uv run --env-file .env proxium-manage importcert --no-input \
-  --cert "$RENEWED_LINEAGE/fullchain.pem" --key "$RENEWED_LINEAGE/privkey.pem"'
-```
-
-SOCKS5 inside TLS works too, but few clients support it, curl doesn't. HTTP/2 to the proxy isn't supported, clients
-fall back to HTTP/1.1.
-
-Don't terminate TLS in front of the proxy, e.g. with nginx `stream`: the proxy would see nginx's connection
-instead of the client's, so trusted networks would check nginx's IP, and the `listener` outgoing mode would take
-the address nginx connects to.
-
-### Trusted networks
-
-Clients from trusted networks use the proxy without credentials, over HTTP and SOCKS5 alike. There are none by
-default, so everyone needs an account. Add them in the admin UI or with the API (`/api/trusted-networks`), e.g.
-`192.168.0.0/16` for a local network or `10.0.0.5` for a single address. Add only networks you control: anyone in
-them gets in.
-
-```bash
-curl -x http://127.0.0.1:8080 https://example.com         # from a trusted network
-curl -x socks5h://127.0.0.1:8080 https://example.com
-```
-
-New connections follow changes within the trusted network cache TTLs ([settings](#settings)). Clients connected right now keep
-their open connections until they close: removing a network doesn't cut them off at once.
-
-A client that sends credentials is checked as an account even from a trusted network. The trusted network
-authenticator itself refuses any credentials, since it can't check them: registered for a credentials kind by
-mistake, it doesn't let in any password.
-
-Networks may nest, e.g. `10.0.0.0/8` for the office and `10.1.2.3` for a CI server inside it. The narrowest
-active one names the client in logs, e.g. `network:10.1.2.3/32`, and turning off one keeps the other working.
-The admin UI lists the networks containing the one being edited and the ones inside it, page by page, and
-tells how many keep trusting the addresses of a network being deleted. `/0` trusts the whole internet: the admin UI
-asks to confirm saving it and warns while one is active.
-
-`/api/trusted-networks` filters: `contains=<network>` for networks that contain it, `within=<network>` for ones
-inside it, `isActive=true|false`, `prefixLength=<n>`, e.g. `?isActive=true&prefixLength=0` for ones open to everyone.
-
-### Outgoing IPs
-
-On a server with several IPs, each account and trusted network picks the one sites see, its outgoing mode:
-
-- `system`, the default: the OS picks, usually the main IP of the server.
-- `listener`: the IP the client connected to. A client of `203.0.113.11:8080` goes out from `203.0.113.11`, so
-  listen on every IP, e.g. `PROXY_LISTEN=203.0.113.8/29:8080`. It works on `0.0.0.0` too.
-- `pool`: a random IP of the account's pool, picked anew for every connection. A pool of one IP is a dedicated IP.
-
-First add the server's IPs under Outgoing IPs in the admin UI. Then pick the mode on the account or trusted
-network form: for `pool`, the IPs of the pool go right under it, on creating too. Later the pool is edited on the
-account's page or the network's form, and changes apply to new connections within the cache TTL of passed checks.
-
-A pool takes IPs of one family, IPv4 or IPv6: an IPv4 IP can't reach IPv6-only sites and back, so a mixed pool
-would fail at random. The admin offers only the IPs a pool can take. A pool in use keeps at least one IP, switch
-the mode first to empty it. An IP in a pool can't be deleted, and an IP's address can change only within its
-family. A pool holds up to `API_OUTGOING_POOL_MAX_SIZE` IPs.
-
-The proxy binds the outgoing socket to the IP before connecting, so the IP must be on the server's interfaces,
-e.g. `ip addr add 203.0.113.11/32 dev eth0`, and routed to it. Nothing checks that on saving, the API may run on
-another host: a connection from an IP that isn't there fails with "not on this host or loopback" in the log, and
-so does one from loopback, e.g. `listener` on `127.0.0.1`. Nothing falls back to another IP. Behind cloud NAT,
-use the private IPs the public ones map to. IPs of different providers need policy routing (`ip rule`) in the OS.
-
-### Policies
-
-A policy limits how clients use the proxy: how many connections they open at once, how fast data goes and how much
-of it they may move. Create
-policies under Policies in the admin UI. A global one applies to every client, any other to the accounts and
-trusted networks it's assigned to, on their pages. A client gets the limits of all its policies at once: a policy
-only adds limits, the strictest one wins. To give some clients more than a global policy allows, raise its limit
-and set the lower one in a policy assigned to the rest.
-
-Each limit is counted over a scope: one connection, an account or network with all its connections, a client IP,
-a target host or the whole proxy. E.g. 10 connections per account, or 100 Mbit/s for the whole proxy that all
-clients share. Past a connection limit new connections are refused, HTTP clients get `429 Too Many Connections`.
-A speed limit never cuts a connection, it slows it down. It's set per direction: download, upload or each way on
-its own. After a pause up to the burst goes at once, one second of the rate unless set.
-
-A traffic quota caps the gigabytes of one account or network per period: every N days or months, or in total
-without reset. It counts downloads, uploads or both together. Past it new connections are refused, HTTP clients
-get `429 Quota Exceeded`, and open ones are cut within a second. Periods follow one another from a UTC day: for a
-global policy it's set on the policy, for an assigned one on the account or network page, next to the policy,
-e.g. the day the client paid. Assigning sets it to that day. Monthly periods from the 31st start on the last day
-of shorter months. Usage is the traffic in the database plus what the proxy hasn't written yet: traffic of other
-proxy processes counts within a minute.
-
-The limits of a policy sit in rules, each with a condition. In each policy the first rule whose condition matches
-applies, so put the narrow rules first and a rule without conditions last for everything else: e.g. 10 Mbit/s on
-weekdays from 9:00 till 18:00 in your time zone, 100 Mbit/s otherwise. A rule without a match leaves the client
-free of that policy. A condition checks the time (days of the week and hours, past midnight too), the target host
-with its subdomains, the target IP, the target port, the protocol (HTTP, HTTP CONNECT tunnels, SOCKS5), the client
-IP or TLS to the proxy. Conditions of a rule must all match or any one of them, each can be turned into its
-opposite. Open connections switch rules on their next data, checked once a second, e.g. when the night starts: the
-old limits let go, the new ones apply, and if those refuse, e.g. no connection is free, the connection is cut.
-Hosts compare by the name the client asked for: a target IP is matched by networks, not names.
-
-E.g. to slow everything down in working hours except work sites, one rule is enough: all conditions match, Time
-Mon–Fri 09:00–18:00, Target domain `company.com, github.com` with Not, speed 5 Mbit/s per account. Off hours or to
-work sites the rule doesn't match and the policy limits nothing. SOCKS5 clients must leave DNS to the proxy, e.g.
-`socks5h://` in curl: a client that resolves names itself sends an IP, which no domain matches.
-
-The proxy looks policies up every `PROXY_SETTINGS_POLL_INTERVAL` seconds. A change reaches new connections, open
-ones keep the limits they started with, though a connection limit changed in place keeps counting them.
-Assigning a policy reaches a client within the cache TTL of passed checks. Limits are counted in the proxy's memory: with several
-proxy processes each counts its own. An account or network takes up to `API_POLICIES_MAX_PER_OWNER` policies.
-
-### Settings
-
-The Settings page of the admin UI holds what the proxy does with connections. The proxy looks the settings up
-every `PROXY_SETTINGS_POLL_INTERVAL` seconds and applies them without a restart: new connections get them, open
-ones keep the old.
-
-- Allowed networks: the proxy reaches only the public internet, loopback, private networks and cloud metadata
-  (`169.254.169.254`) are blocked. List the private networks clients may reach anyway, e.g. `10.0.0.0/8`. Every
-  client gets them, accounts and trusted networks alike.
-- Timeouts, seconds: handshake, for a client to authenticate and send its request, `10` by default; idle, after
-  which a silent tunnel is closed, `300`; connect, to resolve and reach a target, `10`.
-- Cache TTLs, seconds, `10` by default each: how long the proxy reuses checks instead of looking them up and
-  hashing secrets on every connection. Basic accounts, token accounts and trusted networks have two each: passed,
-  within which a revoked or expired account keeps connecting and a removed trusted network stays trusted, and
-  refused, within which a new or re-enabled one isn't let in yet. The TLS certificate has one: how soon activating
-  another one applies. Lowering a TTL drops what it cached, so it applies at once. If the database is down,
-  clients without a cached check are refused.
-
-Check an account with a site that shows the caller's IP:
-
-```bash
-curl -x http://USERNAME:PASSWORD@127.0.0.1:8080 https://ifconfig.me
-```
-
-`Ctrl+C` (SIGINT) or SIGTERM stops accepting and waits up to `PROXY_GRACEFUL_TIMEOUT` for open connections.
-A second signal stops immediately.
-
-### Users and permissions
-
-Admin UI users are managed under Access. A superuser may do everything, the first one comes from
-`createsuperuser`, see [Management commands](#management-commands). Other users get permissions per section and
-action, e.g. view, add and change trusted networks, revoke basic accounts or activate certificates, through groups
-and on their own: a user has the permissions of all their groups plus their own. Traffic is a permission of its
-own, so a user can see accounts and networks without their traffic.
-
-- Groups, e.g. Operators or Read only, are named sets of permissions. A change to a group applies to all its
-  users.
-- A user gives only what they have: permissions, and groups whose permissions they all have. Taking away is
-  always allowed. Only superusers make superusers or change them.
-- Nobody deactivates themselves or takes their own superuser status away.
-- An inactive user can't log in. A change of permissions or activity applies to the user's next request, the
-  admin UI shows it within a minute or at the first refused action.
-- Everyone changes their own name, surname and password under Profile in the user menu, no permission needed.
-  The email is the login: only a user with `users.change` changes it.
-- A forgotten password is set anew with Set password on the user's page. It needs `users.change` and all the
-  user's permissions, since the password gives them: the button shows only then. Only superusers set superusers'
-  passwords. Without access to the admin UI, use `changepassword`, see
-  [Management commands](#management-commands).
-- A new password, set any of these ways, logs the user out everywhere at their next request, as deactivation does.
-  The admin UI says only that the session has expired, not why. Changing one's own password under Profile keeps
-  the current session.
-
-The admin UI hides what the user may not do: sections, buttons, the outgoing pool without access to outgoing IPs.
-
-### API
-
-The API is a FastAPI app served by [Hypercorn](https://hypercorn.readthedocs.io/). Extra arguments go to Hypercorn:
-
-```bash
-uv run --env-file .env proxium-api --bind 127.0.0.1:8000
-```
-
-### Management commands
-
-Django-style commands run with `proxium-manage <command>`, `--help` lists them.
-
-Create the first superuser, it prompts for the email and password, `SUPERUSER_*` variables are ignored. Name and
-surname are blank unless passed with `--name`, `--surname`:
-
-```bash
-uv run --env-file .env proxium-manage createsuperuser
-uv run --env-file .env proxium-manage createsuperuser --email admin@example.com --name Ivan
-```
-
-Without prompts, e.g. in scripts, the password comes only from `SUPERUSER_PASSWORD`, the email from `--email` or
-`SUPERUSER_EMAIL`, name and surname from flags or `SUPERUSER_NAME`, `SUPERUSER_SURNAME`, see
-[Configuration](#configuration):
-
-```bash
-SUPERUSER_PASSWORD=... uv run --env-file .env proxium-manage createsuperuser --no-input --email admin@example.com
-```
-
-With `--if-missing` a taken email is skipped, not an error, e.g. in start scripts. Other errors still fail:
-
-```bash
-uv run --env-file .env proxium-manage createsuperuser --no-input --if-missing
-```
-
-Apply database migrations, up to the latest one or the given revision:
-
-```bash
-uv run --env-file .env proxium-manage migrate
-uv run --env-file .env proxium-manage migrate --wait 60   # wait up to 60s for the database to start
-```
-
-Set a new password for any user, e.g. a forgotten one, it prompts for it twice:
-
-```bash
-uv run --env-file .env proxium-manage changepassword admin@example.com
-```
-
-Add a TLS certificate from PEM files and activate it, see [TLS](#tls). It asks before turning the active one off,
-`--no-input` doesn't. The same certificate imported again is only activated. The key must have no password:
-
-```bash
-uv run --env-file .env proxium-manage importcert --cert fullchain.pem --key privkey.pem
-```
-
-Re-encrypt stored secrets with `ENCRYPTION_KEY`, reading them with it or `ENCRYPTION_OLD_KEYS`, see [TLS](#tls):
-
-```bash
-uv run --env-file .env proxium-manage rotateencryptionkey
-```
-
-## Development
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
-
-Install the git hooks:
-
-```bash
-uv run pre-commit install
-```
-
-Run all checks manually:
-
-```bash
-uv run pre-commit run --all-files
-```
-
-The hooks run [ruff](https://docs.astral.sh/ruff/) (lint and format) and [mypy](https://mypy.readthedocs.io/).
-Their configuration lives in `pyproject.toml`.
-
-## Database migrations
-
-Migrations are managed with [Alembic](https://alembic.sqlalchemy.org/) and live in `src/proxium/db/migrations`.
-Models must be imported in `src/proxium/db/models.py` so autogenerate can see them.
-
-```bash
-# Apply migrations
-uv run --env-file .env proxium-manage migrate
-
-# Create a new migration from model changes
-uv run --env-file .env alembic revision --autogenerate -m "description"
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

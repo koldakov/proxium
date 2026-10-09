@@ -12,4 +12,4 @@
 - [ ] `uv run pytest` passes
 - [ ] Migration added for model changes
 - [ ] New environment variables are in `.env.template`
-- [ ] README updated for user-facing changes
+- [ ] README and docs updated for user-facing changes
