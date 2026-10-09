@@ -131,10 +131,13 @@ and an API:
                  │  Policies and quotas         │
                  │  Outgoing IP selection       │
                  │  Traffic accounting          │
-                 └──────────────┬───────────────┘
-                                │ reads accounts and policies,
-                                │ writes traffic
-                 ┌──────────────┴───────────────┐
+                 └──────┬───────────────┬───────┘
+                        │               │ polls settings and policies,
+                 ┌──────┴──────┐        │ writes traffic
+                 │    Cache    │        │
+                 └──────┬──────┘        │
+                        │ on a miss     │
+                 ┌──────┴───────────────┴───────┐
   Admins ───────→│  Admin UI → API → PostgreSQL │
                  └──────────────────────────────┘
 ```
@@ -144,9 +147,13 @@ and an API:
 | | What it does | Runs as |
 |---|---|---|
 | **Proxy** | Accepts clients, authenticates, applies policies, forwards traffic, counts it | `proxium` |
+| **Cache** | Keeps account, network and TLS certificate lookups for a TTL, connections skip the database | pluggable, in the proxy's memory now |
 | **API** | REST API over the database for the admin UI and your scripts | `proxium-api` |
 | **Admin UI** | Web interface for admins, talks only to the API | static files behind Caddy |
 | **PostgreSQL** | Single source of truth: accounts, policies, certificates, traffic | bundled or your own |
+
+Connections don't query the database each time: authentication and the TLS certificate come from the cache,
+settings and policies from memory refreshed every few seconds, traffic is written in batches about once a minute.
 
 The proxy never takes commands from the API: it reads the database on its own, so the API and the admin UI can run
 on another host or be stopped without touching client traffic.
