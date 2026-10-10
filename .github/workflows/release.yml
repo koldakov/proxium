@@ -55,6 +55,11 @@ jobs:
             echo "Release tag $TAG doesn't match v$version from pyproject.toml" >&2
             exit 1
           fi
+          admin_version=$(python3 -c "import json; print(json.load(open('fsrc/package.json'))['version'])")
+          if [ "$admin_version" != "$version" ]; then
+            echo "fsrc/package.json version $admin_version doesn't match $version from pyproject.toml" >&2
+            exit 1
+          fi
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0

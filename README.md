@@ -163,8 +163,8 @@ on another host or be stopped without touching client traffic.
 - **No anonymous access.** Every client authenticates or comes from a trusted network you added. There are none by
   default.
 - **Secrets are hashed.** Passwords and tokens are stored as salted PBKDF2-SHA256 hashes.
-- **Private keys are encrypted.** TLS keys are encrypted at rest, the API never returns them, the encryption key
-  rotates without downtime.
+- **Private keys are encrypted.** TLS keys are protected with field-level encryption, the API never returns them,
+  the encryption key rotates without downtime.
 - **No SSRF by default.** The proxy reaches only the public internet: loopback, private networks and
   `169.254.169.254` are blocked unless allowed in the settings.
 - **Least privilege for admins.** A user grants only the permissions they have, only superusers manage superusers,
@@ -189,6 +189,7 @@ Report vulnerabilities privately, see [SECURITY.md](SECURITY.md).
 - [Proxy](docs/proxy.md): protocols, TLS, trusted networks, outgoing IPs, policies, settings
 - [Admin UI](docs/admin.md): users, groups and permissions
 - [Management commands](docs/management.md): superusers, migrations, certificates, key rotation
+- [Changelog](CHANGELOG.md) and [Roadmap](ROADMAP.md)
 
 ## Contributing
 
