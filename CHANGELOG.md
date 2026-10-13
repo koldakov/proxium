@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-13
+
+### Added
+
+- Restart without downtime: a new proxy listens on the same ports before the old one stops, `PROXY_REUSE_PORT`
+  turns it off. Works for upgrades from 0.1.1 on: a 0.1.0 proxy doesn't share its ports.
+
 ## [0.1.0] - 2026-10-10
 
 Your own proxy service in one `docker run`: accounts, policies, outgoing IPs and an admin panel, no config files.
@@ -23,7 +30,6 @@ Your own proxy service in one `docker run`: accounts, policies, outgoing IPs and
 - Outbound ACL: loopback, private networks and cloud metadata are blocked unless allowed in the settings.
 - Handshake, idle and connect timeouts.
 - Graceful shutdown: open connections get `PROXY_GRACEFUL_TIMEOUT` to finish, a second signal stops at once.
-- Restart without downtime: a new proxy listens on the same ports before the old one stops.
 
 #### Identity and access
 
@@ -75,5 +81,6 @@ Your own proxy service in one `docker run`: accounts, policies, outgoing IPs and
 - Admin UI over HTTP or HTTPS with `ADMIN_TLS`: Let's Encrypt, own certificate files or an internal CA.
 - Optional superuser on first start with `SUPERUSER_CREATE`.
 
-[Unreleased]: https://github.com/koldakov/proxium/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/koldakov/proxium/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/koldakov/proxium/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/koldakov/proxium/releases/tag/v0.1.0

@@ -211,7 +211,8 @@ A second signal stops immediately.
 Two proxies can listen on the same ports at once, Linux spreads new connections between them. To upgrade, start
 the new version, then send SIGTERM to the old one: it stops accepting and finishes open connections. Both run as
 the same user, else Linux refuses the port. With `PROXY_REUSE_PORT=false` a second proxy on a taken port fails to
-start instead of taking a share of the clients.
+start instead of taking a share of the clients. Available since 0.1.1: a 0.1.0 proxy doesn't share its ports, so
+upgrading from it is a plain restart.
 
 The old proxy's connections waiting to be accepted at the moment it stops are reset, clients retry them.
 
