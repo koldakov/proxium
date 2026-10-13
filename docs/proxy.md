@@ -205,3 +205,24 @@ curl -x http://USERNAME:PASSWORD@127.0.0.1:8080 https://ifconfig.me
 
 `Ctrl+C` (SIGINT) or SIGTERM stops accepting and waits up to `PROXY_GRACEFUL_TIMEOUT` for open connections.
 A second signal stops immediately.
+
+## Restart without downtime
+
+Two proxies can listen on the same ports at once, Linux spreads new connections between them. To upgrade, start
+the new version, then send SIGTERM to the old one: it stops accepting and finishes open connections. Both run as
+the same user, else Linux refuses the port. With `PROXY_REUSE_PORT=false` a second proxy on a taken port fails to
+start instead of taking a share of the clients.
+
+The old proxy's connections waiting to be accepted at the moment it stops are reset, clients retry them.
+
+In Docker it takes `--network host` (two containers can't publish one port with `-p`) and a database outside the
+container, with `PROXIUM_SERVICES=proxy`:
+
+```bash
+docker run -d --name proxium-new --network host -e PROXIUM_SERVICES=proxy \
+  -e DATABASE_URL=... -e ENCRYPTION_KEY=... -e PROXY_LISTEN=... ikoldakov/proxium:NEW
+docker stop --time 40 proxium-old
+```
+
+Both proxies count connection and speed limits on their own, so while they overlap a client may get up to twice its
+limits.

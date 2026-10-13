@@ -156,6 +156,7 @@ class ProxyRunner:
         *,
         listen: Sequence[ListenAddress] = proxy_settings.listen,
         graceful_timeout: float = proxy_settings.graceful_timeout,
+        reuse_port: bool = proxy_settings.reuse_port,
         log_level: LogLevel = proxy_settings.log_level,
         settings_poll_interval: float = proxy_settings.settings_poll_interval,
     ) -> None:
@@ -215,7 +216,7 @@ class ProxyRunner:
         self._graceful_timeout: float = graceful_timeout
         self._listen: Sequence[ListenAddress] = listen
 
-        self._server: ProxyServer = ProxyServer()
+        self._server: ProxyServer = ProxyServer(reuse_port=reuse_port)
         self._stop: asyncio.Event = asyncio.Event()
 
     def _create_authenticator(self, ttls: CacheTtlsSnapshot, /) -> Authenticator:

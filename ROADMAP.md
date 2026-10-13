@@ -7,7 +7,8 @@ Where Proxium is heading. No dates, priorities may change. Ideas and use cases a
 
 **Scaling**
 
-- Redis: several proxy instances share the cache, connection and speed limits
+- Redis: several proxy instances share connection and speed limits and traffic quotas
+- Several worker processes per proxy, to use every CPU core
 - The admin UI warns about outgoing IPs that no proxy instance has
 
 **Access control**

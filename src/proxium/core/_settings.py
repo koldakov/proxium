@@ -27,6 +27,8 @@ class ProxySettings(BaseSettings):
             ge=0,
         ),
     ] = 30.0
+    # Lets a new proxy listen on the same ports before the old one stops: restarts without downtime.
+    reuse_port: bool = True
     log_level: LogLevel = LogLevel.INFO
     # Seconds between lookups of the settings edited in the admin: how soon new connections get the changes.
     settings_poll_interval: Annotated[

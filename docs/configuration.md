@@ -27,6 +27,7 @@ Read by the proxy, the API and the management commands.
 |---|---|
 | `PROXY_LISTEN` | Addresses to listen on, default `127.0.0.1:8080`, see below |
 | `PROXY_GRACEFUL_TIMEOUT` | Seconds open connections get to finish on shutdown, default `30` |
+| `PROXY_REUSE_PORT` | Let another proxy listen on the same ports, default `true`, see [Restart without downtime](proxy.md#restart-without-downtime) |
 | `PROXY_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`, default `INFO` |
 | `PROXY_SETTINGS_POLL_INTERVAL` | Seconds between lookups of the [settings](proxy.md#settings) from the admin UI, default `5` |
 

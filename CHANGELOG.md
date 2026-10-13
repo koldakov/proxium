@@ -23,6 +23,7 @@ Your own proxy service in one `docker run`: accounts, policies, outgoing IPs and
 - Outbound ACL: loopback, private networks and cloud metadata are blocked unless allowed in the settings.
 - Handshake, idle and connect timeouts.
 - Graceful shutdown: open connections get `PROXY_GRACEFUL_TIMEOUT` to finish, a second signal stops at once.
+- Restart without downtime: a new proxy listens on the same ports before the old one stops.
 
 #### Identity and access
 

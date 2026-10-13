@@ -31,7 +31,11 @@ class ProxyServer:
     # Seconds to wait after a failed accept, e.g. out of file descriptors, instead of failing again at once.
     accept_retry_delay: ClassVar[float] = 1.0
 
-    def __init__(self) -> None:
+    def __init__(self, *, reuse_port: bool = True) -> None:
+        """`reuse_port` lets another process listen on the same ports, e.g. a new version started before the old one
+        stops: the kernel spreads new connections between them. Off, a taken port fails with `ListenError`.
+        """
+        self._reuse_port: bool = reuse_port
         # Accept loops of every address, one per socket it resolves to.
         self._servers: dict[Address, list[asyncio.Task[None]]] = {}
         self._profiles: dict[Address, Profile] = {}
@@ -94,22 +98,23 @@ class ProxyServer:
             task.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
 
-    @classmethod
-    def _bind(cls, sock: socket.socket, sockaddr: Any, /) -> None:
+    def _bind(self, sock: socket.socket, sockaddr: Any, /) -> None:
         # Restarts don't wait for old connections in TIME_WAIT to free the port.
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if self._reuse_port:
+            # Linux shares the port only between sockets of the same user.
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         if sock.family == socket.AF_INET6:
             # [::] takes IPv6 only, so 0.0.0.0 on the same port can be listened on too.
             sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
         sock.bind(sockaddr)
-        sock.listen(cls.backlog)
+        sock.listen(self.backlog)
         sock.setblocking(False)
 
-    @classmethod
-    def _open_socket(cls, family: int, kind: int, proto: int, sockaddr: Any, /) -> socket.socket:
+    def _open_socket(self, family: int, kind: int, proto: int, sockaddr: Any, /) -> socket.socket:
         sock = socket.socket(family, kind, proto)
         try:
-            cls._bind(sock, sockaddr)
+            self._bind(sock, sockaddr)
         except OSError:
             sock.close()
             raise
