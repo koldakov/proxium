@@ -320,6 +320,7 @@ class ProxyRunner:
         self._rule_set_policy.update(self._rule_set_builder.build(policies))
 
     def run(self) -> None:
+        """Serve in a loop of its own until a signal. In a running loop, e.g. in tests, use `start` and `close`."""
         logging.basicConfig(level=self._log_level, format=LOG_FORMAT)
         try:
             uvloop.run(self._serve())
@@ -333,11 +334,26 @@ class ProxyRunner:
             logger.error("Can't start: %s", error)
             raise SystemExit(1) from None
 
-    async def _serve(self) -> None:
-        self._on_signal(self._stop.set)
+    async def start(self) -> None:
+        """Read the settings and policies, then listen. Returns once listening, `close` stops."""
         # Before listening, which the watchers start: every connection counts its traffic.
         self._traffic_observer.start()
         await self._watchers.start()
+
+    async def close(self) -> None:
+        """Stop listening, wait for open connections up to the graceful timeout, flush their traffic.
+
+        The database pool stays open: the caller owns `session_manager`.
+        """
+        # First: a change applied during the shutdown would listen again.
+        await self._watchers.close()
+        await self._server.shutdown(timeout=self._graceful_timeout)
+        # After the shutdown: closed connections have counted their last bytes.
+        await self._traffic_observer.close()
+
+    async def _serve(self) -> None:
+        self._on_signal(self._stop.set)
+        await self.start()
         await self._stop.wait()
 
         # A second signal cuts the graceful wait short.
@@ -345,11 +361,7 @@ class ProxyRunner:
             self._on_signal(task.cancel)
 
         logger.info("Shutting down, press Ctrl+C again to force")
-        # First: a change applied during the shutdown would listen again.
-        await self._watchers.close()
-        await self._server.shutdown(timeout=self._graceful_timeout)
-        # After the shutdown: closed connections have counted their last bytes.
-        await self._traffic_observer.close()
+        await self.close()
         await session_manager.close()
 
     def _on_signal(self, callback: Callable[[], object], /) -> None:

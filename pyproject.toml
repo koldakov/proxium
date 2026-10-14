@@ -26,9 +26,11 @@ dependencies = [
 [dependency-groups]
 dev = [
     "faker>=40.41.0",
+    "httpx[socks]>=0.28.1",
     "pre-commit>=4.6.2",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "pytest-bdd>=9.0.0",
     "pytest-cov>=7.1.0",
     "pytest-env>=1.7.1",
 ]
@@ -163,19 +165,30 @@ max-complexity = 10
 "test_*.py" = [
     "S101",
 ]
+# Then steps assert.
+"tests/acceptance/steps/*.py" = [
+    "S101",
+]
 
 [tool.pytest.ini_options]
 testpaths = [
     "tests",
 ]
 asyncio_mode = "auto"
+bdd_features_base_dir = "tests/acceptance/features"
 addopts = [
     "--cov",
     "--cov-report=term-missing",
 ]
-# Settings are read on import: values only to import modules, unit tests never reach the database.
+# Local test settings, never .env: see .env.test.template. Skipped where missing, e.g. in CI.
+env_files = [
+    ".env.test",
+]
+# Settings are read on import: values to import modules, unit tests never reach the database. These win over
+# .env.test, except DATABASE_URL (D:, a default only). Acceptance tests use its server but never its database: they
+# create test_<name> next to it, see tests/database.py.
 env = [
-    "DATABASE_URL=postgres://proxium:proxium@localhost:5432/proxium",
+    "D:DATABASE_URL=postgres://proxium:proxium@localhost:5432/proxium",
     "ENCRYPTION_KEY=EqgHPRUR0HwOyqh-nbzaGIrir3X2uHTf7gEL0CH8rWY=",
     "API_SECRET_KEY=unit-tests-secret-key-not-for-production",
 ]
@@ -185,6 +198,8 @@ source = [
     "proxium",
 ]
 branch = true
+# Paths relative to the repo: data from separate CI jobs combines into one report.
+relative_files = true
 
 [tool.coverage.report]
 # Abstract methods have no body to run.
