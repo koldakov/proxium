@@ -41,10 +41,14 @@ CI runs the checks and the tests on every push.
 ## Tests
 
 ```bash
-uv run pytest tests/unit        # no database
-uv run pytest tests/acceptance  # needs PostgreSQL and .env.test
-uv run pytest                   # both, with the combined coverage
+uv run pytest                            # everything, fails under 65% coverage
+uv run pytest tests/unit --no-cov        # no database
+uv run pytest tests/acceptance --no-cov  # needs PostgreSQL and .env.test
 ```
+
+The coverage threshold is for both suites together: a subset alone doesn't reach it, so run one with `--no-cov`.
+A known annoyance: without the flag, e.g. `uv run pytest tests/unit` fails on coverage though every test passes. If you
+know a clean way to check the threshold only on a full run, a pull request is welcome.
 
 ### Unit tests
 
@@ -75,7 +79,7 @@ Settings → Editor → Inspections → Gherkin → Undefined step: a missing st
 ### CI
 
 Unit tests run first, acceptance tests only once they pass, then their coverage is combined into one report in the
-run summary.
+run summary. The build fails if it's under the threshold.
 
 ## Code
 
