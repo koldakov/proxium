@@ -1,4 +1,6 @@
 name: Edge
+# Instead of the commit message, which GitHub shows under it anyway.
+run-name: Publish edge
 
 # Every push to main that passes the tests → the edge tag. Not a release: see release.yml.
 on:

@@ -1,4 +1,6 @@
 name: Test
+# Ignored when called: the caller's run name stays.
+run-name: Test ${{ github.ref_name }}
 
 on:
   # main runs it from edge.yml, releases from release.yml, before publishing the image.
