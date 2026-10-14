@@ -1,7 +1,7 @@
 name: Test
 
 on:
-  # main runs it from release.yml, before publishing the image.
+  # main runs it from edge.yml, releases from release.yml, before publishing the image.
   push:
     branches-ignore:
       - main

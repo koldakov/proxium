@@ -1,10 +1,7 @@
 name: Release
 
+# A published release → its version, major.minor and latest. Pushes to main go to edge, see edge.yml.
 on:
-  # main → the edge tag, a release → its version and latest. Both registries get the same image.
-  push:
-    branches:
-      - main
   release:
     types:
       - published
@@ -18,27 +15,17 @@ jobs:
     name: Test
     uses: ./.github/workflows/test.yml
 
-  publish:
-    name: Publish image
-    needs:
-      - test
+  check:
+    name: Check release
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    # A newer push to main replaces edge anyway, an older build mustn't overwrite it.
-    concurrency:
-      group: publish-${{ github.ref }}
-      cancel-in-progress: true
     steps:
-      # Full history: the release check below looks for the commit in main.
+      # Full history: the check below looks for the commit in main.
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
 
       - name: Check release commit is in main
-        if: github.event_name == 'release'
         run: |
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
             echo "Release commit $GITHUB_SHA isn't in main" >&2
@@ -46,7 +33,6 @@ jobs:
           fi
 
       - name: Check release tag matches project version
-        if: github.event_name == 'release'
         env:
           TAG: ${{ github.event.release.tag_name }}
         run: |
@@ -61,51 +47,20 @@ jobs:
             exit 1
           fi
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Pre-releases get only their version, latest stays on the last stable one.
-      - name: Image metadata
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        env:
-          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
-        with:
-          images: |
-            ${{ vars.DOCKERHUB_USERNAME }}/proxium
-            ghcr.io/${{ github.repository }}
-          tags: |
-            type=edge,branch=main
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}},enable=${{ !startsWith(github.event.release.tag_name, 'v0.') }}
-
-      - name: Build and push
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          annotations: ${{ steps.meta.outputs.annotations }}
-          provenance: mode=max
-          sbom: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+  publish:
+    name: Publish release
+    needs:
+      - test
+      - check
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/publish.yml
+    with:
+      # Pre-releases get only their version, latest stays on the last stable one. No major tag while 0.x.
+      tags: |
+        type=semver,pattern={{version}}
+        type=semver,pattern={{major}}.{{minor}}
+        type=semver,pattern={{major}},enable=${{ !startsWith(github.event.release.tag_name, 'v0.') }}
+    secrets:
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

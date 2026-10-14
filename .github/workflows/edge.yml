@@ -1,0 +1,33 @@
+name: Edge
+
+# Every push to main that passes the tests → the edge tag. Not a release: see release.yml.
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    uses: ./.github/workflows/test.yml
+
+  publish:
+    name: Publish edge
+    needs:
+      - test
+    permissions:
+      contents: read
+      packages: write
+    # A newer push replaces edge anyway, an older build mustn't overwrite it.
+    concurrency:
+      group: publish-edge
+      cancel-in-progress: true
+    uses: ./.github/workflows/publish.yml
+    with:
+      tags: |
+        type=edge,branch=main
+    secrets:
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
