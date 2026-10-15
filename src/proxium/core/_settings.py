@@ -1,8 +1,18 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, Self
 from urllib.parse import urlparse
 
 from cryptography.fernet import Fernet
-from pydantic import EmailStr, Field, PostgresDsn, SecretStr, StringConstraints, field_validator
+from pydantic import (
+    AnyUrl,
+    EmailStr,
+    Field,
+    PostgresDsn,
+    SecretStr,
+    StringConstraints,
+    UrlConstraints,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from ._listen_address import ListenAddress
@@ -109,6 +119,52 @@ class DatabaseSettings(BaseSettings):
 
 
 database_settings = DatabaseSettings()
+
+
+class RedisSettings(BaseSettings):
+    """Shared state of the instances, e.g. the migration lock. One for every process.
+
+    The password is apart from the URL: easier to pass from a secret, e.g. in Kubernetes.
+    """
+
+    # unix:// too: the bundled Redis of the Docker image listens on a socket only, like its PostgreSQL.
+    url: Annotated[
+        AnyUrl,
+        UrlConstraints(
+            allowed_schemes=["redis", "rediss", "unix"],
+        ),
+    ]
+    password: SecretStr | None = None
+    # Starts every key: several installations can share one Redis.
+    key_prefix: Annotated[
+        str,
+        Field(
+            min_length=1,
+        ),
+    ] = "proxium:"
+    # Connections of each process at most: a command beyond them fails, it doesn't wait.
+    pool_max_connections: Annotated[
+        int,
+        Field(
+            ge=1,
+        ),
+    ] = 100
+
+    model_config = SettingsConfigDict(
+        env_prefix="redis_",
+        # Errors would show the input, passwords included.
+        hide_input_in_errors=True,
+    )
+
+    @model_validator(mode="after")
+    def _check_password(self) -> Self:
+        # Two passwords: which one wins would be a guess.
+        if self.url.password is not None and self.password is not None:
+            raise ValueError("The password is both in REDIS_URL and REDIS_PASSWORD, keep one.")
+        return self
+
+
+redis_settings = RedisSettings()
 
 
 class EncryptionSettings(BaseSettings):
@@ -282,6 +338,7 @@ class Settings(BaseSettings):
     database: DatabaseSettings = database_settings
     encryption: EncryptionSettings = encryption_settings
     proxy: ProxySettings = proxy_settings
+    redis: RedisSettings = redis_settings
     superuser: SuperuserSettings = superuser_settings
 
 

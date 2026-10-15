@@ -15,6 +15,9 @@ x-shared-environment: &shared-environment
   # Unset: generated once into the secrets volume.
   ENCRYPTION_KEY:
   API_SECRET_KEY:
+  # Shared by both containers, e.g. they migrate on start one at a time.
+  REDIS_URL: redis://redis:6379/0
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-proxium}
 
 services:
   # Reached only inside the compose network, no published port.
@@ -27,6 +30,19 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-proxium}
     volumes:
       - database:/var/lib/postgresql/data
+
+  # Shared state of the instances, nothing to keep: no volume, no snapshots. Reached only inside the compose network.
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:-proxium}
+      - --save
+      - ""
+      - --appendonly
+      - "no"
 
   # The API and the admin UI. Starts first: generates the shared secrets, applies migrations.
   admin:
@@ -53,6 +69,7 @@ services:
       retries: 60
     depends_on:
       - database
+      - redis
 
   # The proxy, with the same secrets as the API.
   proxy:

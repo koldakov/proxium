@@ -18,6 +18,7 @@ from proxium.db import (
     BasicProxyAccountTrafficModel,
     TokenProxyAccountTrafficModel,
     TrustedNetworkTrafficModel,
+    redis_manager,
     session_manager,
 )
 from proxium.observers import TrafficObserver
@@ -343,7 +344,7 @@ class ProxyRunner:
     async def close(self) -> None:
         """Stop listening, wait for open connections up to the graceful timeout, flush their traffic.
 
-        The database pool stays open: the caller owns `session_manager`.
+        The database and Redis pools stay open: the caller owns `session_manager` and `redis_manager`.
         """
         # First: a change applied during the shutdown would listen again.
         await self._watchers.close()
@@ -362,6 +363,7 @@ class ProxyRunner:
 
         logger.info("Shutting down, press Ctrl+C again to force")
         await self.close()
+        await redis_manager.close()
         await session_manager.close()
 
     def _on_signal(self, callback: Callable[[], object], /) -> None:

@@ -31,6 +31,9 @@ uv run --env-file .env proxium-manage migrate
 uv run --env-file .env proxium-manage migrate --wait 60   # wait up to 60s for the database to start
 ```
 
+It holds a lock in [Redis](configuration.md#redis) meanwhile: of several instances starting at once one migrates, the
+others wait for it, then find nothing to migrate. A lock left by a crashed instance expires within 10 minutes.
+
 Set a new password for any user, e.g. a forgotten one, it prompts for it twice:
 
 ```bash

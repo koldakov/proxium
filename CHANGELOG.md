@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Redis, `REDIS_URL`, `REDIS_PASSWORD`, `REDIS_KEY_PREFIX` and `REDIS_POOL_MAX_CONNECTIONS`: shared state of the
+  instances. The Docker image runs its own without `REDIS_URL`, the compose example runs one next to it.
+- `proxium-manage migrate` holds a lock in Redis: instances starting at once migrate one at a time.
+
+### Changed
+
+- Redis is required. Outside the Docker image, set `REDIS_URL` before upgrading.
+
 ## [0.1.1] - 2026-10-13
 
 ### Added

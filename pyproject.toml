@@ -19,6 +19,7 @@ dependencies = [
     "pydantic-settings>=2.15.0",
     "pydantic[email]>=2.13.5",
     "pyjwt>=2.15.0",
+    "redis>=8.1.0",
     "sqlalchemy>=2.0.54",
     "uvloop>=0.22.1",
 ]
@@ -189,6 +190,9 @@ env_files = [
 # create test_<name> next to it, see tests/database.py.
 env = [
     "D:DATABASE_URL=postgres://proxium:proxium@localhost:5432/proxium",
+    # The same for Redis: tests take keys under test_<REDIS_KEY_PREFIX>, see tests/redis_keys.py.
+    "D:REDIS_URL=redis://localhost:6379/0",
+    "D:REDIS_KEY_PREFIX=proxium:",
     "ENCRYPTION_KEY=EqgHPRUR0HwOyqh-nbzaGIrir3X2uHTf7gEL0CH8rWY=",
     "API_SECRET_KEY=unit-tests-secret-key-not-for-production",
 ]
