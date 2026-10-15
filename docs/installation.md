@@ -4,7 +4,7 @@ Proxium runs as one Docker image or from source.
 
 ## Docker
 
-One image runs everything: the proxy, the API, the admin UI and PostgreSQL. State lives in one volume.
+One image runs everything: the proxy, the API, the admin UI, PostgreSQL and Redis. State lives in one volume.
 
 The image is `ikoldakov/proxium` on Docker Hub and `ghcr.io/koldakov/proxium` on GitHub, for amd64 and arm64.
 `latest` is the last release, a version like `0.1.0` pins it, `edge` is the current `main`, not released yet.
@@ -76,11 +76,12 @@ docker run -d --name proxium --network host -e PROXY_LISTEN=10.0.0.0/29:10000-10
 Linux only: Docker Desktop on macOS and Windows runs containers in a VM, they don't see the computer's IPs even
 with `--network host`. Run proxium without Docker there, see [From source](#from-source).
 
-### Own database and secrets
+### Own database, Redis and secrets
 
 | Want | Add |
 |---|---|
 | Own PostgreSQL | `-e DATABASE_URL=postgres://user:password@db.example.com:5432/proxium` |
+| Own Redis | `-e REDIS_URL=redis://redis.example.com:6379/0 -e REDIS_PASSWORD=...` |
 | Own keys | `-e ENCRYPTION_KEY=... -e API_SECRET_KEY=...`, else generated once and kept in the volume |
 
 Every variable from [Configuration](configuration.md) works with `-e`, Docker-only ones are under [Docker](configuration.md#docker).
@@ -88,7 +89,8 @@ Give `docker stop` time for open connections: `--stop-timeout 40`.
 
 ### Separate containers
 
-`docker/compose.yaml` runs the same image as three containers: PostgreSQL, the API with the admin UI, and the proxy.
+`docker/compose.yaml` runs the same image as two containers, the API with the admin UI and the proxy, next to
+PostgreSQL and Redis.
 They share the secrets, settings come from the environment as with `docker run`:
 
 ```bash
@@ -115,7 +117,7 @@ docker exec -it proxium proxium-manage changepassword admin@example.com
 
 ## From source
 
-Requirements: Python 3.14+, [uv](https://docs.astral.sh/uv/), PostgreSQL.
+Requirements: Python 3.14+, [uv](https://docs.astral.sh/uv/), PostgreSQL, Redis.
 
 ```bash
 git clone https://github.com/koldakov/proxium.git

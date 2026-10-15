@@ -1,5 +1,5 @@
 #!/command/with-contenv sh
-# Fills in what wasn't passed: services, secrets kept in the volume, the bundled database.
+# Fills in what wasn't passed: services, secrets kept in the volume, the bundled database and Redis.
 set -eu
 . /etc/s6-overlay/scripts/common.sh
 
@@ -60,4 +60,12 @@ if [ -z "${DATABASE_URL:-}" ]; then
   set_env DATABASE_URL "postgresql://proxium@localhost/proxium?host=/run/postgresql"
 else
   set_env PROXIUM_DATABASE external
+fi
+
+# No REDIS_URL: the bundled Redis, reached over its socket in /run/proxium, no password.
+if [ -z "${REDIS_URL:-}" ]; then
+  set_env PROXIUM_REDIS bundled
+  set_env REDIS_URL "unix:///run/proxium/redis.sock"
+else
+  set_env PROXIUM_REDIS external
 fi

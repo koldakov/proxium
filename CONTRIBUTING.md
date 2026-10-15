@@ -43,7 +43,7 @@ CI runs the checks and the tests on every push.
 ```bash
 uv run pytest                            # everything, fails under 65% coverage
 uv run pytest tests/unit --no-cov        # no database
-uv run pytest tests/acceptance --no-cov  # needs PostgreSQL and .env.test
+uv run pytest tests/acceptance --no-cov  # needs PostgreSQL, Redis and .env.test
 ```
 
 The coverage threshold is for both suites together: a subset alone doesn't reach it, so run one with `--no-cov`.
@@ -58,12 +58,13 @@ database.
 ### Acceptance tests
 
 Scenarios in plain English in `tests/acceptance/features`, run by [pytest-bdd](https://pytest-bdd.readthedocs.io/)
-against a real proxy and PostgreSQL. Steps live in `tests/acceptance/steps`, shared by every feature; async ones are
+against a real proxy, PostgreSQL and Redis. Steps live in `tests/acceptance/steps`, shared by every feature; async ones are
 wrapped in `@async_step`.
 
 Local setup, once:
 
-1. Copy `.env.test.template` to `.env.test` and set `DATABASE_URL`. pytest reads only `.env.test`, never `.env`.
+1. Copy `.env.test.template` to `.env.test` and set `DATABASE_URL`, and `REDIS_URL` unless Redis is on
+   `localhost:6379`. pytest reads only `.env.test`, never `.env`.
 2. Let that user create databases:
 
    ```bash
@@ -71,7 +72,8 @@ Local setup, once:
    ```
 
 The tests use the server from `DATABASE_URL`, but never its database: they create `test_<name>` next to it and drop
-it after the run. Your data is never touched.
+it after the run. Your data is never touched. In Redis they take and drop keys only under
+`test_proxium:`, never an instance's. No Redis yet: `docker run -d -p 6379:6379 redis:8-alpine`.
 
 PyCharm resolves steps from `.feature` files only in the Professional edition. In the free one, turn off
 Settings → Editor → Inspections → Gherkin → Undefined step: a missing step fails the test anyway.

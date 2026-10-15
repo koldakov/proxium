@@ -1,0 +1,17 @@
+#!/command/with-contenv sh
+set -eu
+. /etc/s6-overlay/scripts/common.sh
+
+if [ "$PROXIUM_REDIS" != bundled ]; then
+  stay_down
+fi
+
+# No TCP: only the socket, for the services in this container. Only proxium may open it, so no password.
+# Nothing to keep: no snapshots.
+exec s6-setuidgid proxium redis-server \
+  --port 0 \
+  --unixsocket /run/proxium/redis.sock \
+  --unixsocketperm 700 \
+  --dir /run/proxium \
+  --save "" \
+  --appendonly no

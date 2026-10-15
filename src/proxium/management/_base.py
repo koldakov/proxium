@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, ClassVar, TextIO
 
 import uvloop
 
-from proxium.db import session_manager
+from proxium.db import redis_manager, session_manager
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -65,7 +65,7 @@ class BaseCommand(ABC):
 
 
 class BaseAsyncCommand(BaseCommand, ABC):
-    """A command with async `ahandle`, e.g. for the database. `session_manager` is closed once it returns."""
+    """A command with async `ahandle`, e.g. for the database. The database and Redis pools close once it returns."""
 
     @abstractmethod
     async def ahandle(self, args: Namespace, /) -> None:
@@ -81,6 +81,7 @@ class BaseAsyncCommand(BaseCommand, ABC):
         try:
             await self.ahandle(args)
         finally:
+            await redis_manager.close()
             await session_manager.close()
 
 

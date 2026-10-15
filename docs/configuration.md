@@ -20,6 +20,19 @@ Read by the proxy, the API and the management commands.
 | `DATABASE_POOL_MAX_OVERFLOW` | Extra connections under load, default `10` |
 | `DATABASE_POOL_TIMEOUT` | Seconds to wait for a free connection, default `30` |
 | `DATABASE_POOL_RECYCLE` | Seconds after which a connection is replaced, default `-1` (never) |
+| `REDIS_URL` | Redis URL, e.g. `redis://host:6379/0`, `rediss://` for TLS or `unix:///path/redis.sock`. See below |
+| `REDIS_PASSWORD` | Redis password, if it's not in `REDIS_URL` |
+| `REDIS_KEY_PREFIX` | Starts every key, default `proxium:`. Different ones let several installations share one Redis |
+| `REDIS_POOL_MAX_CONNECTIONS` | Connections each process opens at most, default `100`. A command beyond them fails |
+
+### Redis
+
+Required, like PostgreSQL: instances on one database share their state in it, e.g. the migration lock, see
+[Management commands](management.md). The Docker image runs its own Redis when `REDIS_URL` isn't set.
+
+- The password goes either in the URL or in `REDIS_PASSWORD`, both is an error. Separate, it's easier to pass from a
+  secret, e.g. in Kubernetes.
+- If Redis doesn't answer, what needs it fails. Nothing goes on without it.
 
 ## Proxy
 
@@ -65,8 +78,9 @@ Without `--no-input` these are ignored: `createsuperuser` always prompts.
 
 ## Docker
 
-Read only by the [image](installation.md#docker). There `DATABASE_URL`, `ENCRYPTION_KEY` and `API_SECRET_KEY` are
-optional: unset, the bundled PostgreSQL runs and the keys are generated once, all kept in the volume.
+Read only by the [image](installation.md#docker). There `DATABASE_URL`, `REDIS_URL`, `ENCRYPTION_KEY` and
+`API_SECRET_KEY` are optional: unset, the bundled PostgreSQL and Redis run and the keys are generated once, all kept
+in the volume. Redis keeps nothing: it starts empty each time.
 
 | Variable | Description |
 |---|---|

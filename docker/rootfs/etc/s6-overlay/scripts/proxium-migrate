@@ -8,7 +8,8 @@ if ! service_enabled proxy && ! service_enabled api; then
   exit 0
 fi
 
-# Enough for the bundled database to start, or an external one to come up next to it.
+# Enough for the bundled database to start, or an external one to come up next to it. Under a lock in Redis:
+# containers starting at once migrate one at a time.
 s6-setuidgid proxium proxium-manage migrate --wait 60
 if [ "$SUPERUSER_CREATE" = true ]; then
   # Fails without the email or the password. Later starts skip the existing user.

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi_pagination import add_pagination
 
 from proxium.core import api_settings
-from proxium.db import session_manager
+from proxium.db import redis_manager, session_manager
 from proxium.utils import metadata
 
 from .routes import api_router
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class ProxiumAPI(FastAPI):
-    """FastAPI with the Proxium routers and the database pool closed on shutdown."""
+    """FastAPI with the Proxium routers, the database and Redis pools closed on shutdown."""
 
     def __init__(self, *, cors_origins: Sequence[str] = (), **kwargs: Any) -> None:
         # Before `super().__init__`: it calls `setup`, which reads them.
@@ -31,6 +31,7 @@ class ProxiumAPI(FastAPI):
     @asynccontextmanager
     async def _lifespan(self, _: Self, /) -> AsyncIterator[None]:
         yield
+        await redis_manager.close()
         await session_manager.close()
 
     def _setup_cors(self) -> None:

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# All in one image: the proxy, the API, the admin UI on Caddy and a bundled PostgreSQL, run by s6-overlay.
+# All in one image: the proxy, the API, the admin UI on Caddy, a bundled PostgreSQL and Redis, run by s6-overlay.
 # Usage: docs/installation.md. Start scripts: docker/rootfs.
 
 ARG S6_OVERLAY_VERSION=3.2.1.0
@@ -85,6 +85,7 @@ RUN mkdir -p /etc/postgresql-common \
     && apt-get update \
     && apt-get install --yes --no-install-recommends \
         "postgresql-$POSTGRES_VERSION" \
+        redis-server \
         # Time zones for the schedule condition of policies.
         tzdata \
         libcap2-bin \

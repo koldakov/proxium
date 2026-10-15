@@ -43,7 +43,7 @@ curl -x http://username:password@localhost:8080 https://ifconfig.me
 curl -x socks5h://username:password@localhost:8080 https://ifconfig.me
 ```
 
-One image runs the proxy, the API, the admin UI and PostgreSQL, for amd64 and arm64. Own certificates, own
+One image runs the proxy, the API, the admin UI, PostgreSQL and Redis, for amd64 and arm64. Own certificates, own
 database, separate containers and running from source: see [Installation](docs/installation.md).
 
 ## Admin panel
@@ -151,6 +151,7 @@ and an API:
 | **API** | REST API over the database for the admin UI and your scripts | `proxium-api` |
 | **Admin UI** | Web interface for admins, talks only to the API | static files behind Caddy |
 | **PostgreSQL** | Single source of truth: accounts, policies, certificates, traffic | bundled or your own |
+| **Redis** | Shared state of the instances, e.g. the migration lock | bundled or your own |
 
 Connections don't query the database each time: authentication and the TLS certificate come from the cache,
 settings and policies from memory refreshed every few seconds, traffic is written in batches about once a minute.

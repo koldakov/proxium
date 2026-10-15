@@ -32,6 +32,7 @@ from ._policies import (
     TrustedNetworkPolicyModel,
 )
 from ._proxy_accounts import BaseProxyAccountModel, BasicProxyAccountModel, TokenProxyAccountModel
+from ._redis import RedisManager, redis_manager
 from ._session import SessionClosedError, SessionManager, session_manager
 from ._settings import SettingsModel
 from ._traffic import (
@@ -74,6 +75,7 @@ __all__ = [
     "PolicySpeedLimitModel",
     "PolicyTrafficQuotaModel",
     "QuotaPeriod",
+    "RedisManager",
     "SessionClosedError",
     "SessionManager",
     "SettingsModel",
@@ -88,5 +90,6 @@ __all__ = [
     "UserGroupModel",
     "UserModel",
     "UserPermissionModel",
+    "redis_manager",
     "session_manager",
 ]
