@@ -41,7 +41,7 @@ CI runs the checks and the tests on every push.
 ## Tests
 
 ```bash
-uv run pytest                            # everything, fails under 65% coverage
+uv run pytest                            # everything, fails under 85% coverage
 uv run pytest tests/unit --no-cov        # no database
 uv run pytest tests/acceptance --no-cov  # needs PostgreSQL, Redis and .env.test
 ```
