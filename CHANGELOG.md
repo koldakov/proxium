@@ -17,6 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Redis is required. Outside the Docker image, set `REDIS_URL` before upgrading.
 
+### Fixed
+
+- Deleting an outgoing IP that is in a pool, or a trusted network with traffic, answers 409 instead of 500.
+
 ## [0.1.1] - 2026-10-13
 
 ### Added

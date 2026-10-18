@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from asyncpg import RestrictViolationError
+from asyncpg import ForeignKeyViolationError
 from fastapi import HTTPException, status
 from sqlalchemy import Delete, Result, Select, delete, select
 from sqlalchemy.exc import IntegrityError, NoResultFound
@@ -49,7 +49,7 @@ class DeleteTrustedNetworkService(BaseUserAuthenticatedService[None]):
         try:
             await self.session.commit()
         except IntegrityError as err:
-            if err.orig.sqlstate == RestrictViolationError.sqlstate:
+            if err.orig.sqlstate == ForeignKeyViolationError.sqlstate:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Network has traffic, turn it off instead.",
