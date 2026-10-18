@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import ssl
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Final
 
 import httpx
@@ -15,6 +16,7 @@ from proxium.db import (
     GroupPermissionModel,
     Hash,
     Permission,
+    TrustedNetworkTrafficModel,
     UserGroupModel,
     UserModel,
     UserPermissionModel,
@@ -184,6 +186,21 @@ async def _(api_client: ApiClient, alias: str, path: str, docstring: str) -> Non
 async def _(api_client: ApiClient, method: str, path: str) -> None:
     response = await api_client.send(method, _format_path(api_client, path))
     assert response.is_success, response.text
+
+
+@given(parsers.parse('the network "{alias}" has traffic'))
+@async_step
+async def _(faker: Faker, api_client: ApiClient, alias: str) -> None:
+    """Today's, as the proxy writes it."""
+    traffic = TrustedNetworkTrafficModel(
+        trusted_network_id=api_client.items[alias]["id"],
+        day=datetime.now(UTC).date(),
+        bytes_sent=faker.pyint(min_value=1),
+        bytes_received=faker.pyint(min_value=1),
+    )
+    async with session_manager.session() as session:
+        session.add(traffic)
+        await session.commit()
 
 
 @given(parsers.parse('a self-signed certificate "{alias}" for "{name}"'))

@@ -73,6 +73,15 @@ Feature: Trusted networks in the API
     When the admin sends GET "/api/trusted-networks/${office.id}"
     Then the API answers 404
 
+  Scenario: A network with traffic stays: its history is kept
+    Given the admin added "office" at "/api/trusted-networks":
+      """
+      {"name": "Office", "network": "10.0.0.0/8"}
+      """
+    And the network "office" has traffic
+    When the admin sends DELETE "/api/trusted-networks/${office.id}"
+    Then the API answers 409
+
   Scenario: A network can't be trusted twice
     Given the admin added "office" at "/api/trusted-networks":
       """

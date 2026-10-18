@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from asyncpg import RestrictViolationError
+from asyncpg import ForeignKeyViolationError
 from fastapi import HTTPException, status
 from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import IntegrityError, NoResultFound
@@ -36,7 +36,7 @@ class DeleteOutgoingIPService(BaseUserAuthenticatedService[None]):
         try:
             await self.session.commit()
         except IntegrityError as err:
-            if err.orig.sqlstate == RestrictViolationError.sqlstate:
+            if err.orig.sqlstate == ForeignKeyViolationError.sqlstate:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="IP is in pools, take it out of them first.",
