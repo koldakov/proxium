@@ -61,6 +61,13 @@ Scenarios in plain English in `tests/acceptance/features`, run by [pytest-bdd](h
 against a real proxy, PostgreSQL and Redis. Steps live in `tests/acceptance/steps`, shared by every feature; async ones are
 wrapped in `@async_step`.
 
+API scenarios send requests to the app in process, with JSON in docstrings. A step keeps an answer under a name, and
+`${office.id}` refers to its field later, deeper by dots, e.g. `${plan.rules.0.id}`: as text in a path, as a JSON value
+in a body.
+
+Scenarios on outgoing IPs need a second loopback address, `127.0.0.2`: Linux has it, macOS doesn't, so they're skipped
+there. To run them on macOS: `sudo ifconfig lo0 alias 127.0.0.2`.
+
 Local setup, once:
 
 1. Copy `.env.test.template` to `.env.test` and set `DATABASE_URL`, and `REDIS_URL` unless Redis is on

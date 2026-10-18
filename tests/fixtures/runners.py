@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import socket
-from ipaddress import IPv4Address, IPv4Network
+from ipaddress import IPv4Address, IPv4Network, ip_address
 from typing import TYPE_CHECKING
 
 import pytest
@@ -20,6 +20,15 @@ if TYPE_CHECKING:
     from faker import Faker
 
 LOOPBACK: IPv4Address = IPv4Address("127.0.0.1")
+# Another address of this host: Linux has all of 127.0.0.0/8 on loopback, macOS only 127.0.0.1.
+SECOND_LOOPBACK: IPv4Address = IPv4Address("127.0.0.2")
+
+
+def _get_free_port(host: IPv4Address, /) -> int:
+    with socket.socket() as sock:
+        sock.bind((str(host), 0))
+        _, port = sock.getsockname()
+    return port
 
 
 async def _allow_loopback() -> None:
@@ -75,10 +84,24 @@ async def proxy_caches(faker: Faker, cache_key: bytes, cache_ttls: CacheTtlsSnap
 @pytest.fixture
 def proxy_address() -> Address:
     """A free port on loopback. Taken by someone else before the proxy listens, the proxy fails with `ListenError`."""
+    return Address(str(LOOPBACK), _get_free_port(LOOPBACK))
+
+
+@pytest.fixture
+def second_address() -> IPv4Address:
+    """Another loopback address of this host, the test is skipped where there's none, see `SECOND_LOOPBACK`."""
     with socket.socket() as sock:
-        sock.bind((str(LOOPBACK), 0))
-        _, port = sock.getsockname()
-    return Address(str(LOOPBACK), port)
+        try:
+            sock.bind((str(SECOND_LOOPBACK), 0))
+        except OSError:
+            pytest.skip(f"{SECOND_LOOPBACK} isn't on this host.")
+    return SECOND_LOOPBACK
+
+
+@pytest.fixture
+def second_proxy_address(second_address: IPv4Address) -> Address:
+    """A free port on the second address, like `proxy_address`."""
+    return Address(str(second_address), _get_free_port(second_address))
 
 
 @pytest.fixture
@@ -88,8 +111,9 @@ def running_proxy(loop_runner: asyncio.Runner, database: None, proxy_address: Ad
     Loopback is allowed in the settings: test websites run there.
     """
     loop_runner.run(_allow_loopback())
+    host = ip_address(proxy_address.host)
     runner = ProxyRunner(
-        listen=[ListenAddress(hosts=[LOOPBACK], ports=range(proxy_address.port, proxy_address.port + 1))],
+        listen=[ListenAddress(hosts=[host], ports=range(proxy_address.port, proxy_address.port + 1))],
         # Off: a port taken by mistake must fail, not be shared.
         reuse_port=False,
         # Clients are done by the teardown, a connection still open is a leak: cut it.

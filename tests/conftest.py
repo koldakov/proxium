@@ -10,6 +10,8 @@ os.environ["REDIS_KEY_PREFIX"] = get_test_key_prefix(os.environ["REDIS_KEY_PREFI
 # Fixtures live in modules by topic, registered here: pytest takes `pytest_plugins` only from the root conftest.
 # Acceptance steps too: pytest-bdd makes them fixtures.
 pytest_plugins = [
+    "tests.fixtures.api",
+    "tests.fixtures.clients",
     "tests.fixtures.database",
     "tests.fixtures.management",
     "tests.fixtures.policies",
@@ -17,6 +19,11 @@ pytest_plugins = [
     "tests.fixtures.runners",
     "tests.fixtures.users",
     "tests.fixtures.websites",
+    "tests.acceptance.steps.api",
+    "tests.acceptance.steps.certificates",
     "tests.acceptance.steps.management",
+    "tests.acceptance.steps.outgoing_ips",
+    "tests.acceptance.steps.policies",
     "tests.acceptance.steps.proxy",
+    "tests.acceptance.steps.trusted_networks",
 ]
