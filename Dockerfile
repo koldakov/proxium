@@ -89,7 +89,9 @@ RUN mkdir -p /etc/postgresql-common \
         # Time zones for the schedule condition of policies.
         tzdata \
         libcap2-bin \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    # The app runs from its venv: the base image's pip and its vendored packages are only scanner findings.
+    && pip uninstall --yes pip
 
 # Not root, yet on ports 80 and 443.
 COPY --from=caddy:2 /usr/bin/caddy /usr/bin/caddy
