@@ -73,6 +73,32 @@ Feature: Trusted networks in the API
     When the admin sends GET "/api/trusted-networks/${office.id}"
     Then the API answers 404
 
+  Scenario: A network with a pool and a policy is deleted, the IP and the policy stay
+    Given the admin added "exit" at "/api/outgoing-ips":
+      """
+      {"name": "Exit", "ip": "203.0.113.10"}
+      """
+    And the admin added "plan" at "/api/policies":
+      """
+      {"name": "Plan"}
+      """
+    And the admin added "office" at "/api/trusted-networks":
+      """
+      {
+        "name": "Office",
+        "network": "10.0.0.0/8",
+        "outgoingMode": "pool",
+        "outgoingIpIds": [${exit.id}],
+        "policyIds": [${plan.id}]
+      }
+      """
+    When the admin sends DELETE "/api/trusted-networks/${office.id}"
+    Then the API answers 204
+    When the admin sends GET "/api/outgoing-ips/${exit.id}"
+    Then the API answers 200
+    When the admin sends GET "/api/policies/${plan.id}"
+    Then the API answers 200
+
   Scenario: A network with traffic stays: its history is kept
     Given the admin added "office" at "/api/trusted-networks":
       """

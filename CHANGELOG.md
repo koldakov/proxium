@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Deleting an outgoing IP that is in a pool, or a trusted network with traffic, answers 409 instead of 500.
+- A trusted network with policies can be deleted: its policy assignments go with it, the policies stay.
 
 ## [0.1.1] - 2026-10-13
 

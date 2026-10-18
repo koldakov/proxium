@@ -6,13 +6,14 @@ from sqlalchemy import Delete, Result, Select, delete, select
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from proxium.api.services import BaseUserAuthenticatedService
-from proxium.db import Permission, TrustedNetworkModel, TrustedNetworkOutgoingIPModel
+from proxium.db import Permission, TrustedNetworkModel, TrustedNetworkOutgoingIPModel, TrustedNetworkPolicyModel
 
 
 class DeleteTrustedNetworkService(BaseUserAuthenticatedService[None]):
     """New connections from the network need credentials again. Open ones are never cut.
 
-    A network with traffic stays: its history is kept, turn it off instead. Its outgoing IP pool goes, the IPs stay.
+    A network with traffic stays: its history is kept, turn it off instead. Its outgoing IP pool and policy assignments
+    go, the IPs and policies stay.
     """
 
     required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.TRUSTED_NETWORKS_DELETE})
@@ -28,6 +29,10 @@ class DeleteTrustedNetworkService(BaseUserAuthenticatedService[None]):
     def _clear_pool_statement(self) -> Delete:
         return delete(TrustedNetworkOutgoingIPModel).where(TrustedNetworkOutgoingIPModel.trusted_network_id == self.id)
 
+    @property
+    def _clear_policies_statement(self) -> Delete:
+        return delete(TrustedNetworkPolicyModel).where(TrustedNetworkPolicyModel.trusted_network_id == self.id)
+
     async def _lock_network(self) -> TrustedNetworkModel:
         result: Result[tuple[TrustedNetworkModel]] = await self.session.execute(self._lock_network_statement)
         try:
@@ -41,8 +46,10 @@ class DeleteTrustedNetworkService(BaseUserAuthenticatedService[None]):
     async def process(self, *args, **kwargs) -> None:
         network: TrustedNetworkModel = await self._lock_network()
 
-        # In one statement, nothing is loaded. Rolled back with the network if it has traffic.
+        # In one statement each, nothing is loaded. Rolled back with the network if it has traffic: the only reference
+        # left, so a foreign key violation means it.
         await self.session.execute(self._clear_pool_statement)
+        await self.session.execute(self._clear_policies_statement)
         await self.session.delete(network)
 
         # Checking the traffic first would race with the proxy writing it.
