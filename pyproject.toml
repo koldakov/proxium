@@ -214,7 +214,7 @@ skip_covered = true
 skip_empty = true
 # Of unit and acceptance tests together: a plain `pytest` checks it, CI checks the combined data. A subset alone
 # doesn't reach it: run it with --no-cov.
-fail_under = 65
+fail_under = 85
 
 [tool.mypy]
 python_version = "3.14"
