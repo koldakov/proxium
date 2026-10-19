@@ -2,6 +2,19 @@
 
 Proxium runs as one Docker image or from source.
 
+## Supported versions
+
+| | Supported | Docker image | Compose example |
+|---|---|---|---|
+| PostgreSQL | 17, 18 | 17 | 17 |
+| Redis | 8 | 8, from its Debian base | 8 |
+
+Every supported version runs the full test suite in CI. Your own database or Redis, e.g. a managed one, works on
+any of them. PostgreSQL 13 to 16 should work too, nothing newer is used, but they aren't tested.
+
+The image keeps PostgreSQL data in its volume, and a new major version can't read an older one's data. So the
+bundled PostgreSQL changes only in a release that comes with an upgrade guide.
+
 ## Docker
 
 One image runs everything: the proxy, the API, the admin UI, PostgreSQL and Redis. State lives in one volume.
@@ -117,7 +130,8 @@ docker exec -it proxium proxium-manage changepassword admin@example.com
 
 ## From source
 
-Requirements: Python 3.14+, [uv](https://docs.astral.sh/uv/), PostgreSQL, Redis.
+Requirements: Python 3.14+, [uv](https://docs.astral.sh/uv/), PostgreSQL and Redis of the
+[supported versions](#supported-versions).
 
 ```bash
 git clone https://github.com/koldakov/proxium.git
