@@ -152,12 +152,13 @@ class ProxyRunner:
         signal.SIGTERM,
     )
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         listen: Sequence[ListenAddress] = proxy_settings.listen,
         graceful_timeout: float = proxy_settings.graceful_timeout,
         reuse_port: bool = proxy_settings.reuse_port,
+        backlog: int = proxy_settings.backlog,
         log_level: LogLevel = proxy_settings.log_level,
         settings_poll_interval: float = proxy_settings.settings_poll_interval,
     ) -> None:
@@ -217,7 +218,7 @@ class ProxyRunner:
         self._graceful_timeout: float = graceful_timeout
         self._listen: Sequence[ListenAddress] = listen
 
-        self._server: ProxyServer = ProxyServer(reuse_port=reuse_port)
+        self._server: ProxyServer = ProxyServer(reuse_port=reuse_port, backlog=backlog)
         self._stop: asyncio.Event = asyncio.Event()
 
     def _create_authenticator(self, ttls: CacheTtlsSnapshot, /) -> Authenticator:
