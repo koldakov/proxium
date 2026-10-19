@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `proxium-manage migrate` holds a lock in Redis: instances starting at once migrate one at a time.
 - `PROXY_BACKLOG`: the queue of connections waiting to be accepted, `1024` by default instead of a fixed `100`.
   Bursts of new connections no longer stall for seconds.
+- Supported versions in the docs: PostgreSQL 17 and 18, Redis 8, each tested in CI.
 
 ### Changed
 
@@ -21,7 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-- Deleting an outgoing IP that is in a pool, or a trusted network with traffic, answers 409 instead of 500.
+- Deleting an outgoing IP that is in a pool, or a trusted network with traffic, answers 409 instead of 500, on
+  PostgreSQL 17 and 18 alike.
 - A trusted network with policies can be deleted: its policy assignments go with it, the policies stay.
 - The Docker image has no pip: its vendored urllib3, msgpack and setuptools carried known vulnerabilities.
 

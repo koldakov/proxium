@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from asyncpg import ForeignKeyViolationError
+from asyncpg import ForeignKeyViolationError, RestrictViolationError
 from fastapi import HTTPException, status
 from sqlalchemy import Result, Select, select
 from sqlalchemy.exc import IntegrityError, NoResultFound
@@ -36,7 +36,8 @@ class DeleteOutgoingIPService(BaseUserAuthenticatedService[None]):
         try:
             await self.session.commit()
         except IntegrityError as err:
-            if err.orig.sqlstate == ForeignKeyViolationError.sqlstate:
+            # Postgres 18 reports ON DELETE RESTRICT as restrict_violation, older ones as foreign_key_violation.
+            if err.orig.sqlstate in {ForeignKeyViolationError.sqlstate, RestrictViolationError.sqlstate}:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="IP is in pools, take it out of them first.",

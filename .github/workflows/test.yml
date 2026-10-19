@@ -94,14 +94,21 @@ jobs:
           retention-days: 1
 
   acceptance-tests:
-    name: Acceptance tests
+    name: Acceptance tests (PostgreSQL ${{ matrix.postgres }})
     # Slower and need a database: only once unit tests pass.
     needs: unit-tests
     runs-on: ubuntu-latest
+    # Every supported major version, see docs/installation.md: only what runs here is supported.
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres:
+          - "17"
+          - "18"
     # The tests create and drop their own database on it, test_proxium, see tests/database.py.
     services:
       postgres:
-        image: postgres:17
+        image: postgres:${{ matrix.postgres }}
         env:
           POSTGRES_USER: proxium
           POSTGRES_PASSWORD: proxium
@@ -142,7 +149,8 @@ jobs:
 
       - name: Run acceptance tests
         env:
-          COVERAGE_FILE: .coverage.acceptance
+          # Apart per version: the artifacts are merged into one directory before combining.
+          COVERAGE_FILE: .coverage.acceptance.postgres-${{ matrix.postgres }}
         run: >-
           uv
           run
@@ -153,8 +161,8 @@ jobs:
       - name: Upload coverage data
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: coverage-acceptance
-          path: .coverage.acceptance
+          name: coverage-acceptance-postgres-${{ matrix.postgres }}
+          path: .coverage.acceptance.postgres-${{ matrix.postgres }}
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
