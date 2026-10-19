@@ -27,15 +27,17 @@ class ProxyServer:
     since a TLS handshake needs the bytes a stream would have already read.
     """
 
-    backlog: ClassVar[int] = 100
     # Seconds to wait after a failed accept, e.g. out of file descriptors, instead of failing again at once.
     accept_retry_delay: ClassVar[float] = 1.0
 
-    def __init__(self, *, reuse_port: bool = True) -> None:
+    def __init__(self, *, reuse_port: bool = True, backlog: int = 1024) -> None:
         """`reuse_port` lets another process listen on the same ports, e.g. a new version started before the old one
         stops: the kernel spreads new connections between them. Off, a taken port fails with `ListenError`.
+
+        `backlog` is the queue of connections waiting to be accepted on each socket, capped by the kernel.
         """
         self._reuse_port: bool = reuse_port
+        self._backlog: int = backlog
         # Accept loops of every address, one per socket it resolves to.
         self._servers: dict[Address, list[asyncio.Task[None]]] = {}
         self._profiles: dict[Address, Profile] = {}
@@ -108,7 +110,7 @@ class ProxyServer:
             # [::] takes IPv6 only, so 0.0.0.0 on the same port can be listened on too.
             sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
         sock.bind(sockaddr)
-        sock.listen(self.backlog)
+        sock.listen(self._backlog)
         sock.setblocking(False)
 
     def _open_socket(self, family: int, kind: int, proto: int, sockaddr: Any, /) -> socket.socket:

@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Redis, `REDIS_URL`, `REDIS_PASSWORD`, `REDIS_KEY_PREFIX` and `REDIS_POOL_MAX_CONNECTIONS`: shared state of the
   instances. The Docker image runs its own without `REDIS_URL`, the compose example runs one next to it.
 - `proxium-manage migrate` holds a lock in Redis: instances starting at once migrate one at a time.
+- `PROXY_BACKLOG`: the queue of connections waiting to be accepted, `1024` by default instead of a fixed `100`.
+  Bursts of new connections no longer stall for seconds.
 
 ### Changed
 
