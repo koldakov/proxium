@@ -6,17 +6,25 @@ from proxium.core import redis_settings
 class RedisManager:
     """Owns the Redis client. One per process: use `redis_manager`, close it on shutdown."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         url: str,
         /,
         *,
         key_prefix: str = redis_settings.key_prefix,
         max_connections: int = redis_settings.pool_max_connections,
+        socket_connect_timeout: float = redis_settings.socket_connect_timeout,
+        socket_timeout: float = redis_settings.socket_timeout,
         password: str | None = None,
     ) -> None:
         self.key_prefix: str = key_prefix
-        self.client: Redis = Redis.from_url(url, password=password, max_connections=max_connections)
+        self.client: Redis = Redis.from_url(
+            url,
+            password=password,
+            max_connections=max_connections,
+            socket_connect_timeout=socket_connect_timeout,
+            socket_timeout=socket_timeout,
+        )
 
     def key(self, name: str, /) -> str:
         """The key of `name` in Redis: every key goes through here, so the prefix keeps installations apart."""

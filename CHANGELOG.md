@@ -15,9 +15,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `PROXY_BACKLOG`: the queue of connections waiting to be accepted, `1024` by default instead of a fixed `100`.
   Bursts of new connections no longer stall for seconds.
 - Supported versions in the docs: PostgreSQL 17 and 18, Redis 8, each tested in CI.
+- Connection limits are shared by the instances through Redis: a limit of 10 is 10 across all of them, during a
+  restart without downtime too. `PROXY_CONNECTION_LEASE`: how long a crashed instance's connections keep counting.
+  `PROXY_REDIS_OUTAGE_TIMEOUT`: how long each instance counts alone while Redis is down.
+- `REDIS_SOCKET_CONNECT_TIMEOUT` and `REDIS_SOCKET_TIMEOUT`: a Redis that hangs fails in seconds instead of never.
 
 ### Changed
 
+- HTTP clients get `503 Service Unavailable` instead of `500` when limits can't be checked, e.g. the database or
+  Redis is down: worth retrying later.
 - Redis is required. Outside the Docker image, set `REDIS_URL` before upgrading.
 
 ### Fixed

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections import Counter
 from dataclasses import dataclass
 from enum import Flag, auto
@@ -8,6 +9,7 @@ from typing import TYPE_CHECKING
 from aiolimiter import AsyncLimiter
 
 from ._policies import Forbidden, Grant, Policy
+from ._types import ProxyError
 
 if TYPE_CHECKING:
     from collections.abc import Hashable
@@ -20,7 +22,27 @@ class ConnectionLimitExceeded(Forbidden):
     pass
 
 
-class _ConnectionGrant(Grant):
+class ConnectionCountUnavailable(ProxyError):
+    """Open connections can't be counted, e.g. Redis is down. The client is refused: a limit mustn't be bypassed."""
+
+
+class ConnectionCounter(ABC):
+    """Counts open connections per key for one connection limit, e.g. in process memory or in Redis shared by
+    instances. One per limit: keys of different limits never mix.
+
+    One instance serves all connections at once: keep state of one connection on its grant.
+    """
+
+    @abstractmethod
+    async def acquire(self, key: Hashable, /, *, limit: int) -> Grant:
+        """Count one more connection under `key`, its grant's `release` stops counting it.
+
+        Raise `ConnectionLimitExceeded` if `limit` are open already, `ConnectionCountUnavailable` if they can't be
+        counted now.
+        """
+
+
+class _MemoryConnectionGrant(Grant):
     def __init__(self, counts: Counter[Hashable], key: Hashable, /) -> None:
         self._counts: Counter[Hashable] = counts
         self._key: Hashable = key
@@ -32,10 +54,30 @@ class _ConnectionGrant(Grant):
             del self._counts[self._key]
 
 
-class ConnectionLimitPolicy(Policy):
-    """At most `limit` open connections per key of `scope`, more are refused. Counted in this process only.
+class MemoryConnectionCounter(ConnectionCounter):
+    """In process memory: other processes don't see these connections. E.g. for the connection scope, where
+    nothing is shared anyway.
+    """
 
-    Pass `counts` of the previous instance to change the limit: connections open under it keep being counted.
+    def __init__(self) -> None:
+        self._counts: Counter[Hashable] = Counter()
+
+    @property
+    def counts(self) -> Counter[Hashable]:
+        """Open connections per key."""
+        return self._counts
+
+    async def acquire(self, key: Hashable, /, *, limit: int) -> Grant:
+        if self._counts[key] >= limit:
+            raise ConnectionLimitExceeded()
+
+        self._counts[key] += 1
+        return _MemoryConnectionGrant(self._counts, key)
+
+
+class ConnectionLimitPolicy(Policy):
+    """At most `limit` open connections per key of `scope`, more are refused. `counter` decides who sees them:
+    in memory only this process, in Redis every instance sharing it.
     """
 
     def __init__(
@@ -44,27 +86,17 @@ class ConnectionLimitPolicy(Policy):
         /,
         *,
         limit: int,
-        counts: Counter[Hashable] | None = None,
+        counter: ConnectionCounter,
     ) -> None:
         if limit < 1:
             raise ValueError("The connection limit must be at least 1.")
 
         self._scope: Scope = scope
         self._limit: int = limit
-        self._counts: Counter[Hashable] = Counter() if counts is None else counts
-
-    @property
-    def counts(self) -> Counter[Hashable]:
-        """Open connections per key, to hand over to an instance with another limit."""
-        return self._counts
+        self._counter: ConnectionCounter = counter
 
     async def admit(self, request: Request, session: Session, /) -> Grant:
-        key = self._scope.key(request, session)
-        if self._counts[key] >= self._limit:
-            raise ConnectionLimitExceeded()
-
-        self._counts[key] += 1
-        return _ConnectionGrant(self._counts, key)
+        return await self._counter.acquire(self._scope.key(request, session), limit=self._limit)
 
 
 class Direction(Flag):

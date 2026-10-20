@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import logging
 import secrets
 import signal
@@ -14,6 +15,7 @@ from proxium.auth import (
 )
 from proxium.certificates import CertificateEncryption
 from proxium.core import proxy_settings
+from proxium.counters import RedisConnectionCounter, RedisConnectionLeases
 from proxium.db import (
     BasicProxyAccountTrafficModel,
     TokenProxyAccountTrafficModel,
@@ -161,6 +163,8 @@ class ProxyRunner:
         backlog: int = proxy_settings.backlog,
         log_level: LogLevel = proxy_settings.log_level,
         settings_poll_interval: float = proxy_settings.settings_poll_interval,
+        connection_lease: float = proxy_settings.connection_lease,
+        redis_outage_timeout: float = proxy_settings.redis_outage_timeout,
     ) -> None:
         self._log_level: LogLevel = log_level
         # Needs the loop to flush, so the runner starts and closes it.
@@ -200,8 +204,17 @@ class ProxyRunner:
         ]
         # Kept across settings changes: their limits count open connections. Rules change in place.
         self._rule_set_policy: RuleSetPolicy = RuleSetPolicy()
-        # Quotas measure the traffic the observer counts.
-        self._rule_set_builder: RuleSetBuilder = RuleSetBuilder(self._traffic_observer)
+        # Needs the loop to renew, so the runner starts and closes it.
+        self._connection_leases: RedisConnectionLeases = RedisConnectionLeases(
+            lease=connection_lease,
+            outage_timeout=redis_outage_timeout,
+        )
+        # Connection limits are counted in Redis, shared with other instances. Quotas measure the traffic the
+        # observer counts.
+        self._rule_set_builder: RuleSetBuilder = RuleSetBuilder(
+            self._traffic_observer,
+            counters=functools.partial(RedisConnectionCounter, leases=self._connection_leases),
+        )
         self._watchers: Watchers = Watchers(
             [
                 # Before the settings, which start listening: no connection goes through without its limits.
@@ -340,6 +353,7 @@ class ProxyRunner:
         """Read the settings and policies, then listen. Returns once listening, `close` stops."""
         # Before listening, which the watchers start: every connection counts its traffic.
         self._traffic_observer.start()
+        self._connection_leases.start()
         await self._watchers.start()
 
     async def close(self) -> None:
@@ -350,8 +364,9 @@ class ProxyRunner:
         # First: a change applied during the shutdown would listen again.
         await self._watchers.close()
         await self._server.shutdown(timeout=self._graceful_timeout)
-        # After the shutdown: closed connections have counted their last bytes.
+        # After the shutdown: closed connections have counted their last bytes and released their leases.
         await self._traffic_observer.close()
+        await self._connection_leases.close()
 
     async def _serve(self) -> None:
         self._on_signal(self._stop.set)

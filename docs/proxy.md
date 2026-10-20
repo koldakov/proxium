@@ -176,8 +176,10 @@ work sites the rule doesn't match and the policy limits nothing. SOCKS5 clients 
 
 The proxy looks policies up every `PROXY_SETTINGS_POLL_INTERVAL` seconds. A change reaches new connections, open
 ones keep the limits they started with, though a connection limit changed in place keeps counting them.
-Assigning a policy reaches a client within the cache TTL of passed checks. Limits are counted in the proxy's memory: with several
-proxy processes each counts its own. An account or network takes up to `API_POLICIES_MAX_PER_OWNER` policies.
+Assigning a policy reaches a client within the cache TTL of passed checks. Connection limits are counted in Redis:
+all proxy instances share them, see [what happens if Redis is down](configuration.md#connection-limits). Speed
+limits are counted in the proxy's memory: with several proxy processes each counts its own. An account or network
+takes up to `API_POLICIES_MAX_PER_OWNER` policies.
 
 ## Settings
 
@@ -216,14 +218,18 @@ upgrading from it is a plain restart.
 
 The old proxy's connections waiting to be accepted at the moment it stops are reset, clients retry them.
 
-In Docker it takes `--network host` (two containers can't publish one port with `-p`) and a database outside the
-container, with `PROXIUM_SERVICES=proxy`:
+In Docker it takes `--network host` (two containers can't publish one port with `-p`), a database and Redis outside
+the container, with `PROXIUM_SERVICES=proxy`. Both proxies must use the same Redis: with the bundled one each
+container counts connection limits alone.
 
 ```bash
 docker run -d --name proxium-new --network host -e PROXIUM_SERVICES=proxy \
-  -e DATABASE_URL=... -e ENCRYPTION_KEY=... -e PROXY_LISTEN=... ikoldakov/proxium:NEW
+  -e DATABASE_URL=... -e REDIS_URL=... -e ENCRYPTION_KEY=... -e PROXY_LISTEN=... ikoldakov/proxium:NEW
 docker stop --time 40 proxium-old
 ```
 
-Both proxies count connection and speed limits on their own, so while they overlap a client may get up to twice its
-limits.
+Leave `--time` a few seconds over `PROXY_GRACEFUL_TIMEOUT`: closing connections release their places in Redis, up
+to the two Redis timeouts.
+
+Connection limits are shared by both proxies through Redis. Speed limits are counted by each one alone, so while
+they overlap a client may get up to twice its speed.

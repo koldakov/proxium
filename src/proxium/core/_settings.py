@@ -55,6 +55,22 @@ class ProxySettings(BaseSettings):
             gt=0,
         ),
     ] = 5.0
+    # Seconds an open connection stays counted in Redis without being renewed, renewed every third of it.
+    # A crashed instance's connections stop counting after it.
+    connection_lease: Annotated[
+        float,
+        Field(
+            gt=0,
+        ),
+    ] = 30.0
+    # Seconds connection limits are counted in this process alone while Redis is down, then new connections under
+    # them are refused until it's back. At least REDIS_SOCKET_CONNECT_TIMEOUT + REDIS_SOCKET_TIMEOUT.
+    redis_outage_timeout: Annotated[
+        float,
+        Field(
+            gt=0,
+        ),
+    ] = 30.0
 
     model_config = SettingsConfigDict(
         env_prefix="proxy_",
@@ -157,6 +173,20 @@ class RedisSettings(BaseSettings):
             ge=1,
         ),
     ] = 100
+    # Seconds to connect: an unreachable Redis fails after this instead of hanging.
+    socket_connect_timeout: Annotated[
+        float,
+        Field(
+            gt=0,
+        ),
+    ] = 2.0
+    # Seconds to wait for an answer to a command: a Redis that hangs fails like one that's down.
+    socket_timeout: Annotated[
+        float,
+        Field(
+            gt=0,
+        ),
+    ] = 2.0
 
     model_config = SettingsConfigDict(
         env_prefix="redis_",
@@ -348,6 +378,17 @@ class Settings(BaseSettings):
     proxy: ProxySettings = proxy_settings
     redis: RedisSettings = redis_settings
     superuser: SuperuserSettings = superuser_settings
+
+    # Here: the two are in different groups. Checked on import, so a wrong pair stops every process at once.
+    @model_validator(mode="after")
+    def _check_redis_outage_timeout(self) -> Self:
+        redis_timeout = self.redis.socket_connect_timeout + self.redis.socket_timeout
+        if self.proxy.redis_outage_timeout < redis_timeout:
+            raise ValueError(
+                f"PROXY_REDIS_OUTAGE_TIMEOUT of {self.proxy.redis_outage_timeout} s is shorter than one Redis command "
+                f"may take: {redis_timeout} s, REDIS_SOCKET_CONNECT_TIMEOUT + REDIS_SOCKET_TIMEOUT.",
+            )
+        return self
 
 
 settings = Settings()

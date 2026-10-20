@@ -13,9 +13,9 @@ from proxium.proxy._connectors import (
     TargetTimeout,
     TargetUnreachable,
 )
-from proxium.proxy._limits import ConnectionLimitExceeded
+from proxium.proxy._limits import ConnectionCountUnavailable, ConnectionLimitExceeded
 from proxium.proxy._policies import Forbidden
-from proxium.proxy._quotas import QuotaExceeded
+from proxium.proxy._quotas import QuotaExceeded, UsageUnavailable
 from proxium.proxy._types import (
     Address,
     BasicCredentials,
@@ -59,6 +59,9 @@ DEFAULT_STATUSES: Final[Mapping[type[ProxyError], HTTPStatus]] = {
     Forbidden: HTTPStatus.FORBIDDEN,
     ConnectionLimitExceeded: HTTPStatus.TOO_MANY_REQUESTS,
     QuotaExceeded: HTTPStatus.TOO_MANY_REQUESTS,
+    # Limits can't be checked now: worth retrying later, unlike an error of the proxy.
+    ConnectionCountUnavailable: HTTPStatus.SERVICE_UNAVAILABLE,
+    UsageUnavailable: HTTPStatus.SERVICE_UNAVAILABLE,
     TargetUnreachable: HTTPStatus.BAD_GATEWAY,
     TargetTimeout: HTTPStatus.GATEWAY_TIMEOUT,
     ProxyError: HTTPStatus.INTERNAL_SERVER_ERROR,
