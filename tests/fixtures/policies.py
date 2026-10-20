@@ -6,7 +6,7 @@ import pytest
 
 from proxium.db import Direction, LimitScope, QuotaPeriod
 from proxium.policies import Condition, PeriodUsage, RuleSetBuilder
-from proxium.proxy import Usage
+from proxium.proxy import MemoryConnectionCounter, Usage
 from proxium.watchers import (
     ConnectionLimitSnapshot,
     PolicySnapshot,
@@ -112,9 +112,31 @@ def recording_period_usage() -> RecordingPeriodUsage:
     return RecordingPeriodUsage()
 
 
+class MemoryConnectionCounters:
+    """Connection counters in memory, the same one for the same name: like Redis keeps counting under a limit's name."""
+
+    def __init__(self) -> None:
+        self.counters: dict[str, MemoryConnectionCounter] = {}
+
+    def __call__(self, name: str, /) -> MemoryConnectionCounter:
+        try:
+            return self.counters[name]
+        except KeyError:
+            counter = self.counters[name] = MemoryConnectionCounter()
+            return counter
+
+
 @pytest.fixture
-def rule_set_builder(recording_period_usage: RecordingPeriodUsage) -> RuleSetBuilder:
-    return RuleSetBuilder(recording_period_usage)
+def memory_connection_counters() -> MemoryConnectionCounters:
+    return MemoryConnectionCounters()
+
+
+@pytest.fixture
+def rule_set_builder(
+    recording_period_usage: RecordingPeriodUsage,
+    memory_connection_counters: MemoryConnectionCounters,
+) -> RuleSetBuilder:
+    return RuleSetBuilder(recording_period_usage, counters=memory_connection_counters)
 
 
 class SwitchCondition(Condition):

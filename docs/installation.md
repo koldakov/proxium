@@ -15,12 +15,53 @@ any of them. PostgreSQL 13 to 16 should work too, nothing newer is used, but the
 The image keeps PostgreSQL data in its volume, and a new major version can't read an older one's data. So the
 bundled PostgreSQL changes only in a release that comes with an upgrade guide.
 
+### Upgrading Redis
+
+Nothing is lost whichever way Redis is upgraded. It keeps only what's true right now: the connections open at the
+moment and the migration lock. Every proxy knows its own connections and writes them to Redis again on its own, so
+there's no data to move. The bundled Redis and the compose example don't even save it to disk.
+
+With the Docker image the bundled Redis comes with the image: it's upgraded with Proxium, nothing to do.
+
+With the compose example or your own Redis, pick one of two ways.
+
+**Restart in place**, the simple one. E.g. `docker compose -f docker/compose.yaml pull redis`, then
+`docker compose -f docker/compose.yaml up -d redis`, or the upgrade of a managed Redis.
+
+- Proxies keep running. For up to `PROXY_REDIS_OUTAGE_TIMEOUT` seconds of Redis being away, 30 by default, clients
+  notice nothing. If it takes longer, new connections under connection limits are refused until Redis is back,
+  others go on.
+- Redis comes back empty. Within a third of `PROXY_CONNECTION_LEASE`, 10 seconds by default, every proxy writes its
+  open connections there again. Until then a connection limit may let up to its value more in.
+
+**Switch to a new Redis**, no outage at all.
+
+1. Start the new Redis of a [supported version](#supported-versions).
+2. Restart the instances one by one with `REDIS_URL` of the new one, see
+   [Restart without downtime](proxy.md#restart-without-downtime). An old process finishes its connections counted
+   in the old Redis, the new one counts in the new Redis.
+3. Once no old process is left, stop the old Redis. What it still holds are connections of processes that are gone.
+
+While old and new processes overlap they don't see each other's connections: a connection limit may let up to its
+value more in, for up to `PROXY_GRACEFUL_TIMEOUT`.
+
+Either way, don't upgrade Proxium at the same time: instances starting on different Redis don't share the migration
+lock of `proxium-manage migrate`. More on how the proxy handles Redis failures in
+[Connection limits](configuration.md#connection-limits).
+
 ## Docker
 
 One image runs everything: the proxy, the API, the admin UI, PostgreSQL and Redis. State lives in one volume.
 
 The image is `ikoldakov/proxium` on Docker Hub and `ghcr.io/koldakov/proxium` on GitHub, for amd64 and arm64.
 `latest` is the last release, a version like `0.1.0` pins it, `edge` is the current `main`, not released yet.
+
+`edge` is for trying what's coming, not for production. It's built from every commit to `main`, and a commit may
+change what an installation needs before the release that documents how to upgrade. E.g. when Redis became required,
+an `edge` installation with its own database and no `REDIS_URL` started each container with a Redis of its own,
+which they don't share, and a source install without `REDIS_URL` stopped starting. Run a version tag in production.
+Before pulling a new `edge`, read `[Unreleased]` in the
+[changelog](https://github.com/koldakov/proxium/blob/main/CHANGELOG.md).
 
 ### Quickstart
 
@@ -98,7 +139,8 @@ with `--network host`. Run proxium without Docker there, see [From source](#from
 | Own keys | `-e ENCRYPTION_KEY=... -e API_SECRET_KEY=...`, else generated once and kept in the volume |
 
 Every variable from [Configuration](configuration.md) works with `-e`, Docker-only ones are under [Docker](configuration.md#docker).
-Give `docker stop` time for open connections: `--stop-timeout 40`.
+Give `docker stop` time for open connections: `--stop-timeout 40`. Leave a few seconds over
+`PROXY_GRACEFUL_TIMEOUT`: closing connections release their places in Redis, up to the two Redis timeouts.
 
 ### Separate containers
 

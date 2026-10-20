@@ -5,7 +5,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from proxium.proxy import ConnectionLimitExceeded, ConnectionLimitPolicy, IdentityScope, SpeedLimitPolicy
+from proxium.proxy import (
+    ConnectionLimitExceeded,
+    ConnectionLimitPolicy,
+    IdentityScope,
+    MemoryConnectionCounter,
+    SpeedLimitPolicy,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -24,7 +30,8 @@ class TestConnectionLimitPolicy:
     ) -> None:
         # Arrange
         limit = faker.pyint(min_value=1, max_value=10)
-        policy = ConnectionLimitPolicy(IdentityScope(), limit=limit)
+        counter = MemoryConnectionCounter()
+        policy = ConnectionLimitPolicy(IdentityScope(), limit=limit, counter=counter)
         for _ in range(limit):
             await policy.admit(proxy_request, session)
 
@@ -40,7 +47,8 @@ class TestConnectionLimitPolicy:
     ) -> None:
         # Arrange
         limit = faker.pyint(min_value=1, max_value=10)
-        policy = ConnectionLimitPolicy(IdentityScope(), limit=limit)
+        counter = MemoryConnectionCounter()
+        policy = ConnectionLimitPolicy(IdentityScope(), limit=limit, counter=counter)
         grants = [await policy.admit(proxy_request, session) for _ in range(limit)]
         await faker.random_element(grants).release()
 
@@ -48,7 +56,7 @@ class TestConnectionLimitPolicy:
         await policy.admit(proxy_request, session)
 
         # Assert
-        assert policy.counts[proxy_request.identity.subject] == limit
+        assert counter.counts[proxy_request.identity.subject] == limit
 
     async def test_admit_returns_grant_when_other_key_reached_limit(
         self,
@@ -58,7 +66,8 @@ class TestConnectionLimitPolicy:
     ) -> None:
         # Arrange
         limit = faker.pyint(min_value=1, max_value=10)
-        policy = ConnectionLimitPolicy(IdentityScope(), limit=limit)
+        counter = MemoryConnectionCounter()
+        policy = ConnectionLimitPolicy(IdentityScope(), limit=limit, counter=counter)
         busy_request = proxy_request_factory()
         for _ in range(limit):
             await policy.admit(busy_request, session)
@@ -68,7 +77,7 @@ class TestConnectionLimitPolicy:
         await policy.admit(proxy_request, session)
 
         # Assert
-        assert policy.counts[proxy_request.identity.subject] == 1
+        assert counter.counts[proxy_request.identity.subject] == 1
 
     async def test_release_drops_key_when_last_connection_closed(
         self,
@@ -77,37 +86,44 @@ class TestConnectionLimitPolicy:
         session: Session,
     ) -> None:
         # Arrange
-        policy = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
+        counter = MemoryConnectionCounter()
+        policy = ConnectionLimitPolicy(
+            IdentityScope(),
+            limit=faker.pyint(min_value=1, max_value=10),
+            counter=counter,
+        )
         grant = await policy.admit(proxy_request, session)
 
         # Act
         await grant.release()
 
         # Assert
-        assert proxy_request.identity.subject not in policy.counts
+        assert proxy_request.identity.subject not in counter.counts
 
-    async def test_admit_raises_connection_limit_exceeded_when_handed_over_connections_reach_new_limit(
+    async def test_admit_raises_connection_limit_exceeded_when_shared_counter_reaches_new_limit(
         self,
         faker: Faker,
         proxy_request: Request,
         session: Session,
     ) -> None:
         # Arrange
+        # A limit edited in place: the new policy gets the counter of the old one.
         old_limit = faker.pyint(min_value=2, max_value=10)
-        old_policy = ConnectionLimitPolicy(IdentityScope(), limit=old_limit)
+        counter = MemoryConnectionCounter()
+        old_policy = ConnectionLimitPolicy(IdentityScope(), limit=old_limit, counter=counter)
         for _ in range(old_limit):
             await old_policy.admit(proxy_request, session)
         policy = ConnectionLimitPolicy(
             IdentityScope(),
             limit=faker.pyint(min_value=1, max_value=old_limit),
-            counts=old_policy.counts,
+            counter=counter,
         )
 
         # Act & Assert
         with pytest.raises(ConnectionLimitExceeded):
             await policy.admit(proxy_request, session)
 
-    async def test_admit_returns_grant_when_handed_over_connection_released(
+    async def test_admit_returns_grant_when_connection_of_shared_counter_released(
         self,
         faker: Faker,
         proxy_request: Request,
@@ -115,16 +131,17 @@ class TestConnectionLimitPolicy:
     ) -> None:
         # Arrange
         limit = faker.pyint(min_value=1, max_value=10)
-        old_policy = ConnectionLimitPolicy(IdentityScope(), limit=limit)
+        counter = MemoryConnectionCounter()
+        old_policy = ConnectionLimitPolicy(IdentityScope(), limit=limit, counter=counter)
         old_grants = [await old_policy.admit(proxy_request, session) for _ in range(limit)]
-        policy = ConnectionLimitPolicy(IdentityScope(), limit=limit, counts=old_policy.counts)
+        policy = ConnectionLimitPolicy(IdentityScope(), limit=limit, counter=counter)
         await faker.random_element(old_grants).release()
 
         # Act
         await policy.admit(proxy_request, session)
 
         # Assert
-        assert policy.counts[proxy_request.identity.subject] == limit
+        assert counter.counts[proxy_request.identity.subject] == limit
 
 
 class TestSpeedLimitPolicy:

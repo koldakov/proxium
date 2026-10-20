@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from proxium.policies import ALWAYS, Rule, RuleSet, RuleSetPolicy, policy_claims
-from proxium.proxy import ConnectionLimitExceeded, ConnectionLimitPolicy, IdentityScope
+from proxium.proxy import ConnectionLimitExceeded, ConnectionLimitPolicy, IdentityScope, MemoryConnectionCounter
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -20,7 +20,8 @@ class TestRuleSetPolicy:
     async def test_admit_applies_global_policy(self, faker: Faker, proxy_request: Request, session: Session) -> None:
         # Arrange
         policy_id = faker.unique.random_int()
-        limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
+        counter = MemoryConnectionCounter()
+        limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10), counter=counter)
         policy = RuleSetPolicy(
             RuleSet(policies={policy_id: (Rule(condition=ALWAYS, limits=(limit,)),)}, global_ids=(policy_id,)),
         )
@@ -29,7 +30,7 @@ class TestRuleSetPolicy:
         await policy.admit(proxy_request, session)
 
         # Assert
-        assert limit.counts[proxy_request.identity.subject] == 1
+        assert counter.counts[proxy_request.identity.subject] == 1
 
     async def test_admit_applies_assigned_policy(
         self,
@@ -39,7 +40,8 @@ class TestRuleSetPolicy:
     ) -> None:
         # Arrange
         policy_id = faker.unique.random_int()
-        limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
+        counter = MemoryConnectionCounter()
+        limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10), counter=counter)
         policy = RuleSetPolicy(RuleSet(policies={policy_id: (Rule(condition=ALWAYS, limits=(limit,)),)}))
         proxy_request = proxy_request_factory(claims=policy_claims({policy_id: faker.date_object()}))
 
@@ -47,7 +49,7 @@ class TestRuleSetPolicy:
         await policy.admit(proxy_request, session)
 
         # Assert
-        assert limit.counts[proxy_request.identity.subject] == 1
+        assert counter.counts[proxy_request.identity.subject] == 1
 
     async def test_admit_skips_policy_when_not_global_nor_assigned(
         self,
@@ -57,7 +59,8 @@ class TestRuleSetPolicy:
     ) -> None:
         # Arrange
         policy_id = faker.unique.random_int()
-        limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
+        counter = MemoryConnectionCounter()
+        limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10), counter=counter)
         policy = RuleSetPolicy(RuleSet(policies={policy_id: (Rule(condition=ALWAYS, limits=(limit,)),)}))
         proxy_request = proxy_request_factory(claims=policy_claims({faker.unique.random_int(): faker.date_object()}))
 
@@ -65,7 +68,7 @@ class TestRuleSetPolicy:
         await policy.admit(proxy_request, session)
 
         # Assert
-        assert proxy_request.identity.subject not in limit.counts
+        assert proxy_request.identity.subject not in counter.counts
 
     async def test_admit_applies_policy_once_when_global_and_assigned(
         self,
@@ -75,7 +78,8 @@ class TestRuleSetPolicy:
     ) -> None:
         # Arrange
         policy_id = faker.unique.random_int()
-        limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
+        counter = MemoryConnectionCounter()
+        limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10), counter=counter)
         policy = RuleSetPolicy(
             RuleSet(policies={policy_id: (Rule(condition=ALWAYS, limits=(limit,)),)}, global_ids=(policy_id,)),
         )
@@ -85,7 +89,7 @@ class TestRuleSetPolicy:
         await policy.admit(proxy_request, session)
 
         # Assert
-        assert limit.counts[proxy_request.identity.subject] == 1
+        assert counter.counts[proxy_request.identity.subject] == 1
 
     async def test_admit_applies_first_matching_rule_only(
         self,
@@ -95,8 +99,18 @@ class TestRuleSetPolicy:
     ) -> None:
         # Arrange
         policy_id = faker.unique.random_int()
-        first_limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
-        second_limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
+        first_counter = MemoryConnectionCounter()
+        first_limit = ConnectionLimitPolicy(
+            IdentityScope(),
+            limit=faker.pyint(min_value=1, max_value=10),
+            counter=first_counter,
+        )
+        second_counter = MemoryConnectionCounter()
+        second_limit = ConnectionLimitPolicy(
+            IdentityScope(),
+            limit=faker.pyint(min_value=1, max_value=10),
+            counter=second_counter,
+        )
         policy = RuleSetPolicy(
             RuleSet(
                 policies={
@@ -113,7 +127,7 @@ class TestRuleSetPolicy:
         await policy.admit(proxy_request, session)
 
         # Assert
-        assert proxy_request.identity.subject not in second_limit.counts
+        assert proxy_request.identity.subject not in second_counter.counts
 
     async def test_admit_releases_admitted_limits_when_later_limit_refuses(
         self,
@@ -123,8 +137,14 @@ class TestRuleSetPolicy:
     ) -> None:
         # Arrange
         policy_id = faker.unique.random_int()
-        admitting_limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
-        full_limit = ConnectionLimitPolicy(IdentityScope(), limit=1)
+        admitting_counter = MemoryConnectionCounter()
+        admitting_limit = ConnectionLimitPolicy(
+            IdentityScope(),
+            limit=faker.pyint(min_value=1, max_value=10),
+            counter=admitting_counter,
+        )
+        full_counter = MemoryConnectionCounter()
+        full_limit = ConnectionLimitPolicy(IdentityScope(), limit=1, counter=full_counter)
         await full_limit.admit(proxy_request, session)
         policy = RuleSetPolicy(
             RuleSet(
@@ -138,14 +158,15 @@ class TestRuleSetPolicy:
             await policy.admit(proxy_request, session)
 
         # Assert
-        assert proxy_request.identity.subject not in admitting_limit.counts
+        assert proxy_request.identity.subject not in admitting_counter.counts
 
     async def test_release_releases_every_limit(self, faker: Faker, proxy_request: Request, session: Session) -> None:
         # Arrange
         policy_id = faker.unique.random_int()
+        counters = [MemoryConnectionCounter() for _ in range(faker.pyint(min_value=2, max_value=5))]
         limits = [
-            ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
-            for _ in range(faker.pyint(min_value=2, max_value=5))
+            ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10), counter=counter)
+            for counter in counters
         ]
         policy = RuleSetPolicy(
             RuleSet(policies={policy_id: (Rule(condition=ALWAYS, limits=tuple(limits)),)}, global_ids=(policy_id,)),
@@ -156,7 +177,7 @@ class TestRuleSetPolicy:
         await grant.release()
 
         # Assert
-        assert all(proxy_request.identity.subject not in limit.counts for limit in limits)
+        assert all(proxy_request.identity.subject not in counter.counts for counter in counters)
 
     async def test_grant_switches_to_next_rule_when_condition_stops_matching(
         self,
@@ -167,8 +188,18 @@ class TestRuleSetPolicy:
     ) -> None:
         # Arrange
         policy_id = faker.unique.random_int()
-        first_limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
-        second_limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
+        first_counter = MemoryConnectionCounter()
+        first_limit = ConnectionLimitPolicy(
+            IdentityScope(),
+            limit=faker.pyint(min_value=1, max_value=10),
+            counter=first_counter,
+        )
+        second_counter = MemoryConnectionCounter()
+        second_limit = ConnectionLimitPolicy(
+            IdentityScope(),
+            limit=faker.pyint(min_value=1, max_value=10),
+            counter=second_counter,
+        )
         policy = RuleSetPolicy(
             RuleSet(
                 policies={
@@ -188,8 +219,8 @@ class TestRuleSetPolicy:
         await grant.on_sent(faker.pyint(min_value=1))
 
         # Assert
-        assert proxy_request.identity.subject not in first_limit.counts
-        assert second_limit.counts[proxy_request.identity.subject] == 1
+        assert proxy_request.identity.subject not in first_counter.counts
+        assert second_counter.counts[proxy_request.identity.subject] == 1
 
     async def test_grant_applies_rule_when_condition_starts_matching(
         self,
@@ -200,7 +231,8 @@ class TestRuleSetPolicy:
     ) -> None:
         # Arrange
         policy_id = faker.unique.random_int()
-        limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
+        counter = MemoryConnectionCounter()
+        limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10), counter=counter)
         policy = RuleSetPolicy(
             RuleSet(
                 policies={policy_id: (Rule(condition=switch_condition, limits=(limit,)),)},
@@ -216,7 +248,7 @@ class TestRuleSetPolicy:
         await grant.on_received(faker.pyint(min_value=1))
 
         # Assert
-        assert limit.counts[proxy_request.identity.subject] == 1
+        assert counter.counts[proxy_request.identity.subject] == 1
 
     async def test_grant_raises_and_holds_no_limit_when_next_rule_refuses(
         self,
@@ -227,8 +259,14 @@ class TestRuleSetPolicy:
     ) -> None:
         # Arrange
         policy_id = faker.unique.random_int()
-        first_limit = ConnectionLimitPolicy(IdentityScope(), limit=faker.pyint(min_value=1, max_value=10))
-        full_limit = ConnectionLimitPolicy(IdentityScope(), limit=1)
+        first_counter = MemoryConnectionCounter()
+        first_limit = ConnectionLimitPolicy(
+            IdentityScope(),
+            limit=faker.pyint(min_value=1, max_value=10),
+            counter=first_counter,
+        )
+        full_counter = MemoryConnectionCounter()
+        full_limit = ConnectionLimitPolicy(IdentityScope(), limit=1, counter=full_counter)
         await full_limit.admit(proxy_request, session)
         policy = RuleSetPolicy(
             RuleSet(
@@ -251,5 +289,5 @@ class TestRuleSetPolicy:
         await grant.release()
 
         # Assert
-        assert proxy_request.identity.subject not in first_limit.counts
-        assert full_limit.counts[proxy_request.identity.subject] == 1
+        assert proxy_request.identity.subject not in first_counter.counts
+        assert full_counter.counts[proxy_request.identity.subject] == 1

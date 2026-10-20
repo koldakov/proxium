@@ -29,7 +29,15 @@ from ._connectors import (
 )
 from ._encryption import CachedEncryption, Encryption, EncryptionOutcome, EncryptionUnavailable, StaticEncryption
 from ._guards import AddressGuard, ForbiddenAddress, IPAddress, IPNetwork
-from ._limits import ConnectionLimitExceeded, ConnectionLimitPolicy, Direction, SpeedLimitPolicy
+from ._limits import (
+    ConnectionCounter,
+    ConnectionCountUnavailable,
+    ConnectionLimitExceeded,
+    ConnectionLimitPolicy,
+    Direction,
+    MemoryConnectionCounter,
+    SpeedLimitPolicy,
+)
 from ._observers import LoggingObserver, Observer
 from ._policies import EMPTY_GRANT, Forbidden, Grant, Policy
 from ._profiles import Listener, Profile, Timeouts
@@ -74,6 +82,8 @@ __all__ = [
     "ClientIPScope",
     "ClientKey",
     "Connection",
+    "ConnectionCountUnavailable",
+    "ConnectionCounter",
     "ConnectionLimitExceeded",
     "ConnectionLimitPolicy",
     "ConnectionScope",
@@ -105,6 +115,7 @@ __all__ = [
     "ListenerSourceSelector",
     "LoggingObserver",
     "MemoryCache",
+    "MemoryConnectionCounter",
     "Meter",
     "Observer",
     "Policy",

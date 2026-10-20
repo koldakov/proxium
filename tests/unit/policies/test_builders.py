@@ -16,6 +16,7 @@ from proxium.policies import (
     policy_claims,
 )
 from proxium.proxy import ConnectionLimitExceeded
+from tests.fixtures.policies import MemoryConnectionCounters
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -94,7 +95,8 @@ class TestRuleSetBuilder:
         # Assigned as well, from another day: a global policy counts from its own.
         assigned_on = policy.global_starts_on - timedelta(days=1)
         proxy_request = proxy_request_factory(claims=policy_claims({policy.id: assigned_on}))
-        rule_set_policy = RuleSetPolicy(RuleSetBuilder(recording_period_usage).build([policy]))
+        builder = RuleSetBuilder(recording_period_usage, counters=MemoryConnectionCounters())
+        rule_set_policy = RuleSetPolicy(builder.build([policy]))
 
         # Act
         await rule_set_policy.admit(proxy_request, session)
@@ -115,7 +117,8 @@ class TestRuleSetBuilder:
         # Another day than the policy's: an assigned policy counts from its assignment's.
         assigned_on = policy.global_starts_on + timedelta(days=1)
         proxy_request = proxy_request_factory(claims=policy_claims({policy.id: assigned_on}))
-        rule_set_policy = RuleSetPolicy(RuleSetBuilder(recording_period_usage).build([policy]))
+        builder = RuleSetBuilder(recording_period_usage, counters=MemoryConnectionCounters())
+        rule_set_policy = RuleSetPolicy(builder.build([policy]))
 
         # Act
         await rule_set_policy.admit(proxy_request, session)
@@ -131,7 +134,7 @@ class TestRuleSetBuilder:
     ) -> None:
         # Arrange
         # E.g. a scope added to the database before the proxy learned it.
-        builder = RuleSetBuilder(recording_period_usage, scopes={})
+        builder = RuleSetBuilder(recording_period_usage, counters=MemoryConnectionCounters(), scopes={})
         policy = policy_snapshot_factory(connection_limits=(connection_limit_snapshot_factory(),))
 
         # Act
