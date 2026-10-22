@@ -234,4 +234,4 @@ class PolicyWatcher:
             return
 
         self._current = snapshot
-        logger.info("Policies applied to new connections")
+        logger.info("Policies applied")

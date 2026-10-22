@@ -71,6 +71,14 @@ class ProxySettings(BaseSettings):
             gt=0,
         ),
     ] = 30.0
+    # Seconds of a speed limit's rate an instance takes from Redis at once: each may go over the limit by one batch,
+    # one round trip per batch while bytes flow.
+    speed_batch: Annotated[
+        float,
+        Field(
+            gt=0,
+        ),
+    ] = 0.1
 
     model_config = SettingsConfigDict(
         env_prefix="proxy_",

@@ -145,9 +145,17 @@ trusted networks it's assigned to, on their pages. A client gets the limits of a
 only adds limits, the strictest one wins. To give some clients more than a global policy allows, raise its limit
 and set the lower one in a policy assigned to the rest.
 
-Each limit is counted over a scope: one connection, an account or network with all its connections, a client IP,
-a target host or the whole proxy. E.g. 10 connections per account, or 100 Mbit/s for the whole proxy that all
-clients share. Past a connection limit new connections are refused, HTTP clients get `429 Too Many Connections`.
+Each connection and speed limit is counted over a scope: the connections it groups share one limit.
+
+| Scope | Connections that share the limit | E.g. |
+|---|---|---|
+| Per account or network | All of one account or trusted network, from any IP | 10 connections per client |
+| Per client IP | All from one IP address, whatever account they use | 20 Mbit/s per office |
+| Per target host | All to one site, as the client named it, from any client | 50 connections to `example.com` |
+| Per connection | Each connection on its own | 5 Mbit/s per download |
+| Whole proxy | Every connection of every client | 1 Gbit/s for the server's uplink |
+
+Past a connection limit new connections are refused, HTTP clients get `429 Too Many Connections`.
 A speed limit never cuts a connection, it slows it down. It's set per direction: download, upload or each way on
 its own. After a pause up to the burst goes at once, one second of the rate unless set.
 
@@ -174,12 +182,22 @@ Mon–Fri 09:00–18:00, Target domain `company.com, github.com` with Not, speed
 work sites the rule doesn't match and the policy limits nothing. SOCKS5 clients must leave DNS to the proxy, e.g.
 `socks5h://` in curl: a client that resolves names itself sends an IP, which no domain matches.
 
-The proxy looks policies up every `PROXY_SETTINGS_POLL_INTERVAL` seconds. A change reaches new connections, open
-ones keep the limits they started with, though a connection limit changed in place keeps counting them.
-Assigning a policy reaches a client within the cache TTL of passed checks. Connection limits are counted in Redis:
-all proxy instances share them, see [what happens if Redis is down](configuration.md#connection-limits). Speed
-limits are counted in the proxy's memory: with several proxy processes each counts its own. An account or network
-takes up to `API_POLICIES_MAX_PER_OWNER` policies.
+The proxy looks policies up every `PROXY_SETTINGS_POLL_INTERVAL` seconds. Every change reaches new connections.
+Open ones get some of them:
+
+| Change | Open connections |
+|---|---|
+| Speed limit's speed, burst or direction edited | Get them at once, data already waiting within one burst |
+| Speed limit's scope changed | Keep the old limit until they close |
+| Speed limit removed, with its rule, or its policy turned off | Aren't slowed down by it anymore. Turned on again, it slows them again |
+| Connection limit edited | Stay open and keep counting: new ones are refused until fewer than the limit are open |
+| Traffic quota used up | Are cut within a second |
+| Anything else: rules and conditions, quotas edited, limits added, connection limits and quotas removed, policies assigned | Keep what they started with until they close |
+
+Assigning a policy reaches a client within the cache TTL of passed checks. Connection and speed limits are counted
+in Redis: all proxy instances share them, see what happens if Redis is down for
+[connection limits](configuration.md#connection-limits) and [speed limits](configuration.md#speed-limits). An
+account or network takes up to `API_POLICIES_MAX_PER_OWNER` policies.
 
 ## Settings
 
@@ -231,5 +249,4 @@ docker stop --time 40 proxium-old
 Leave `--time` a few seconds over `PROXY_GRACEFUL_TIMEOUT`: closing connections release their places in Redis, up
 to the two Redis timeouts.
 
-Connection limits are shared by both proxies through Redis. Speed limits are counted by each one alone, so while
-they overlap a client may get up to twice its speed.
+Connection and speed limits are shared by both proxies through Redis.

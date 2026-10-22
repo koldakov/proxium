@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from proxium.db import Direction, LimitScope, QuotaPeriod
-from proxium.policies import Condition, PeriodUsage, RuleSetBuilder
-from proxium.proxy import MemoryConnectionCounter, Usage
+from proxium.policies import Condition, PeriodUsage, RuleSetBuilder, RuleSetPolicy
+from proxium.proxy import MemoryConnectionCounter, MemorySpeedBucket, Usage
 from proxium.watchers import (
     ConnectionLimitSnapshot,
     PolicySnapshot,
@@ -16,12 +16,13 @@ from proxium.watchers import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Awaitable, Callable, Mapping
     from datetime import date, datetime
 
     from faker import Faker
 
-    from proxium.proxy import Identity, Request, Session
+    from proxium.policies import RuleSet
+    from proxium.proxy import Grant, Identity, Request, Session
 
 
 @pytest.fixture
@@ -47,6 +48,28 @@ def speed_limit_snapshot(faker: Faker) -> SpeedLimitSnapshot:
         rate=faker.pyint(min_value=1),
         burst=faker.pyint(min_value=1),
     )
+
+
+@pytest.fixture
+def speed_limit_snapshot_factory(faker: Faker) -> Callable[..., SpeedLimitSnapshot]:
+    """Speed limits each way, per identity unless `scope` is given, a new one on every call unless `id` is given."""
+
+    def create(
+        *,
+        rate: int,
+        burst: int,
+        id: int | None = None,  # noqa: A002
+        scope: LimitScope = LimitScope.IDENTITY,
+    ) -> SpeedLimitSnapshot:
+        return SpeedLimitSnapshot(
+            id=faker.unique.random_int() if id is None else id,
+            scope=scope,
+            direction=Direction.BOTH,
+            rate=rate,
+            burst=burst,
+        )
+
+    return create
 
 
 @pytest.fixture
@@ -131,12 +154,32 @@ def memory_connection_counters() -> MemoryConnectionCounters:
     return MemoryConnectionCounters()
 
 
+class MemorySpeedBuckets:
+    """Speed buckets in memory, the same one for the same name: like Redis keeps the buckets under a limit's name."""
+
+    def __init__(self) -> None:
+        self.buckets: dict[str, MemorySpeedBucket] = {}
+
+    def __call__(self, name: str, /) -> MemorySpeedBucket:
+        try:
+            return self.buckets[name]
+        except KeyError:
+            bucket = self.buckets[name] = MemorySpeedBucket()
+            return bucket
+
+
+@pytest.fixture
+def memory_speed_buckets() -> MemorySpeedBuckets:
+    return MemorySpeedBuckets()
+
+
 @pytest.fixture
 def rule_set_builder(
     recording_period_usage: RecordingPeriodUsage,
     memory_connection_counters: MemoryConnectionCounters,
+    memory_speed_buckets: MemorySpeedBuckets,
 ) -> RuleSetBuilder:
-    return RuleSetBuilder(recording_period_usage, counters=memory_connection_counters)
+    return RuleSetBuilder(recording_period_usage, counters=memory_connection_counters, buckets=memory_speed_buckets)
 
 
 class SwitchCondition(Condition):
@@ -162,3 +205,13 @@ class ManualClock:
 
     def __call__(self) -> datetime:
         return self.now
+
+
+@pytest.fixture
+def open_connection(proxy_request: Request, session: Session) -> Callable[[RuleSet], Awaitable[Grant]]:
+    """Opens a connection of one client under a rule set, as the proxy does, and gives its grant."""
+
+    async def admit(rule_set: RuleSet, /) -> Grant:
+        return await RuleSetPolicy(rule_set).admit(proxy_request, session)
+
+    return admit

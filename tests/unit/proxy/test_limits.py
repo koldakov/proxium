@@ -8,8 +8,10 @@ import pytest
 from proxium.proxy import (
     ConnectionLimitExceeded,
     ConnectionLimitPolicy,
+    Direction,
     IdentityScope,
     MemoryConnectionCounter,
+    MemorySpeedBucket,
     SpeedLimitPolicy,
 )
 
@@ -156,7 +158,7 @@ class TestSpeedLimitPolicy:
         # Every burst after the first takes 50 ms.
         rate = burst * 20
         size = burst * faker.pyint(min_value=2, max_value=3)
-        policy = SpeedLimitPolicy(IdentityScope(), rate=rate, burst=burst)
+        policy = SpeedLimitPolicy(IdentityScope(), rate=rate, burst=burst, bucket=MemorySpeedBucket())
         grant = await policy.admit(proxy_request, session)
         loop = asyncio.get_running_loop()
         started = loop.time()
@@ -178,7 +180,7 @@ class TestSpeedLimitPolicy:
         # Every burst after the first takes 50 ms.
         rate = burst * 20
         size = burst * faker.pyint(min_value=2, max_value=3)
-        policy = SpeedLimitPolicy(IdentityScope(), rate=rate, burst=burst)
+        policy = SpeedLimitPolicy(IdentityScope(), rate=rate, burst=burst, bucket=MemorySpeedBucket())
         grants = [await policy.admit(proxy_request, session) for _ in range(2)]
         loop = asyncio.get_running_loop()
         started = loop.time()
@@ -188,3 +190,103 @@ class TestSpeedLimitPolicy:
 
         # Assert
         assert loop.time() - started >= (size * len(grants) - burst) / rate
+
+    async def test_on_received_takes_new_rate_when_updated(
+        self,
+        faker: Faker,
+        proxy_request: Request,
+        session: Session,
+    ) -> None:
+        # Arrange
+        burst = faker.pyint(min_value=1_000, max_value=10_000)
+        # Before: a burst a second, the bytes would take seconds. After: 5 ms per burst.
+        old_rate = burst
+        rate = burst * 200
+        size = burst * faker.pyint(min_value=2, max_value=3)
+        policy = SpeedLimitPolicy(IdentityScope(), rate=old_rate, burst=burst, bucket=MemorySpeedBucket())
+        grant = await policy.admit(proxy_request, session)
+        policy.update(rate=rate, burst=burst, direction=Direction.BOTH)
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+
+        # Act
+        await grant.on_received(size)
+
+        # Assert
+        assert loop.time() - started < (size - burst) / old_rate
+
+    async def test_on_received_stops_waiting_when_retired_during_chunk(
+        self,
+        faker: Faker,
+        proxy_request: Request,
+        session: Session,
+    ) -> None:
+        # Arrange
+        burst = faker.pyint(min_value=1_000, max_value=10_000)
+        # Every burst after the first takes 200 ms: the whole chunk would take over a second.
+        rate = burst * 5
+        size = burst * faker.pyint(min_value=8, max_value=10)
+        policy = SpeedLimitPolicy(IdentityScope(), rate=rate, burst=burst, bucket=MemorySpeedBucket())
+        grant = await policy.admit(proxy_request, session)
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        chunk = asyncio.create_task(grant.on_received(size))
+        # The first burst goes at once, the chunk waits for the next.
+        await asyncio.sleep(0)
+
+        # Act
+        policy.retire()
+        await chunk
+
+        # Assert
+        assert loop.time() - started < (size - burst) / rate
+
+    async def test_on_received_stops_waiting_when_released_during_chunk(
+        self,
+        faker: Faker,
+        proxy_request: Request,
+        session: Session,
+    ) -> None:
+        # Arrange
+        burst = faker.pyint(min_value=1_000, max_value=10_000)
+        # Every burst after the first takes 200 ms: the whole chunk would take over a second.
+        rate = burst * 5
+        size = burst * faker.pyint(min_value=8, max_value=10)
+        policy = SpeedLimitPolicy(IdentityScope(), rate=rate, burst=burst, bucket=MemorySpeedBucket())
+        grant = await policy.admit(proxy_request, session)
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        chunk = asyncio.create_task(grant.on_received(size))
+        # The first burst goes at once, the chunk waits for the next.
+        await asyncio.sleep(0)
+
+        # Act
+        # As the other direction does switching rules: the last connection of the key, its state goes with it.
+        await grant.release()
+        await chunk
+
+        # Assert
+        assert loop.time() - started < (size - burst) / rate
+
+    async def test_on_received_returns_at_once_when_retired(
+        self,
+        faker: Faker,
+        proxy_request: Request,
+        session: Session,
+    ) -> None:
+        # Arrange
+        burst = faker.pyint(min_value=1_000, max_value=10_000)
+        # One burst a second: still limited, the bytes would take seconds.
+        rate = burst
+        size = burst * faker.pyint(min_value=2, max_value=3)
+        policy = SpeedLimitPolicy(IdentityScope(), rate=rate, burst=burst, bucket=MemorySpeedBucket())
+        grant = await policy.admit(proxy_request, session)
+        policy.retire()
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+
+        # Act
+        await grant.on_received(size)
+
+        # Assert
+        assert loop.time() - started < (size - burst) / rate

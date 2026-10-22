@@ -74,7 +74,8 @@ class _RuleSetGrant(Grant):
     Chooses the rules again on the bytes of the tunnel, at most every `interval` seconds, e.g. a schedule turned
     to the night. A policy whose rule changed releases the old limits, then takes the new ones: taken first, a limit
     of open connections would count this one twice. If the new ones refuse, the tunnel is cut.
-    Rules come from the rule set the connection started with: edits of policies reach new connections only.
+    Rules come from the rule set the connection started with: edits of policies reach new connections only, except
+    speed limits, edited in place, see `RuleSetBuilder`.
     """
 
     def __init__(
@@ -143,7 +144,8 @@ class RuleSetPolicy(Policy):
 
     In each policy the first rule whose condition matches applies its limits. Open tunnels choose again every
     `check_interval` seconds, see `_RuleSetGrant`. A policy missing from the rule set, e.g. turned off, is skipped.
-    `update` swaps the rules for new connections, open ones keep the rules they started with.
+    `update` swaps the rules for new connections, open ones keep the rules they started with. Speed limits are
+    edited in place, so open connections get those edits too.
     """
 
     def __init__(

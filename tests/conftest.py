@@ -12,6 +12,7 @@ os.environ["REDIS_KEY_PREFIX"] = get_test_key_prefix(os.environ["REDIS_KEY_PREFI
 pytest_plugins = [
     "tests.fixtures.api",
     "tests.fixtures.clients",
+    "tests.fixtures.counters",
     "tests.fixtures.database",
     "tests.fixtures.management",
     "tests.fixtures.policies",
