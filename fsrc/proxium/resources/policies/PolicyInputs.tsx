@@ -28,6 +28,7 @@ import {
   parseGigabytes,
   parseMbits,
   parseMegabytes,
+  scopeHint,
 } from './limits'
 
 /** Read-only, an empty list of limits says so instead of showing nothing under its heading. Inside a rule. */
@@ -63,6 +64,21 @@ const UnreachableRuleWarning = () => {
   )
 }
 
+/** A limit's scope, the hint under it says which connections share the limit. Inside a limit. */
+const ScopeInput = ({ readOnly }: { readOnly: boolean }) => (
+  <FormDataConsumer>
+    {({ scopedFormData }) => (
+      <SelectInput
+        source="scope"
+        choices={LIMIT_SCOPES}
+        readOnly={readOnly}
+        validate={required()}
+        helperText={scopeHint(scopedFormData?.scope)}
+      />
+    )}
+  </FormDataConsumer>
+)
+
 /** The limits of one rule. */
 const RuleLimits = ({ readOnly }: { readOnly: boolean }) => (
   <>
@@ -73,12 +89,7 @@ const RuleLimits = ({ readOnly }: { readOnly: boolean }) => (
     <ArrayInput source="connectionLimits" label={false}>
       {/* The iterator holds the add and remove buttons. */}
       <SimpleFormIterator inline disableReordering disableClear disabled={readOnly}>
-        <SelectInput
-          source="scope"
-          choices={LIMIT_SCOPES}
-          readOnly={readOnly}
-          validate={required()}
-        />
+        <ScopeInput readOnly={readOnly} />
         <NumberInput
           source="maxConnections"
           label="At most"
@@ -95,12 +106,7 @@ const RuleLimits = ({ readOnly }: { readOnly: boolean }) => (
     {readOnly && <NoLimits field="speedLimits" />}
     <ArrayInput source="speedLimits" label={false}>
       <SimpleFormIterator inline disableReordering disableClear disabled={readOnly}>
-        <SelectInput
-          source="scope"
-          choices={LIMIT_SCOPES}
-          readOnly={readOnly}
-          validate={required()}
-        />
+        <ScopeInput readOnly={readOnly} />
         <SelectInput
           source="direction"
           choices={DIRECTIONS}

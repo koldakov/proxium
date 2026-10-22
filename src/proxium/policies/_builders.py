@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import weakref
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Final
 
@@ -11,6 +12,7 @@ from proxium.proxy import (
     GlobalScope,
     IdentityScope,
     MemoryConnectionCounter,
+    MemorySpeedBucket,
     QuotaPolicy,
     SpeedLimitPolicy,
     TargetHostScope,
@@ -24,7 +26,7 @@ from ._rule_sets import Rule, RuleSet
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
-    from proxium.proxy import ConnectionCounter, Policy, Scope
+    from proxium.proxy import ConnectionCounter, Policy, Scope, SpeedBucket
     from proxium.watchers import (
         ConnectionLimitSnapshot,
         PolicySnapshot,
@@ -43,6 +45,10 @@ class UnknownScopeError(Exception):
 
 class UnsupportedQuotaScopeError(Exception):
     """A quota has a scope other than the identity: usage is counted per account and trusted network only."""
+
+
+class InvalidSpeedLimitError(Exception):
+    """A speed limit's rate or burst isn't positive."""
 
 
 class InvalidPolicyError(Exception):
@@ -71,13 +77,24 @@ DIRECTIONS: Final[Mapping[Direction, ProxyDirection]] = MappingProxyType(
 )
 
 
+# A speed limit's policy: an edited limit is the same one, one of another scope is new.
+type _SpeedLimitKey = tuple[int, LimitScope]
+
+
+def _get_limit_name(limit: ConnectionLimitSnapshot | SpeedLimitSnapshot, /) -> str:
+    """What a limit's state is kept under. With the scope: a new scope counts other keys, so it starts anew."""
+    return f"{limit.id}:{limit.scope}"
+
+
 class RuleSetBuilder:
     """Turns policies read from the database into a rule set for `RuleSetPolicy`.
 
-    Speed limits keep their state across builds: an unchanged one is reused with its buckets. Build anew on every
-    change, from the same builder. Connection limits are counted by `counters`, by the limit's name: under the same
-    name an edited limit keeps counting the connections open under it. Except the connection scope: one connection
-    has nothing to share, it's counted in memory. Quotas keep no state: `usage` counts the traffic, they measure it.
+    Build anew on every change, from the same builder. Connection limits are counted by `counters`, speed limits by
+    `buckets`, both by the limit's name: under the same name an edited limit keeps counting the connections open
+    under it. Except the connection scope: one connection has nothing to share, it's counted in memory. An edited
+    speed limit applies to open connections too, a removed one stops slowing them, and slows them again once back.
+    One of a new scope applies to new connections only: open ones are counted by the old scope's keys, they keep the
+    old limit. Quotas keep no state: `usage` counts the traffic, they measure it.
     """
 
     def __init__(
@@ -86,15 +103,21 @@ class RuleSetBuilder:
         /,
         *,
         counters: Callable[[str], ConnectionCounter],
+        buckets: Callable[[str], SpeedBucket],
         conditions: ConditionParser = DEFAULT_CONDITION_PARSER,
         scopes: Mapping[LimitScope, Scope] = DEFAULT_SCOPES,
     ) -> None:
         self._usage: PeriodUsage = usage
         self._counters: Callable[[str], ConnectionCounter] = counters
+        self._buckets: Callable[[str], SpeedBucket] = buckets
         self._conditions: ConditionParser = conditions
         self._scopes: dict[LimitScope, Scope] = dict(scopes)
-        # Equal snapshots, equal limits: any change gets fresh buckets, open connections keep the old ones.
-        self._speed_limits: dict[SpeedLimitSnapshot, SpeedLimitPolicy] = {}
+        # An edited limit is the same policy, its open connections get the change. Weakly: one lives as long as a rule
+        # set holds it, the current one or one of an open connection, which may switch to its rule any time, e.g. at
+        # night. Memory is bounded by them.
+        self._speed_limits: weakref.WeakValueDictionary[_SpeedLimitKey, SpeedLimitPolicy] = (
+            weakref.WeakValueDictionary()
+        )
 
     def _get_scope(self, scope: LimitScope, /) -> Scope:
         try:
@@ -105,8 +128,7 @@ class RuleSetBuilder:
     def _create_counter(self, limit: ConnectionLimitSnapshot, /) -> ConnectionCounter:
         if limit.scope == LimitScope.CONNECTION:
             return MemoryConnectionCounter()
-        # With the scope: a new scope counts other keys, so it starts anew.
-        return self._counters(f"{limit.id}:{limit.scope}")
+        return self._counters(_get_limit_name(limit))
 
     def _build_connection_limit(self, limit: ConnectionLimitSnapshot, /) -> ConnectionLimitPolicy:
         return ConnectionLimitPolicy(
@@ -115,22 +137,36 @@ class RuleSetBuilder:
             counter=self._create_counter(limit),
         )
 
+    def _create_bucket(self, limit: SpeedLimitSnapshot, /) -> SpeedBucket:
+        if limit.scope == LimitScope.CONNECTION:
+            return MemorySpeedBucket()
+        return self._buckets(_get_limit_name(limit))
+
     def _build_speed_limit(
         self,
         limit: SpeedLimitSnapshot,
-        speed_limits: dict[SpeedLimitSnapshot, SpeedLimitPolicy],
+        speed_limits: dict[_SpeedLimitKey, tuple[SpeedLimitPolicy, SpeedLimitSnapshot]],
         /,
     ) -> SpeedLimitPolicy:
+        # Checked while building: a policy kept from the last build is updated only once all of them pass.
         try:
-            policy = self._speed_limits[limit]
+            SpeedLimitPolicy.check_terms(rate=limit.rate, burst=limit.burst)
+        except ValueError as err:
+            raise InvalidSpeedLimitError(f"Speed limit {limit.id}: {err}") from err
+
+        key = (limit.id, limit.scope)
+        try:
+            policy = self._speed_limits[key]
         except KeyError:
             policy = SpeedLimitPolicy(
                 self._get_scope(limit.scope),
                 rate=limit.rate,
                 burst=limit.burst,
                 direction=DIRECTIONS[limit.direction],
+                bucket=self._create_bucket(limit),
             )
-        speed_limits[limit] = policy
+        # Updated once the whole build succeeds: a failed one changes nothing.
+        speed_limits[key] = (policy, limit)
         return policy
 
     def _get_anchor(self, policy: PolicySnapshot, /) -> Anchor:
@@ -158,7 +194,7 @@ class RuleSetBuilder:
         self,
         rule: RuleSnapshot,
         anchor: Anchor,
-        speed_limits: dict[SpeedLimitSnapshot, SpeedLimitPolicy],
+        speed_limits: dict[_SpeedLimitKey, tuple[SpeedLimitPolicy, SpeedLimitSnapshot]],
         /,
     ) -> Rule:
         limits: list[Policy] = [
@@ -174,7 +210,7 @@ class RuleSetBuilder:
     def _build_policy(
         self,
         policy: PolicySnapshot,
-        speed_limits: dict[SpeedLimitSnapshot, SpeedLimitPolicy],
+        speed_limits: dict[_SpeedLimitKey, tuple[SpeedLimitPolicy, SpeedLimitSnapshot]],
         /,
     ) -> tuple[Rule, ...]:
         anchor = self._get_anchor(policy)
@@ -182,7 +218,12 @@ class RuleSetBuilder:
         for rule in policy.rules:
             try:
                 rules.append(self._build_rule(rule, anchor, speed_limits))
-            except (InvalidConditionError, UnknownScopeError, UnsupportedQuotaScopeError) as err:
+            except (
+                InvalidConditionError,
+                UnknownScopeError,
+                UnsupportedQuotaScopeError,
+                InvalidSpeedLimitError,
+            ) as err:
                 raise InvalidPolicyError(f"Policy {policy.id}, rule {rule.id}: {err}") from err
         return tuple(rules)
 
@@ -190,12 +231,30 @@ class RuleSetBuilder:
         """The rule set of `policies`. Raises `InvalidPolicyError`, keeping the state of the last build, if one
         can't be built: none of the changes apply until it's fixed.
         """
-        speed_limits: dict[SpeedLimitSnapshot, SpeedLimitPolicy] = {}
+        speed_limits: dict[_SpeedLimitKey, tuple[SpeedLimitPolicy, SpeedLimitSnapshot]] = {}
         rule_set = RuleSet(
             policies={policy.id: self._build_policy(policy, speed_limits) for policy in policies},
             global_ids=tuple(policy.id for policy in policies if policy.is_global),
         )
 
-        # Only what this build uses: limits removed since are dropped, their open connections keep their grants.
-        self._speed_limits = speed_limits
+        for speed_limit, limit in speed_limits.values():
+            speed_limit.update(rate=limit.rate, burst=limit.burst, direction=DIRECTIONS[limit.direction])
+
+        kept_ids = {limit.id for _, limit in speed_limits.values()}
+        # Copied: entries go away as rule sets are dropped.
+        for key, speed_limit in list(self._speed_limits.items()):
+            if key in speed_limits:
+                continue
+            limit_id, _ = key
+            # Its scope changed: open connections are counted by the old scope's keys, they keep the old limit, not
+            # updated. Restored if it was retired, e.g. its policy turned off and on again.
+            if limit_id in kept_ids:
+                speed_limit.restore()
+                continue
+            # Gone, e.g. removed or its policy turned off: stops slowing open connections. Back with this scope, it's
+            # updated and slows them again.
+            speed_limit.retire()
+
+        for key, (speed_limit, _) in speed_limits.items():
+            self._speed_limits[key] = speed_limit
         return rule_set

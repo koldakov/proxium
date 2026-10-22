@@ -15,7 +15,7 @@ from proxium.auth import (
 )
 from proxium.certificates import CertificateEncryption
 from proxium.core import proxy_settings
-from proxium.counters import RedisConnectionCounter, RedisConnectionLeases
+from proxium.counters import RedisConnectionCounter, RedisConnectionLeases, RedisSpeedBatches, RedisSpeedBucket
 from proxium.db import (
     BasicProxyAccountTrafficModel,
     TokenProxyAccountTrafficModel,
@@ -165,6 +165,7 @@ class ProxyRunner:
         settings_poll_interval: float = proxy_settings.settings_poll_interval,
         connection_lease: float = proxy_settings.connection_lease,
         redis_outage_timeout: float = proxy_settings.redis_outage_timeout,
+        speed_batch: float = proxy_settings.speed_batch,
     ) -> None:
         self._log_level: LogLevel = log_level
         # Needs the loop to flush, so the runner starts and closes it.
@@ -209,11 +210,14 @@ class ProxyRunner:
             lease=connection_lease,
             outage_timeout=redis_outage_timeout,
         )
-        # Connection limits are counted in Redis, shared with other instances. Quotas measure the traffic the
-        # observer counts.
+        # Needs the loop to check Redis while it's down, so the runner starts and closes it.
+        self._speed_batches: RedisSpeedBatches = RedisSpeedBatches(batch=speed_batch)
+        # Connection and speed limits are counted in Redis, shared with other instances. Quotas measure the traffic
+        # the observer counts.
         self._rule_set_builder: RuleSetBuilder = RuleSetBuilder(
             self._traffic_observer,
             counters=functools.partial(RedisConnectionCounter, leases=self._connection_leases),
+            buckets=functools.partial(RedisSpeedBucket, batches=self._speed_batches),
         )
         self._watchers: Watchers = Watchers(
             [
@@ -354,6 +358,7 @@ class ProxyRunner:
         # Before listening, which the watchers start: every connection counts its traffic.
         self._traffic_observer.start()
         self._connection_leases.start()
+        self._speed_batches.start()
         await self._watchers.start()
 
     async def close(self) -> None:
@@ -367,6 +372,7 @@ class ProxyRunner:
         # After the shutdown: closed connections have counted their last bytes and released their leases.
         await self._traffic_observer.close()
         await self._connection_leases.close()
+        await self._speed_batches.close()
 
     async def _serve(self) -> None:
         self._on_signal(self._stop.set)

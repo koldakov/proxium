@@ -151,7 +151,7 @@ and an API:
 | **API** | REST API over the database for the admin UI and your scripts | `proxium-api` |
 | **Admin UI** | Web interface for admins, talks only to the API | static files behind Caddy |
 | **PostgreSQL** | Single source of truth: accounts, policies, certificates, traffic | bundled or your own |
-| **Redis** | Shared state of the instances: connection limits, the migration lock | bundled or your own |
+| **Redis** | Shared state of the instances: connection and speed limits, the migration lock | bundled or your own |
 
 Connections don't query the database each time: authentication and the TLS certificate come from the cache,
 settings and policies from memory refreshed every few seconds, traffic is written in batches about once a minute.

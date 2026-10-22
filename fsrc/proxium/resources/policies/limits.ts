@@ -3,13 +3,22 @@ import type { RaRecord } from 'react-admin'
 import { toApiCondition } from './conditions'
 
 // What a limit is counted over, as the API names it: connections with the same value share it.
+// The hint says which.
 export const LIMIT_SCOPES = [
-  { id: 'identity', name: 'Per account or network' },
-  { id: 'client_ip', name: 'Per client IP' },
-  { id: 'target_host', name: 'Per target host' },
-  { id: 'connection', name: 'Per connection' },
-  { id: 'global', name: 'Whole proxy' },
+  {
+    id: 'identity',
+    name: 'Per account or network',
+    hint: 'All connections of one account or network',
+  },
+  { id: 'client_ip', name: 'Per client IP', hint: 'All connections from one IP, any account' },
+  { id: 'target_host', name: 'Per target host', hint: 'All connections to one site, any client' },
+  { id: 'connection', name: 'Per connection', hint: 'Each connection on its own' },
+  { id: 'global', name: 'Whole proxy', hint: 'Every connection of every client' },
 ]
+
+// Before a scope is picked, what picking one means.
+export const scopeHint = (scope: string | undefined) =>
+  LIMIT_SCOPES.find((choice) => choice.id === scope)?.hint ?? 'Which connections share the limit'
 
 export const DIRECTIONS = [
   { id: 'both', name: 'Each way' },

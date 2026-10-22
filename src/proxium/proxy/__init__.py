@@ -36,6 +36,8 @@ from ._limits import (
     ConnectionLimitPolicy,
     Direction,
     MemoryConnectionCounter,
+    MemorySpeedBucket,
+    SpeedBucket,
     SpeedLimitPolicy,
 )
 from ._observers import LoggingObserver, Observer
@@ -116,6 +118,7 @@ __all__ = [
     "LoggingObserver",
     "MemoryCache",
     "MemoryConnectionCounter",
+    "MemorySpeedBucket",
     "Meter",
     "Observer",
     "Policy",
@@ -130,6 +133,7 @@ __all__ = [
     "Socks5Inbound",
     "SourceSelector",
     "SourceUnavailable",
+    "SpeedBucket",
     "SpeedLimitPolicy",
     "StaticEncryption",
     "Stream",

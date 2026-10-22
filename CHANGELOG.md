@@ -19,12 +19,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   restart without downtime too. `PROXY_CONNECTION_LEASE`: how long a crashed instance's connections keep counting.
   `PROXY_REDIS_OUTAGE_TIMEOUT`: how long each instance counts alone while Redis is down.
 - `REDIS_SOCKET_CONNECT_TIMEOUT` and `REDIS_SOCKET_TIMEOUT`: a Redis that hangs fails in seconds instead of never.
+- Speed limits are shared by the instances through Redis: 1 MB/s is 1 MB/s across all of them, during a restart
+  without downtime too. `PROXY_SPEED_BATCH`: how much of the rate an instance takes at once, each may go over a
+  limit by one batch. While Redis is down each instance limits its own connections.
 
 ### Changed
 
 - HTTP clients get `503 Service Unavailable` instead of `500` when limits can't be checked, e.g. the database or
   Redis is down: worth retrying later.
 - Redis is required. Outside the Docker image, set `REDIS_URL` before upgrading.
+- An edited speed limit applies to open connections too, a removed one stops slowing them down. Before, they kept
+  the old one, and with the new one for new connections a client could get its speed twice. A new scope still
+  applies to new connections only: open ones keep the old limit.
 
 ### Fixed
 
