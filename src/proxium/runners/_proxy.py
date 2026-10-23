@@ -15,7 +15,14 @@ from proxium.auth import (
 )
 from proxium.certificates import CertificateEncryption
 from proxium.core import proxy_settings
-from proxium.counters import RedisConnectionCounter, RedisConnectionLeases, RedisSpeedBatches, RedisSpeedBucket
+from proxium.counters import (
+    RedisConnectionCounter,
+    RedisConnectionLeases,
+    RedisSpeedBatches,
+    RedisSpeedBucket,
+    RedisTrafficShare,
+    UnsupportedRedisError,
+)
 from proxium.db import (
     BasicProxyAccountTrafficModel,
     TokenProxyAccountTrafficModel,
@@ -23,7 +30,7 @@ from proxium.db import (
     redis_manager,
     session_manager,
 )
-from proxium.observers import TrafficObserver
+from proxium.observers import SharedTrafficTotals, TrafficObserver, TrafficShareUnavailable
 from proxium.policies import InvalidPolicyError, RuleSetBuilder, RuleSetPolicy
 from proxium.proxy import (
     AddressGuard,
@@ -168,13 +175,21 @@ class ProxyRunner:
         speed_batch: float = proxy_settings.speed_batch,
     ) -> None:
         self._log_level: LogLevel = log_level
-        # Needs the loop to flush, so the runner starts and closes it.
+        # Checked at the start: on an older Redis quotas would refuse every client once it counts as down.
+        self._traffic_share: RedisTrafficShare = RedisTrafficShare(lease=connection_lease)
+        # Needs the loop to flush and sync, so the runner starts and closes it. Unwritten traffic is shared with other
+        # instances through Redis, leased as connections are. The totals get the flush interval from the observer:
+        # they count on the others writing that often, e.g. while Redis is down.
         self._traffic_observer: TrafficObserver = TrafficObserver(
             [
                 BasicProxyAccountTrafficModel,
                 TokenProxyAccountTrafficModel,
                 TrustedNetworkTrafficModel,
             ],
+            totals=SharedTrafficTotals(
+                self._traffic_share,
+                outage_timeout=redis_outage_timeout,
+            ),
         )
         # Kept across settings changes: they hold no settings, and caches survive.
         self._inbounds: list[Inbound] = [
@@ -213,7 +228,7 @@ class ProxyRunner:
         # Needs the loop to check Redis while it's down, so the runner starts and closes it.
         self._speed_batches: RedisSpeedBatches = RedisSpeedBatches(batch=speed_batch)
         # Connection and speed limits are counted in Redis, shared with other instances. Quotas measure the traffic
-        # the observer counts.
+        # the observer counts, shared too.
         self._rule_set_builder: RuleSetBuilder = RuleSetBuilder(
             self._traffic_observer,
             counters=functools.partial(RedisConnectionCounter, leases=self._connection_leases),
@@ -352,9 +367,20 @@ class ProxyRunner:
             # Only at the start: later the proxy keeps the policies it has, see `PolicyWatcher`.
             logger.error("Can't start: %s", error)
             raise SystemExit(1) from None
+        except UnsupportedRedisError as error:
+            logger.error("Can't start: %s", error)
+            raise SystemExit(1) from None
 
     async def start(self) -> None:
-        """Read the settings and policies, then listen. Returns once listening, `close` stops."""
+        """Read the settings and policies, then listen. Returns once listening, `close` stops. Raise
+        `UnsupportedRedisError` if Redis is too old for quotas.
+        """
+        # A Redis that doesn't answer, or refuses for another reason, e.g. a replica, is an outage, as later: the proxy
+        # starts, quotas count alone for a while.
+        try:
+            await self._traffic_share.check_support()
+        except TrafficShareUnavailable:
+            logger.warning("Can't check that Redis supports quotas", exc_info=True)
         # Before listening, which the watchers start: every connection counts its traffic.
         self._traffic_observer.start()
         self._connection_leases.start()

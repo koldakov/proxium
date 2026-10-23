@@ -7,10 +7,13 @@ Proxium runs as one Docker image or from source.
 | | Supported | Docker image | Compose example |
 |---|---|---|---|
 | PostgreSQL | 17, 18 | 17 | 17 |
-| Redis | 8 | 8, from its Debian base | 8 |
+| Redis | 7.4, 8 | 8, from its Debian base | 8 |
 
 Every supported version runs the full test suite in CI. Your own database or Redis, e.g. a managed one, works on
-any of them. PostgreSQL 13 to 16 should work too, nothing newer is used, but they aren't tested.
+any of them. Redis must be 7.4 or newer: traffic quotas use hash fields that expire, which older Redis doesn't have,
+and the proxy doesn't start on it. One that turns older while the proxy runs, e.g. after a failover, is an outage
+for quotas, and the log says why.
+PostgreSQL 13 to 16 should work too, nothing newer is used, but they aren't tested.
 
 The image keeps PostgreSQL data in its volume, and a new major version can't read an older one's data. So the
 bundled PostgreSQL changes only in a release that comes with an upgrade guide.
@@ -18,8 +21,9 @@ bundled PostgreSQL changes only in a release that comes with an upgrade guide.
 ### Upgrading Redis
 
 Nothing is lost whichever way Redis is upgraded. It keeps only what's true right now: the connections open at the
-moment and the migration lock. Every proxy knows its own connections and writes them to Redis again on its own, so
-there's no data to move. The bundled Redis and the compose example don't even save it to disk.
+moment, traffic not yet written to the database and the migration lock. Every proxy knows its own connections and
+traffic and writes them to Redis again on its own, so there's no data to move. The bundled Redis and the compose
+example don't even save it to disk.
 
 With the Docker image the bundled Redis comes with the image: it's upgraded with Proxium, nothing to do.
 
@@ -29,10 +33,11 @@ With the compose example or your own Redis, pick one of two ways.
 `docker compose -f docker/compose.yaml up -d redis`, or the upgrade of a managed Redis.
 
 - Proxies keep running. For up to `PROXY_REDIS_OUTAGE_TIMEOUT` seconds of Redis being away, 30 by default, clients
-  notice nothing. If it takes longer, new connections under connection limits are refused until Redis is back,
-  others go on.
+  notice nothing. If it takes longer, until Redis is back new connections under connection limits are refused,
+  and connections under quotas are refused or cut. Others go on.
 - Redis comes back empty. Within a third of `PROXY_CONNECTION_LEASE`, 10 seconds by default, every proxy writes its
-  open connections there again. Until then a connection limit may let up to its value more in.
+  open connections there again, its unwritten traffic within a second. Until then a connection limit may let up to
+  its value more in.
 
 **Switch to a new Redis**, no outage at all.
 
@@ -42,12 +47,13 @@ With the compose example or your own Redis, pick one of two ways.
    in the old Redis, the new one counts in the new Redis.
 3. Once no old process is left, stop the old Redis. What it still holds are connections of processes that are gone.
 
-While old and new processes overlap they don't see each other's connections: a connection limit may let up to its
-value more in, for up to `PROXY_GRACEFUL_TIMEOUT`.
+While old and new processes overlap they don't see each other's connections and unwritten traffic: a connection
+limit may let up to its value more in, a quota what the old processes haven't written yet, for up to
+`PROXY_GRACEFUL_TIMEOUT`.
 
 Either way, don't upgrade Proxium at the same time: instances starting on different Redis don't share the migration
 lock of `proxium-manage migrate`. More on how the proxy handles Redis failures in
-[Connection limits](configuration.md#connection-limits).
+[Connection limits](configuration.md#connection-limits) and [Traffic quotas](configuration.md#traffic-quotas).
 
 ## Docker
 

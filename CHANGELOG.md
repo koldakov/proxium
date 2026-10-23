@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `proxium-manage migrate` holds a lock in Redis: instances starting at once migrate one at a time.
 - `PROXY_BACKLOG`: the queue of connections waiting to be accepted, `1024` by default instead of a fixed `100`.
   Bursts of new connections no longer stall for seconds.
-- Supported versions in the docs: PostgreSQL 17 and 18, Redis 8, each tested in CI.
+- Supported versions in the docs: PostgreSQL 17 and 18, Redis 7.4 and 8, each tested in CI.
 - Connection limits are shared by the instances through Redis: a limit of 10 is 10 across all of them, during a
   restart without downtime too. `PROXY_CONNECTION_LEASE`: how long a crashed instance's connections keep counting.
   `PROXY_REDIS_OUTAGE_TIMEOUT`: how long each instance counts alone while Redis is down.
@@ -22,6 +22,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Speed limits are shared by the instances through Redis: 1 MB/s is 1 MB/s across all of them, during a restart
   without downtime too. `PROXY_SPEED_BATCH`: how much of the rate an instance takes at once, each may go over a
   limit by one batch. While Redis is down each instance limits its own connections.
+- Traffic quotas are shared by the instances through Redis: each one puts the traffic it hasn't written to the
+  database yet there every second, so 10 GB is 10 GB across all of them. While Redis is up, a client may go over a
+  quota by about two seconds of its traffic per instance, plus the second between checks of an open connection.
+  Before, it was up to a minute.
 
 ### Changed
 
@@ -31,6 +35,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - An edited speed limit applies to open connections too, a removed one stops slowing them down. Before, they kept
   the old one, and with the new one for new connections a client could get its speed twice. A new scope still
   applies to new connections only: open ones keep the old limit.
+- Traffic quotas depend on Redis, a single instance too. If Redis is down longer than `PROXY_REDIS_OUTAGE_TIMEOUT`,
+  connections under quotas are refused with 503 and open ones cut until it's back. Before, quotas didn't use Redis.
+- Redis 7.4 or newer is required: quotas keep traffic in hash fields that expire. On an older one the proxy doesn't
+  start.
+- Restarting without downtime from 0.1.1, the old proxy doesn't share its traffic: until it stops, a quota may let
+  through what it hasn't written to the database yet, as before.
+- `PROXY_CONNECTION_LEASE` must be at least `3 + REDIS_SOCKET_CONNECT_TIMEOUT + REDIS_SOCKET_TIMEOUT`, `7` by
+  default, or nothing starts: unwritten traffic for quotas is renewed in Redis every second, and three renewals and
+  one slow Redis command fit in a lease.
 
 ### Fixed
 
