@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Self
+from typing import Annotated, Any, Final, Self
 from urllib.parse import urlparse
 
 from cryptography.fernet import Fernet
@@ -17,6 +17,10 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from ._listen_address import ListenAddress
 from ._log_level import LogLevel
+
+# Seconds between syncs of unwritten traffic for quotas between proxy instances, see `SharedTrafficTotals`. Here, next
+# to the check of PROXY_CONNECTION_LEASE against it: one value for both.
+TRAFFIC_SYNC_INTERVAL: Final[float] = 1.0
 
 
 def _fix_postgres_url(url: str, /, *, scheme: str = "postgresql+asyncpg") -> str:
@@ -56,15 +60,16 @@ class ProxySettings(BaseSettings):
         ),
     ] = 5.0
     # Seconds an open connection stays counted in Redis without being renewed, renewed every third of it.
-    # A crashed instance's connections stop counting after it.
+    # A crashed instance's connections stop counting after it, its unwritten traffic toward quotas too. That one is
+    # renewed every TRAFFIC_SYNC_INTERVAL. At least three renewals and one slow Redis command, see `Settings`.
     connection_lease: Annotated[
         float,
         Field(
             gt=0,
         ),
     ] = 30.0
-    # Seconds connection limits are counted in this process alone while Redis is down, then new connections under
-    # them are refused until it's back. At least REDIS_SOCKET_CONNECT_TIMEOUT + REDIS_SOCKET_TIMEOUT.
+    # Seconds connection limits and quotas are counted in this process alone while Redis is down, then connections
+    # under them are refused until it's back. At least REDIS_SOCKET_CONNECT_TIMEOUT + REDIS_SOCKET_TIMEOUT.
     redis_outage_timeout: Annotated[
         float,
         Field(
@@ -395,6 +400,22 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"PROXY_REDIS_OUTAGE_TIMEOUT of {self.proxy.redis_outage_timeout} s is shorter than one Redis command "
                 f"may take: {redis_timeout} s, REDIS_SOCKET_CONNECT_TIMEOUT + REDIS_SOCKET_TIMEOUT.",
+            )
+        return self
+
+    # Unwritten traffic for quotas is renewed every TRAFFIC_SYNC_INTERVAL, and a renewal may wait for Redis as long as
+    # one command may take: else traffic of a live instance expires between renewals, and quotas miss it. Three
+    # renewals, as for connections. Not covered: a renewal waiting for the announce of a write, both
+    # slow, or several slow chunks of over 1000 clients each. Rare, and short: quotas miss that traffic for a moment.
+    @model_validator(mode="after")
+    def _check_connection_lease(self) -> Self:
+        renewals = 3 * TRAFFIC_SYNC_INTERVAL
+        shortest = renewals + self.redis.socket_connect_timeout + self.redis.socket_timeout
+        if self.proxy.connection_lease < shortest:
+            raise ValueError(
+                f"PROXY_CONNECTION_LEASE of {self.proxy.connection_lease} s is shorter than three renewals of quota "
+                f"traffic and one Redis command: {shortest} s, {renewals} + REDIS_SOCKET_CONNECT_TIMEOUT + "
+                "REDIS_SOCKET_TIMEOUT.",
             )
         return self
 

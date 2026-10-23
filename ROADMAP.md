@@ -7,7 +7,6 @@ Where Proxium is heading. No dates, priorities may change. Ideas and use cases a
 
 **Scaling**
 
-- Redis: several proxy instances share traffic quotas, as they share connection and speed limits now
 - Speed limits take the next batch from Redis before the current one runs out: no pause for a round trip
 - Speed limits take bigger batches for busy clients: fewer calls to Redis with many clients downloading at once
 - Speed limits split the rate between the instances while Redis is down, instead of each giving all of it

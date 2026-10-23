@@ -4,6 +4,7 @@ from ._hostname import Hostname
 from ._listen_address import ListenAddress
 from ._log_level import LogLevel
 from ._settings import (
+    TRAFFIC_SYNC_INTERVAL,
     ApiSettings,
     DatabaseSettings,
     EncryptionSettings,
@@ -21,6 +22,7 @@ from ._settings import (
 )
 
 __all__ = [
+    "TRAFFIC_SYNC_INTERVAL",
     "ApiSettings",
     "DatabaseSettings",
     "DecryptionError",

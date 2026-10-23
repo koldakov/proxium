@@ -164,8 +164,8 @@ without reset. It counts downloads, uploads or both together. Past it new connec
 get `429 Quota Exceeded`, and open ones are cut within a second. Periods follow one another from a UTC day: for a
 global policy it's set on the policy, for an assigned one on the account or network page, next to the policy,
 e.g. the day the client paid. Assigning sets it to that day. Monthly periods from the 31st start on the last day
-of shorter months. Usage is the traffic in the database plus what the proxy hasn't written yet: traffic of other
-proxy processes counts within a minute.
+of shorter months. Usage is the traffic in the database plus what the proxy instances haven't written yet, shared
+through Redis: traffic of other instances counts within about two seconds.
 
 The limits of a policy sit in rules, each with a condition. In each policy the first rule whose condition matches
 applies, so put the narrow rules first and a rule without conditions last for everything else: e.g. 10 Mbit/s on
@@ -194,10 +194,11 @@ Open ones get some of them:
 | Traffic quota used up | Are cut within a second |
 | Anything else: rules and conditions, quotas edited, limits added, connection limits and quotas removed, policies assigned | Keep what they started with until they close |
 
-Assigning a policy reaches a client within the cache TTL of passed checks. Connection and speed limits are counted
-in Redis: all proxy instances share them, see what happens if Redis is down for
-[connection limits](configuration.md#connection-limits) and [speed limits](configuration.md#speed-limits). An
-account or network takes up to `API_POLICIES_MAX_PER_OWNER` policies.
+Assigning a policy reaches a client within the cache TTL of passed checks. Connection limits, speed limits and
+quotas are counted in Redis: all proxy instances share them, see what happens if Redis is down for
+[connection limits](configuration.md#connection-limits), [speed limits](configuration.md#speed-limits) and
+[traffic quotas](configuration.md#traffic-quotas). An account or network takes up to `API_POLICIES_MAX_PER_OWNER`
+policies.
 
 ## Settings
 
@@ -238,7 +239,7 @@ The old proxy's connections waiting to be accepted at the moment it stops are re
 
 In Docker it takes `--network host` (two containers can't publish one port with `-p`), a database and Redis outside
 the container, with `PROXIUM_SERVICES=proxy`. Both proxies must use the same Redis: with the bundled one each
-container counts connection limits alone.
+container counts limits and quotas alone.
 
 ```bash
 docker run -d --name proxium-new --network host -e PROXIUM_SERVICES=proxy \
@@ -246,7 +247,10 @@ docker run -d --name proxium-new --network host -e PROXIUM_SERVICES=proxy \
 docker stop --time 40 proxium-old
 ```
 
-Leave `--time` a few seconds over `PROXY_GRACEFUL_TIMEOUT`: closing connections release their places in Redis, up
-to the two Redis timeouts.
+Leave `--time` a few seconds over `PROXY_GRACEFUL_TIMEOUT`: closing connections release their places in Redis, and
+the last traffic goes to the database and Redis, each Redis step up to the two Redis timeouts.
 
-Connection and speed limits are shared by both proxies through Redis.
+Connection limits, speed limits and quotas are shared by both proxies through Redis. If a release changes how quotas
+keep traffic in Redis, or the old proxy is from before quotas were shared, the release notes say so: meanwhile the
+old and the new proxy don't see each other's traffic not yet in the database, a quota may let through what the old
+one hasn't written, for up to `PROXY_GRACEFUL_TIMEOUT`.

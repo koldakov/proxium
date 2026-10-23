@@ -35,9 +35,9 @@ Required, like PostgreSQL: instances on one database share their state in it, e.
 - The password goes either in the URL or in `REDIS_PASSWORD`, both is an error. Separate, it's easier to pass from a
   secret, e.g. in Kubernetes.
 - If Redis doesn't answer within `REDIS_SOCKET_CONNECT_TIMEOUT` and `REDIS_SOCKET_TIMEOUT`, what needs it fails.
-  Connection and speed limits of the proxy hold on, see below.
+  Connection limits, speed limits and traffic quotas of the proxy hold on, see below.
 - Keep `maxmemory-policy noeviction`, the Redis default: a full Redis then refuses writes, and the proxy handles it
-  as an outage. Other policies may drop keys of connection limits silently.
+  as an outage. Other policies may drop keys of connection limits and quotas silently.
 
 #### Connection limits
 
@@ -104,6 +104,49 @@ with the outage, while refusing would stall the traffic of every limited client.
 second with a write, so a full Redis that still answers stays down until it takes writes again. The log shows an
 error when Redis fails and a message when it's back.
 
+#### Traffic quotas
+
+Every proxy instance writes its traffic to the database about once a minute, and every second it puts what it
+hasn't written yet in Redis. A quota counts the traffic in the database plus what every instance has in Redis, so
+10 GB is 10 GB across all instances. Each instance sees the others' traffic within about two seconds: a client may
+go over a quota by about two seconds of its traffic per instance, plus the second between checks of an open
+connection. Each instance makes one write per client with traffic not in the database yet and one read per client
+under a quota every second, in batches of 1000: with tens of thousands of active clients, size Redis for it. Every
+write of an instance makes the others read that client's sums from the database again: with N instances, about N
+reads a minute per client under a quota, in batches too.
+
+What an instance has in Redis is leased for `PROXY_CONNECTION_LEASE` seconds and renewed every second. Right after
+an instance writes traffic to the database, it takes the same bytes out of Redis in one step, and the others read
+the database again. Until then, or until its lease expires if it crashes in between, they may count those bytes
+twice: the quota ends a bit sooner, never later. Traffic of a crashed instance not yet in the database is lost, as
+before, and stops counting with its lease.
+
+If Redis goes down:
+
+1. For `PROXY_REDIS_OUTAGE_TIMEOUT` seconds clients go on as usual. Each instance counts the database, its own
+   traffic and the others' as last read from Redis: a short blip loses nothing. Once a minute it reads the database
+   again, where the others have written their traffic by then, and counts alone from there: with N instances a
+   client may go over a quota by up to what N − 1 of them haven't written.
+2. Longer, connections under quotas are refused until Redis is back: new ones get `503 Service Unavailable` over HTTP,
+   a general failure over SOCKS5, open ones are cut on their next check. Clients without quotas aren't affected.
+   Open connections are cut, unlike under connection limits, on purpose. An open connection can't raise the number
+   of connections, and going over a speed limit ends with the outage. Over a quota an open download goes on adding
+   gigabytes, and nothing takes them back: with N instances each counting alone, a long outage would let a client
+   through as much as it can download. A quota sold to a client is a promise to stop at it, so the proxy stops
+   rather than guesses. If Redis may stay down for long, e.g. during maintenance, raise `PROXY_REDIS_OUTAGE_TIMEOUT`
+   for that time.
+3. The proxy checks Redis every second. Once it answers, each instance puts its unwritten traffic there again,
+   reads the others' and reads the database again, quotas are shared again.
+
+If only one instance loses Redis while the others still reach it, its unwritten traffic expires there within
+`PROXY_CONNECTION_LEASE`, and its writes reach the others only once it's back: they count without it. It refuses
+quotas itself after `PROXY_REDIS_OUTAGE_TIMEOUT`, so a client may go over a quota by up to what it hasn't written,
+as above. If it stops before Redis is back, what it wrote meanwhile reaches the others once any instance writes
+traffic of the same client: within about a minute where the client still connects.
+
+Nothing is lost for good: the traffic itself is in the database, Redis keeps only what isn't there yet, and each
+instance knows its own.
+
 ## Proxy
 
 | Variable | Description |
@@ -114,8 +157,8 @@ error when Redis fails and a message when it's back.
 | `PROXY_BACKLOG` | Connections waiting to be accepted per listening socket, default `1024`. Raise it if bursts of new connections stall. Takes effect on restart, see below |
 | `PROXY_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`, default `INFO` |
 | `PROXY_SETTINGS_POLL_INTERVAL` | Seconds between lookups of the [settings](proxy.md#settings) from the admin UI, default `5` |
-| `PROXY_CONNECTION_LEASE` | Seconds a crashed instance's connections keep counting toward connection limits, default `30`, see [Connection limits](#connection-limits) |
-| `PROXY_REDIS_OUTAGE_TIMEOUT` | Seconds connection limits are counted in each instance alone while Redis is down, default `30`. At least the two Redis timeouts together, see [Connection limits](#connection-limits) |
+| `PROXY_CONNECTION_LEASE` | Seconds a crashed instance's connections keep counting toward connection limits, and its unwritten traffic toward quotas, default `30`, at least `3 + REDIS_SOCKET_CONNECT_TIMEOUT + REDIS_SOCKET_TIMEOUT`, `7` by default, see [Connection limits](#connection-limits) and [Traffic quotas](#traffic-quotas) |
+| `PROXY_REDIS_OUTAGE_TIMEOUT` | Seconds connection limits and quotas are counted in each instance alone while Redis is down, default `30`. At least the two Redis timeouts together, see [Connection limits](#connection-limits) and [Traffic quotas](#traffic-quotas) |
 | `PROXY_SPEED_BATCH` | Seconds of a speed limit's rate an instance takes from Redis at once, default `0.1`. Each instance may go over a limit by one batch, see [Speed limits](#speed-limits) |
 
 `PROXY_LISTEN` is a comma-separated list of `host:port` pairs. A host is an IP address, a network or a host name,

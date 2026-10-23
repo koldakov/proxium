@@ -15,6 +15,7 @@ pytest_plugins = [
     "tests.fixtures.counters",
     "tests.fixtures.database",
     "tests.fixtures.management",
+    "tests.fixtures.observers",
     "tests.fixtures.policies",
     "tests.fixtures.proxy",
     "tests.fixtures.runners",

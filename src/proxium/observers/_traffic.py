@@ -3,27 +3,29 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-import time
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, Date, Integer, and_, cast, column, func, select, values
 from sqlalchemy.dialects.postgresql import insert
 
 from proxium.db import session_manager
 from proxium.policies import PeriodUsage
-from proxium.proxy import Observer, Unmetered, Usage, UsageUnavailable
+from proxium.proxy import Observer, Unmetered, Usage
+
+from ._counts import Bytes, create_days, merge_days, to_usages
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-    from sqlalchemy import Select
     from sqlalchemy.dialects.postgresql import Insert
 
     from proxium.db import BaseTrafficModel
     from proxium.proxy import Identity, Session
+
+    from ._counts import Days, Owner
+    from ._totals import TrafficTotals
 
 logger = logging.getLogger(__name__)
 
@@ -37,48 +39,19 @@ class UntrackedSessionError(Exception):
 
 
 @dataclass(slots=True)
-class _Bytes:
-    sent: int = 0
-    received: int = 0
-
-    def add(self, other: _Bytes, /) -> None:
-        self.sent += other.sent
-        self.received += other.received
-
-
-# Whose traffic: the table and the owner's id in it.
-type _Owner = tuple[type[BaseTrafficModel], int]
-# Counted bytes per owner and UTC day.
-type _Days = defaultdict[_Owner, defaultdict[date, _Bytes]]
-# A sum in the database: the owner's bytes since a day.
-type _TotalKey = tuple[type[BaseTrafficModel], int, date]
-
-
-def _create_days() -> _Days:
-    return defaultdict(lambda: defaultdict(_Bytes))
-
-
-def _merge(target: _Days, source: _Days, /) -> None:
-    for owner, days in source.items():
-        for day, counted in days.items():
-            target[owner][day].add(counted)
-
-
-@dataclass(slots=True)
 class _Tracked:
     """An open session and how much of it is already counted."""
 
     session: Session
-    owner: _Owner
-    counted: _Bytes
+    owner: Owner
+    counted: Bytes
 
-
-@dataclass(slots=True)
-class _Total:
-    """An owner's bytes since a day as read from the database, and when a quota last asked for them."""
-
-    written: _Bytes
-    used_at: float
+    def get_uncounted(self) -> Bytes:
+        """Bytes the session moved since its last count."""
+        return Bytes(
+            sent=self.session.bytes_sent - self.counted.sent,
+            received=self.session.bytes_received - self.counted.received,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,9 +75,9 @@ class TrafficObserver(Observer, PeriodUsage):
     The owner comes from the identity claim named after `model.owner_column`, the first model that matches wins.
     A failed write is retried on the next flush.
 
-    Tells quotas the usage since a day: the sum in the tables plus what this process hasn't written yet, open
-    tunnels included. A sum is read once, at most `read_chunk_size` per query, and again after every flush while
-    quotas ask for it: traffic of other processes shows up within `flush_interval`.
+    Tells quotas the usage since a day: what this process hasn't written yet, open tunnels included, plus what
+    `totals` tells, e.g. the tables and other processes. `totals` is told of every write and asks for the unwritten
+    bytes.
 
     Call `start` in the running loop before serving and `close` after the server shut down, to write the rest.
     """
@@ -114,33 +87,41 @@ class TrafficObserver(Observer, PeriodUsage):
         models: Sequence[type[BaseTrafficModel]],
         /,
         *,
+        totals: TrafficTotals,
         flush_interval: float = 60.0,
-        read_chunk_size: int = 500,
     ) -> None:
         self._models: tuple[type[BaseTrafficModel], ...] = tuple(models)
+        self._totals: TrafficTotals = totals
         self._flush_interval: float = flush_interval
-        self._read_chunk_size: int = read_chunk_size
         # Per owner, by id: sessions are mutable dataclasses, not hashable.
-        self._open: defaultdict[_Owner, dict[int, _Tracked]] = defaultdict(dict)
-        self._pending: _Days = _create_days()
+        self._open: defaultdict[Owner, dict[int, _Tracked]] = defaultdict(dict)
+        self._pending: Days = create_days()
         # The batch being written: not in the sums yet.
-        self._writing: _Days = _create_days()
-        # Batches written since the sums were last read: not in them either.
-        self._unread: _Days = _create_days()
-        self._totals: dict[_TotalKey, _Total] = {}
-        # Reads in progress, so quotas asking for the same sum at once share one.
-        self._reading: dict[_TotalKey, asyncio.Task[_Bytes]] = {}
-        self._refreshed_at: float = time.monotonic()
+        self._writing: Days = create_days()
         # Set by `close`: a flush in progress finishes, never cut halfway.
         self._closing: asyncio.Event = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
 
+    def _get_unwritten(self) -> dict[Owner, dict[date, Usage]]:
+        """What this process hasn't written: pending, being written, and open tunnels since their last count."""
+        unwritten = create_days()
+        for counts in (self._pending, self._writing):
+            merge_days(unwritten, counts)
+
+        today = datetime.now(UTC).date()
+        for owner, opened in self._open.items():
+            for tracked in opened.values():
+                unwritten[owner][today].add(tracked.get_uncounted())
+        return to_usages(unwritten)
+
     def start(self) -> None:
         self._task = asyncio.create_task(self._run())
+        self._totals.start(self._get_unwritten, flush_interval=self._flush_interval)
 
     async def close(self) -> None:
         """Stop flushing on schedule and write what's left. Sessions still open are counted up to now."""
         self._closing.set()
+        await self._totals.close_reads()
         if self._task is not None:
             await self._task
         # Always: sessions closed while the last scheduled flush was writing aren't in it.
@@ -149,7 +130,9 @@ class TrafficObserver(Observer, PeriodUsage):
         if self._pending:
             logger.error("Traffic lost on shutdown: %s", self._describe_pending())
 
-    def _get_owner(self, identity: Identity, /) -> _Owner:
+        await self._totals.close()
+
+    def _get_owner(self, identity: Identity, /) -> Owner:
         for model in self._models:
             if model.owner_column in identity.claims:
                 return model, identity.claims[model.owner_column]
@@ -168,7 +151,7 @@ class TrafficObserver(Observer, PeriodUsage):
         return _Tracked(
             session=session,
             owner=owner,
-            counted=_Bytes(),
+            counted=Bytes(),
         )
 
     async def on_open(self, session: Session, /) -> None:
@@ -181,9 +164,7 @@ class TrafficObserver(Observer, PeriodUsage):
 
     def _count(self, tracked: _Tracked, /) -> None:
         """Move the bytes not counted yet to the pending ones of today."""
-        pending = self._pending[tracked.owner][datetime.now(UTC).date()]
-        pending.sent += tracked.session.bytes_sent - tracked.counted.sent
-        pending.received += tracked.session.bytes_received - tracked.counted.received
+        self._pending[tracked.owner][datetime.now(UTC).date()].add(tracked.get_uncounted())
         tracked.counted.sent = tracked.session.bytes_sent
         tracked.counted.received = tracked.session.bytes_received
 
@@ -200,107 +181,20 @@ class TrafficObserver(Observer, PeriodUsage):
             self._open.pop(tracked.owner, None)
         self._count(tracked)
 
-    def _get_totals_statement(
-        self,
-        model: type[BaseTrafficModel],
-        keys: Sequence[tuple[int, date]],
-        /,
-    ) -> Select[tuple[int, date, int, int]]:
-        """Bytes of each owner since its day, zero for owners without traffic. Sums of bigint are numeric: cast."""
-        requested = values(
-            column("owner_id", Integer()),
-            column("since", Date()),
-            name="requested",
-        ).data(list(keys))
-        return (
-            select(
-                requested.c.owner_id,
-                requested.c.since,
-                cast(func.coalesce(func.sum(model.bytes_sent), 0), BigInteger()),
-                cast(func.coalesce(func.sum(model.bytes_received), 0), BigInteger()),
-            )
-            .select_from(requested)
-            .outerjoin(
-                model,
-                and_(
-                    getattr(model, model.owner_column) == requested.c.owner_id,
-                    model.day >= requested.c.since,
-                ),
-            )
-            .group_by(requested.c.owner_id, requested.c.since)
-        )
-
-    async def _read_totals(self, keys: Sequence[_TotalKey], /) -> dict[_TotalKey, _Bytes]:
-        by_model: defaultdict[type[BaseTrafficModel], list[tuple[int, date]]] = defaultdict(list)
-        for model, owner_id, since in keys:
-            by_model[model].append((owner_id, since))
-
-        totals: dict[_TotalKey, _Bytes] = {}
-        async with session_manager.session() as session:
-            for model, model_keys in by_model.items():
-                for start in range(0, len(model_keys), self._read_chunk_size):
-                    chunk = model_keys[start : start + self._read_chunk_size]
-                    result = await session.execute(self._get_totals_statement(model, chunk))
-                    for owner_id, since, sent, received in result.tuples():
-                        totals[model, owner_id, since] = _Bytes(sent=sent, received=received)
-        return totals
-
-    async def _read_total(self, key: _TotalKey, /) -> _Bytes:
-        # Reading until stored: a quota asking in between would start a read of its own.
-        try:
-            totals = await self._read_totals([key])
-        finally:
-            del self._reading[key]
-
-        self._totals[key] = _Total(written=totals[key], used_at=time.monotonic())
-        return totals[key]
-
-    @staticmethod
-    def _retrieve_error(task: asyncio.Task[_Bytes], /) -> None:
-        # Quotas still waiting report the error, ones that gave up have no one to report it to.
-        if not task.cancelled():
-            task.exception()
-
-    async def _wait_total(self, key: _TotalKey, /) -> _Bytes:
-        try:
-            task = self._reading[key]
-        except KeyError:
-            task = asyncio.create_task(self._read_total(key))
-            task.add_done_callback(self._retrieve_error)
-            self._reading[key] = task
-
-        # Not `await task`: a connection that gives up doesn't cancel the others' read.
-        await asyncio.wait([task])
-        error = task.exception()
-        if error is not None:
-            raise UsageUnavailable() from error
-        return task.result()
-
-    async def _get_written(self, owner: _Owner, since: date, /) -> _Bytes:
-        key = (*owner, since)
-        try:
-            total = self._totals[key]
-        except KeyError:
-            return await self._wait_total(key)
-
-        total.used_at = time.monotonic()
-        return total.written
-
-    def _get_unread(self, owner: _Owner, since: date, /) -> _Bytes:
-        """Bytes since the day that the last read sums lack: not written yet, being written, or written after."""
-        unread = _Bytes()
-        for counts in (self._pending, self._writing, self._unread):
+    def _get_unwritten_since(self, owner: Owner, since: date, /) -> Bytes:
+        """Bytes of this process since the day not written yet: pending, being written, or moved by open tunnels."""
+        unwritten = Bytes()
+        for counts in (self._pending, self._writing):
             # `get`: looking up mustn't add empty owners.
-            days: Mapping[date, _Bytes] = counts.get(owner, {})
+            days: Mapping[date, Bytes] = counts.get(owner, {})
             for day, counted in days.items():
                 if day >= since:
-                    unread.add(counted)
+                    unwritten.add(counted)
 
         # Open tunnels moved bytes since their last count, today's.
         for tracked in self._open.get(owner, {}).values():
-            unread.sent += tracked.session.bytes_sent - tracked.counted.sent
-            unread.received += tracked.session.bytes_received - tracked.counted.received
-        return unread
+            unwritten.add(tracked.get_uncounted())
+        return unwritten
 
     async def used_since(self, identity: Identity, since: date, /) -> Usage:
         try:
@@ -308,11 +202,11 @@ class TrafficObserver(Observer, PeriodUsage):
         except UntrackedIdentityError as err:
             raise Unmetered() from err
 
-        written = await self._get_written(owner, since)
-        unread = self._get_unread(owner, since)
+        totals = await self._totals.used_since(owner, since)
+        unwritten = self._get_unwritten_since(owner, since)
         return Usage(
-            sent=written.sent + unread.sent,
-            received=written.received + unread.received,
+            sent=totals.sent + unwritten.sent,
+            received=totals.received + unwritten.received,
         )
 
     async def _run(self) -> None:
@@ -321,29 +215,7 @@ class TrafficObserver(Observer, PeriodUsage):
                 await asyncio.wait_for(self._closing.wait(), self._flush_interval)
             await self._flush()
 
-    async def _refresh_totals(self) -> None:
-        """Read again the sums quotas asked for since the last refresh, drop the rest: memory stays bounded by the
-        owners in use. A failed read keeps the old sums with the batches written since counted on top.
-        """
-        cutoff, self._refreshed_at = self._refreshed_at, time.monotonic()
-        self._totals = {key: total for key, total in self._totals.items() if total.used_at >= cutoff}
-        if not self._totals:
-            # Sums read later include every written batch.
-            self._unread = _create_days()
-            return
-
-        try:
-            totals = await self._read_totals(list(self._totals))
-        except Exception:
-            logger.exception("Can't read traffic sums for quotas, retrying on the next flush")
-            return
-
-        # Only refreshes drop sums, so every one read is still there.
-        for key, written in totals.items():
-            self._totals[key].written = written
-        self._unread = _create_days()
-
-    def _get_rows(self, batch: _Days, /) -> _Rows:
+    def _get_rows(self, batch: Days, /) -> _Rows:
         rows: _Rows = defaultdict(list)
         for (model, owner_id), days in batch.items():
             for day, counted in days.items():
@@ -364,21 +236,24 @@ class TrafficObserver(Observer, PeriodUsage):
                 self._count(tracked)
 
         # Taken before the write: sessions closing meanwhile count into a fresh batch.
-        batch, self._pending = self._pending, _create_days()
+        batch, self._pending = self._pending, create_days()
         rows = self._get_rows(batch)
-        if rows:
-            self._writing = batch
-            try:
-                await self._write(rows)
-            except Exception:
-                logger.exception("Can't write traffic, retrying on the next flush")
-                _merge(self._pending, batch)
-            else:
-                _merge(self._unread, batch)
-            finally:
-                self._writing = _create_days()
+        if not rows:
+            return
 
-        await self._refresh_totals()
+        self._writing = batch
+        try:
+            await self._write(rows)
+        except Exception:
+            logger.exception("Can't write traffic, retrying on the next flush")
+            merge_days(self._pending, batch)
+            return
+        finally:
+            self._writing = create_days()
+
+        # No await since the write: `totals` counts the batch before its first await, no quota misses it. It may wait
+        # for a publish in progress, up to twice the Redis timeouts while Redis hangs: the write is done by then.
+        await self._totals.add_written(to_usages(batch))
 
     async def _write(self, rows: _Rows, /) -> None:
         """All tables in one transaction: a failed batch is retried whole, never counted twice."""

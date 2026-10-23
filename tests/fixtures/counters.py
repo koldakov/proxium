@@ -54,3 +54,23 @@ def speed_limit_name(
             await redis_client.delete(key)
 
     loop_runner.run(drop())
+
+
+@pytest.fixture
+def traffic_owner(
+    faker: Faker,
+    loop_runner: asyncio.Runner,
+    redis_client: Redis,
+    shared_redis_manager: None,
+) -> Iterator[str]:
+    """An owner of traffic shared in the tests' Redis, new for every test. Its hash is dropped after."""
+    owner = f"traffic:{faker.unique.random_int()}"
+
+    yield owner
+
+    async def drop() -> None:
+        # Of whatever format.
+        async for key in redis_client.scan_iter(match=redis_manager.key(f"quota:traffic:*:{owner}")):
+            await redis_client.delete(key)
+
+    loop_runner.run(drop())

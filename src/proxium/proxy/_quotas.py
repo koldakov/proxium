@@ -18,7 +18,9 @@ class QuotaExceeded(Forbidden):
 
 
 class UsageUnavailable(ProxyError):
-    """The usage can't be read, e.g. the database is down. The client is refused: a quota mustn't be bypassed."""
+    """The usage can't be read, e.g. the database or Redis is down. The client is refused: a quota mustn't be
+    bypassed.
+    """
 
 
 class Unmetered(Exception):
