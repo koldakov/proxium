@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from proxium.counters import RedisSpeedBatches
+from proxium.counters import RedisConnectionLeases, RedisSpeedBatches
 from proxium.db import redis_manager
 
 if TYPE_CHECKING:
@@ -71,6 +71,46 @@ def traffic_owner(
     async def drop() -> None:
         # Of whatever format.
         async for key in redis_client.scan_iter(match=redis_manager.key(f"quota:traffic:*:{owner}")):
+            await redis_client.delete(key)
+
+    loop_runner.run(drop())
+
+
+@pytest.fixture
+def redis_connection_leases_factory(
+    loop_runner: asyncio.Runner,
+    shared_redis_manager: None,
+) -> Iterator[Callable[[float], RedisConnectionLeases]]:
+    """Leases of a new process on every call, for `lease` seconds: several of them share connection limits in Redis as
+    instances do. Redis is probed every 50 ms, so tests wait little for it to come back. All are closed after.
+    """
+    created: list[RedisConnectionLeases] = []
+
+    def create(lease: float, /) -> RedisConnectionLeases:
+        leases = RedisConnectionLeases(lease=lease, outage_timeout=60.0, probe_interval=0.05)
+        created.append(leases)
+        return leases
+
+    yield create
+
+    for leases in created:
+        loop_runner.run(leases.close())
+
+
+@pytest.fixture
+def connection_limit_name(
+    faker: Faker,
+    loop_runner: asyncio.Runner,
+    redis_client: Redis,
+    shared_redis_manager: None,
+) -> Iterator[str]:
+    """The name of a connection limit's keys in the tests' Redis, new for every test. Its keys are dropped after."""
+    name = f"{faker.unique.random_int()}:identity"
+
+    yield name
+
+    async def drop() -> None:
+        async for key in redis_client.scan_iter(match=redis_manager.key(f"limit:connections:{name}:*")):
             await redis_client.delete(key)
 
     loop_runner.run(drop())
