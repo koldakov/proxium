@@ -84,6 +84,14 @@ class ProxySettings(BaseSettings):
             gt=0,
         ),
     ] = 0.1
+    # Names the instance in `Proxy-Status` of HTTP responses. Printable ASCII: it goes in a header,
+    # `HttpInbound` quotes it if needed. It checks the same itself, this one fails at settings load with the env name.
+    name: Annotated[
+        str,
+        Field(
+            pattern=r"^[\x20-\x7e]+$",
+        ),
+    ] = "proxium"
 
     model_config = SettingsConfigDict(
         env_prefix="proxy_",

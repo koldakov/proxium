@@ -9,7 +9,7 @@ import pytest
 if TYPE_CHECKING:
     from faker import Faker
 
-    from proxium.proxy import Stream
+    from proxium.proxy import SocketStream
 
 SEPARATOR = b"\r\n\r\n"
 
@@ -22,11 +22,11 @@ def _receive_all(peer: socket.socket, /) -> bytes:
     return bytes(received)
 
 
-class TestStream:
+class TestSocketStream:
     async def test_read_returns_peeked_bytes_first(
         self,
         faker: Faker,
-        stream: Stream,
+        stream: SocketStream,
         peer_socket: socket.socket,
     ) -> None:
         # Arrange
@@ -44,7 +44,7 @@ class TestStream:
     async def test_peek_raises_incomplete_read_when_eof_before_n(
         self,
         faker: Faker,
-        stream: Stream,
+        stream: SocketStream,
         peer_socket: socket.socket,
     ) -> None:
         # Arrange
@@ -59,7 +59,7 @@ class TestStream:
     async def test_readexactly_returns_n_bytes_and_keeps_rest(
         self,
         faker: Faker,
-        stream: Stream,
+        stream: SocketStream,
         peer_socket: socket.socket,
     ) -> None:
         # Arrange
@@ -78,7 +78,7 @@ class TestStream:
     async def test_readexactly_raises_incomplete_read_when_eof_before_n(
         self,
         faker: Faker,
-        stream: Stream,
+        stream: SocketStream,
         peer_socket: socket.socket,
     ) -> None:
         # Arrange
@@ -93,7 +93,7 @@ class TestStream:
     async def test_readuntil_returns_through_separator_and_keeps_rest(
         self,
         faker: Faker,
-        stream: Stream,
+        stream: SocketStream,
         peer_socket: socket.socket,
     ) -> None:
         # Arrange
@@ -113,7 +113,7 @@ class TestStream:
     async def test_readuntil_raises_limit_overrun_when_no_separator_within_limit(
         self,
         faker: Faker,
-        stream: Stream,
+        stream: SocketStream,
         peer_socket: socket.socket,
     ) -> None:
         # Arrange
@@ -128,7 +128,7 @@ class TestStream:
     async def test_readuntil_raises_limit_overrun_when_separator_beyond_limit(
         self,
         faker: Faker,
-        stream: Stream,
+        stream: SocketStream,
         peer_socket: socket.socket,
     ) -> None:
         # Arrange
@@ -145,7 +145,7 @@ class TestStream:
     async def test_readuntil_raises_incomplete_read_when_eof_without_separator(
         self,
         faker: Faker,
-        stream: Stream,
+        stream: SocketStream,
         peer_socket: socket.socket,
     ) -> None:
         # Arrange
@@ -160,7 +160,7 @@ class TestStream:
     async def test_write_eof_lets_peer_see_end_after_data(
         self,
         faker: Faker,
-        stream: Stream,
+        stream: SocketStream,
         peer_socket: socket.socket,
     ) -> None:
         # Arrange

@@ -105,6 +105,28 @@ class TestRelay:
         # Assert
         assert session.error is error
 
+    async def test_expired_is_true_when_nothing_moves_for_idle_timeout(self, session: Session) -> None:
+        # Arrange
+        relay = Relay(StalledStream(), StalledStream(), session, idle_timeout=IDLE_TIMEOUT)
+
+        # Act
+        await asyncio.wait_for(relay.run(), timeout=TEST_TIMEOUT)
+
+        # Assert
+        assert relay.expired
+
+    async def test_expired_is_false_when_both_sides_finish(self, faker: Faker, session: Session) -> None:
+        # Arrange
+        client = ScriptedStream([faker.binary(length=faker.pyint(min_value=1, max_value=100))])
+        target = ScriptedStream([faker.binary(length=faker.pyint(min_value=1, max_value=100))])
+        relay = Relay(client, target, session, idle_timeout=TEST_TIMEOUT)
+
+        # Act
+        await relay.run()
+
+        # Assert
+        assert not relay.expired
+
     async def test_timeout_raises_runtime_error_when_not_running(self, session: Session) -> None:
         # Arrange
         relay = Relay(ScriptedStream(), ScriptedStream(), session, idle_timeout=TEST_TIMEOUT)

@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Final
 
 from proxium.proxy._authenticators import AuthenticationRequired
 from proxium.proxy._connectors import (
+    SourceUnavailable,
+    TargetRefused,
     TargetTimeout,
     TargetUnreachable,
 )
@@ -93,7 +95,10 @@ DEFAULT_REPLIES: Final[Mapping[type[ProxyError], Reply]] = {
     UnsupportedAddressType: Reply.ADDRESS_TYPE_NOT_SUPPORTED,
     Forbidden: Reply.NOT_ALLOWED,
     TargetUnreachable: Reply.HOST_UNREACHABLE,
+    TargetRefused: Reply.CONNECTION_REFUSED,
     TargetTimeout: Reply.TTL_EXPIRED,
+    # The proxy's own setup is at fault, not the target.
+    SourceUnavailable: Reply.GENERAL_FAILURE,
     ProxyError: Reply.GENERAL_FAILURE,
 }
 

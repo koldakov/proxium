@@ -51,7 +51,7 @@ If Redis goes down:
 1. For `PROXY_REDIS_OUTAGE_TIMEOUT` seconds clients go on as usual. Each instance counts only its own connections,
    so with N instances up to N × limit may open.
 2. Longer, new connections under connection limits are refused until Redis is back: HTTP clients get
-   `503 Service Unavailable`, SOCKS5 ones a general failure. Open connections go on, and clients without
+   `503 Limits Unavailable`, SOCKS5 ones a general failure. Open connections go on, and clients without
    connection limits aren't affected.
 3. The proxy checks Redis every second. Once it answers, each instance writes all its open connections there, those
    opened during the outage too, and limits are shared again. Connections over the limit stay until they close, new
@@ -127,7 +127,7 @@ If Redis goes down:
    traffic and the others' as last read from Redis: a short blip loses nothing. Once a minute it reads the database
    again, where the others have written their traffic by then, and counts alone from there: with N instances a
    client may go over a quota by up to what N − 1 of them haven't written.
-2. Longer, connections under quotas are refused until Redis is back: new ones get `503 Service Unavailable` over HTTP,
+2. Longer, connections under quotas are refused until Redis is back: new ones get `503 Limits Unavailable` over HTTP,
    a general failure over SOCKS5, open ones are cut on their next check. Clients without quotas aren't affected.
    Open connections are cut, unlike under connection limits, on purpose. An open connection can't raise the number
    of connections, and going over a speed limit ends with the outage. Over a quota an open download goes on adding
@@ -160,6 +160,7 @@ instance knows its own.
 | `PROXY_CONNECTION_LEASE` | Seconds a crashed instance's connections keep counting toward connection limits, and its unwritten traffic toward quotas, default `30`, at least `3 + REDIS_SOCKET_CONNECT_TIMEOUT + REDIS_SOCKET_TIMEOUT`, `7` by default, see [Connection limits](#connection-limits) and [Traffic quotas](#traffic-quotas) |
 | `PROXY_REDIS_OUTAGE_TIMEOUT` | Seconds connection limits and quotas are counted in each instance alone while Redis is down, default `30`. At least the two Redis timeouts together, see [Connection limits](#connection-limits) and [Traffic quotas](#traffic-quotas) |
 | `PROXY_SPEED_BATCH` | Seconds of a speed limit's rate an instance takes from Redis at once, default `0.1`. Each instance may go over a limit by one batch, see [Speed limits](#speed-limits) |
+| `PROXY_NAME` | Names the instance in `Proxy-Status` of HTTP responses, default `proxium`, e.g. its host name. Printable ASCII, an IP or a name with spaces is sent in quotes, see [Proxy](proxy.md) |
 
 `PROXY_LISTEN` is a comma-separated list of `host:port` pairs. A host is an IP address, a network or a host name,
 IPv6 goes in brackets. A port may be an inclusive range. Every host listens on every port of its pair:

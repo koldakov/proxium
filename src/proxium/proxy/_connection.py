@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Final
 
 from ._encryption import EncryptionUnavailable
 from ._relay import Relay
-from ._stream import Stream
+from ._stream import SocketStream
 from ._types import ProxyError
 
 if TYPE_CHECKING:
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from ._observers import Observer
     from ._policies import Grant
     from ._profiles import Profile
+    from ._stream import Stream
     from ._types import Credentials, Identity, Request, Session
     from .inbound import Inbound
 
@@ -106,6 +107,24 @@ class Connection:
         client.write(TLS_HANDSHAKE_FAILURE)
         await client.drain()
 
+    async def _reject(self, inbound: Inbound, client: Stream, error: ProxyError, /) -> None:
+        """Tell the client why it's refused. `error` stays the session's: a client gone by now doesn't replace it."""
+        self._session.error = error
+        with contextlib.suppress(OSError):
+            await inbound.reject(client, error)
+
+    async def _linger(self, client: Stream, /) -> None:
+        """Tell the client nothing more comes, then read off what it still sends, e.g. the rest of a refused body, up
+        to `timeouts.linger`: closing with unread data resets away what the client hasn't read yet (RFC 9112, 9.6).
+        """
+        # Twice is fine: a relay's end may have sent it. TLS can't half-close, it closes then, see `SocketStream`.
+        with contextlib.suppress(OSError):
+            client.write_eof()
+        with contextlib.suppress(OSError, TimeoutError):
+            async with asyncio.timeout(self._profile.timeouts.linger):
+                while await client.read():
+                    pass
+
     async def _serve(self, client: Stream, deadline: float, /) -> None:
         async with asyncio.timeout_at(deadline):
             head = await client.peek(1)
@@ -119,8 +138,8 @@ class Connection:
             try:
                 request, grants, target = await self._open(inbound, client, deadline, releases)
             except ProxyError as error:
-                self._session.error = error
-                await inbound.reject(client, error)
+                await self._reject(inbound, client, error)
+                await self._linger(client)
                 return
 
             self._session.request = request
@@ -129,13 +148,22 @@ class Connection:
                 self._session.bytes_sent += len(request.payload)
                 await inbound.accept(client, request)
                 await self._notify(lambda observer: observer.on_open(self._session))
-                await Relay(
-                    client,
-                    target,
+                exchange = inbound.exchange(client, target, request)
+                relay = Relay(
+                    exchange.client,
+                    exchange.target,
                     self._session,
                     idle_timeout=self._profile.timeouts.idle,
                     grants=grants,
-                ).run()
+                )
+                await relay.run()
+                try:
+                    exchange.check_ended(expired=relay.expired, error=relay.error)
+                except ProxyError as error:
+                    # In place of how the relay ended: the client is told this one.
+                    await self._reject(inbound, client, error)
+            # With the target closed, grants still held: the connection counts until it closes.
+            await self._linger(client)
 
     async def _process(self) -> None:
         # One deadline for the whole handshake, TLS and detection included.
@@ -145,14 +173,14 @@ class Connection:
                 context = await self._get_encryption_context()
             except EncryptionUnavailable as error:
                 self._session.error = error
-                async with await Stream.accept(self._client) as client:
+                async with await SocketStream.accept(self._client) as client:
                     await self._refuse_encryption(client)
                 return
             except BaseException:
                 # No stream owns the socket yet to close it.
                 self._client.close()
                 raise
-            client = await Stream.accept(self._client, encryption=context)
+            client = await SocketStream.accept(self._client, encryption=context)
         self._session.encrypted = context is not None
         async with client:
             await self._serve(client, deadline)

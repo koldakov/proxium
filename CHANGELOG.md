@@ -26,10 +26,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   database yet there every second, so 10 GB is 10 GB across all of them. While Redis is up, a client may go over a
   quota by about two seconds of its traffic per instance, plus the second between checks of an open connection.
   Before, it was up to a minute.
+- `Proxy-Status` (RFC 9209) on every HTTP response, e.g. `proxium; error=http_request_denied` on a 429: a client
+  tells a refusal of the proxy from a response of the target with the same status. Forwarded responses get the
+  proxy's name added. `PROXY_NAME` sets the name. A 503 over limits that can't be checked also has `Retry-After`.
+- A forwarded response whose head breaks off or isn't valid HTTP, e.g. has a line ending with a bare LF or CR,
+  folded or malformed fields, a conflicting `Content-Length`, `Transfer-Encoding` on a body in answer to an HTTP/1.0
+  request, more than 16 interim `1xx` heads, an unasked `101`, or comes from a TLS server, gets the client a `502`
+  with the reason in `Proxy-Status`, `connection_terminated` if the target closed without a byte. A target that sends no head until the idle timeout gets
+  the client a `504` with `http_response_timeout`, a client that hasn't sent its whole request by then a `408`, unless
+  it waits for `100 Continue`. A request cut before its response, e.g. over a quota, gets the refusal. Before, the
+  connection just closed or the bytes went on as is. The proxy reads off what the client still sends for up to 5
+  seconds before closing, so the client gets the refusal instead of a reset.
+- Forwarded responses say `Connection: close` and lose the target's connection fields, e.g. `Keep-Alive`, as RFC 9110
+  and RFC 9112 require: the proxy forwards one request per connection. `Content-Length` next to `Transfer-Encoding`
+  is dropped, a repeated one sent once. HTTP/1.0 clients get no interim `1xx` responses.
+- HTTP requests whose body end is unclear get `400`, as RFC 9112 requires: `Transfer-Encoding` not ending with
+  `chunked`, next to `Content-Length` or in an HTTP/1.0 request, a bad or conflicting `Content-Length`, a malformed
+  chunk. Before, they went to the target.
+- `TargetNotResolved` error for a target whose name doesn't resolve, `dns_error` in `Proxy-Status`, and
+  `ResolveTimeout` for a resolver that doesn't answer in time, `504` with `dns_timeout`.
+- `TargetRefused` error for a target that refuses the connection: `connection_refused` in `Proxy-Status`, SOCKS5
+  clients get connection refused instead of host unreachable.
 
 ### Changed
 
-- HTTP clients get `503 Service Unavailable` instead of `500` when limits can't be checked, e.g. the database or
+- HTTP clients get `500` instead of `502 Bad Gateway` when there's no outgoing IP to connect from, e.g. an empty IP
+  pool, SOCKS5 ones a general failure instead of host unreachable: the proxy's setup is at fault, not the target.
+- HTTP clients get `503 Limits Unavailable` instead of `500` when limits can't be checked, e.g. the database or
   Redis is down: worth retrying later.
 - Redis is required. Outside the Docker image, set `REDIS_URL` before upgrading.
 - An edited speed limit applies to open connections too, a removed one stops slowing them down. Before, they kept
@@ -47,6 +70,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- What an HTTP client sends after a forwarded request, e.g. a pipelined request to another host with its
+  `Proxy-Authorization`, doesn't reach the target. Past a request head's size it isn't read until the response ends,
+  so a client can't send past its limits meanwhile. Before, it went there as is.
 - Deleting an outgoing IP that is in a pool, or a trusted network with traffic, answers 409 instead of 500, on
   PostgreSQL 17 and 18 alike.
 - A trusted network with policies can be deleted: its policy assignments go with it, the policies stay.

@@ -38,6 +38,8 @@ class Relay:
         self._held: int = 0
         # Set by `run` for its duration, see `timeout`.
         self._timeout: asyncio.Timeout | None = None
+        # Set by `run` if the tunnel ended on one, see `error`.
+        self._error: ProxyError | None = None
         # Relay is created inside a running loop, so it can be looked up once.
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
 
@@ -48,6 +50,16 @@ class Relay:
             raise RuntimeError("The relay isn't running.")
         return self._timeout
 
+    @property
+    def expired(self) -> bool:
+        """Whether the tunnel ended on its idle timeout, e.g. a target that never answered."""
+        return self.timeout.expired()
+
+    @property
+    def error(self) -> ProxyError | None:
+        """What the tunnel ended on, e.g. a grant cut it over a quota, None if it ended otherwise."""
+        return self._error
+
     async def run(self) -> None:
         try:
             await self._pipe_both_ways()
@@ -56,7 +68,9 @@ class Relay:
             self._session.error = group.exceptions[0]
         except* ProxyError as group:
             # A grant cut the tunnel, e.g. over a quota: the reason ends up in the session, as a refusal's does.
-            self._session.error = group.exceptions[0]
+            # The task group raises each task's own error, none is a group.
+            self._error = next(error for error in group.exceptions if isinstance(error, ProxyError))
+            self._session.error = self._error
 
     async def _check_sent(self, n: int, /) -> None:
         for grant in self._grants:

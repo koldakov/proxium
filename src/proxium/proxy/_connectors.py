@@ -8,11 +8,12 @@ from ipaddress import IPv6Address, ip_address
 from typing import TYPE_CHECKING, Final
 
 from ._guards import DEFAULT_GUARD, ForbiddenAddress
-from ._stream import Stream
+from ._stream import SocketStream
 from ._types import ProxyError
 
 if TYPE_CHECKING:
     from ._guards import AddressGuard, IPAddress
+    from ._stream import Stream
     from ._types import Address, Request, Session
 
 
@@ -33,6 +34,21 @@ class TargetUnreachable(ProxyError):
 
 class TargetTimeout(TargetUnreachable):
     pass
+
+
+class TargetNotResolved(TargetUnreachable):
+    """The resolver failed for the target host name: no such name, or DNS is down."""
+
+
+class ResolveTimeout(TargetTimeout):
+    """The resolver didn't answer for the target host name in time.
+
+    Not a `TargetNotResolved`: with two parents it would take whatever that one gets in an error table.
+    """
+
+
+class TargetRefused(TargetUnreachable):
+    """Every address of the target refused the connection: it's up, but nothing listens on the port."""
 
 
 class SourceUnavailable(TargetUnreachable):
@@ -113,26 +129,31 @@ class DirectConnector(Connector):
         self._source: SourceSelector = source
 
     async def connect(self, request: Request, session: Session, /) -> Stream:
-        source = self._source.select(request, session)
-        try:
-            return await self._connect(request.target, source=source)
-        except TimeoutError as error:
-            raise TargetTimeout(str(request.target)) from error
-
-    async def _connect(self, target: Address, /, *, source: IPAddress | None = None) -> Stream:
         """Resolve and connect, `timeout` seconds for both together.
 
-        `asyncio.timeout` raises the built-in `TimeoutError` when they run out.
+        `asyncio.timeout_at` raises the built-in `TimeoutError`: one block per step tells which step ran out.
         """
-        async with asyncio.timeout(self._timeout):
-            ips = await self._resolve(target, source=source)
-            return await self._open(ips, target, source=source)
+        source = self._source.select(request, session)
+        deadline = asyncio.get_running_loop().time() + self._timeout
+        try:
+            async with asyncio.timeout_at(deadline):
+                ips = await self._resolve(request.target, source=source)
+        except TimeoutError as error:
+            raise ResolveTimeout(str(request.target)) from error
+
+        try:
+            async with asyncio.timeout_at(deadline):
+                return await self._open(ips, request.target, source=source)
+        except TimeoutError as error:
+            raise TargetTimeout(str(request.target)) from error
 
     async def _resolve(self, target: Address, /, *, source: IPAddress | None = None) -> list[IPAddress]:
         """Addresses of the target the guard lets through and `source` can reach, in resolver order."""
         loop = asyncio.get_running_loop()
         try:
             infos: list[AddressInfo] = await loop.getaddrinfo(target.host, target.port, type=socket.SOCK_STREAM)
+        except socket.gaierror as error:
+            raise TargetNotResolved(str(target)) from error
         except OSError as error:
             raise TargetUnreachable(str(target)) from error
 
@@ -153,7 +174,8 @@ class DirectConnector(Connector):
     async def _open(self, ips: list[IPAddress], target: Address, /, *, source: IPAddress | None = None) -> Stream:
         """Connect to the first address that answers, from `source` if given."""
         local_addr = None if source is None else (str(source), 0)
-        last_error: OSError | None = None
+        # One per address at most: `ips` is bounded by the resolver.
+        errors: list[OSError] = []
         for ip in ips:
             try:
                 reader, writer = await asyncio.open_connection(str(ip), target.port, local_addr=local_addr)
@@ -164,7 +186,12 @@ class DirectConnector(Connector):
                         f"Can't connect from {source}: not on this host or loopback. "
                         "In Docker, the host's IPs are seen only with --network host.",
                     ) from error
-                last_error = error
+                errors.append(error)
             else:
-                return Stream(reader, writer)
-        raise TargetUnreachable(str(target)) from last_error
+                return SocketStream(reader, writer)
+        if all(isinstance(error, ConnectionRefusedError) for error in errors):
+            raise TargetRefused(str(target)) from errors[-1]
+        # ETIMEDOUT: the OS gave up on every address before `timeout` ran out.
+        if all(isinstance(error, TimeoutError) for error in errors):
+            raise TargetTimeout(str(target)) from errors[-1]
+        raise TargetUnreachable(str(target)) from errors[-1]

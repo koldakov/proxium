@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
+from proxium.proxy._exchange import Exchange
 from proxium.proxy._types import ProxyError, Request
 
 if TYPE_CHECKING:
@@ -37,3 +38,10 @@ class Inbound(ABC):
     @abstractmethod
     async def reject(self, stream: Stream, error: ProxyError, /) -> None:
         """Tell the client why the request failed."""
+
+    def exchange(self, client: Stream, target: Stream, request: Request, /) -> Exchange:
+        """The client and the target as the relay copies between them, e.g. wrapped to rewrite responses.
+
+        As they are by default.
+        """
+        return Exchange(client, target)

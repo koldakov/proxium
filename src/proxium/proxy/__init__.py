@@ -21,13 +21,17 @@ from ._connectors import (
     Connector,
     DirectConnector,
     ListenerSourceSelector,
+    ResolveTimeout,
     SourceSelector,
     SourceUnavailable,
     SystemSourceSelector,
+    TargetNotResolved,
+    TargetRefused,
     TargetTimeout,
     TargetUnreachable,
 )
 from ._encryption import CachedEncryption, Encryption, EncryptionOutcome, EncryptionUnavailable, StaticEncryption
+from ._exchange import Exchange
 from ._guards import AddressGuard, ForbiddenAddress, IPAddress, IPNetwork
 from ._limits import (
     ConnectionCounter,
@@ -46,7 +50,7 @@ from ._profiles import Listener, Profile, Timeouts
 from ._quotas import Meter, QuotaExceeded, QuotaPolicy, Unmetered, Usage, UsageUnavailable
 from ._scopes import ClientIPScope, ConnectionScope, GlobalScope, IdentityScope, Scope, TargetHostScope
 from ._server import ListenError, ProxyServer
-from ._stream import Stream
+from ._stream import SocketStream, Stream, WrappedStream
 from ._types import (
     ANONYMOUS,
     Address,
@@ -101,6 +105,7 @@ __all__ = [
     "Encryption",
     "EncryptionOutcome",
     "EncryptionUnavailable",
+    "Exchange",
     "Forbidden",
     "ForbiddenAddress",
     "GlobalScope",
@@ -128,8 +133,10 @@ __all__ = [
     "QuotaExceeded",
     "QuotaPolicy",
     "Request",
+    "ResolveTimeout",
     "Scope",
     "Session",
+    "SocketStream",
     "Socks5Inbound",
     "SourceSelector",
     "SourceUnavailable",
@@ -139,6 +146,8 @@ __all__ = [
     "Stream",
     "SystemSourceSelector",
     "TargetHostScope",
+    "TargetNotResolved",
+    "TargetRefused",
     "TargetTimeout",
     "TargetUnreachable",
     "Timeouts",
@@ -146,4 +155,5 @@ __all__ = [
     "Unmetered",
     "Usage",
     "UsageUnavailable",
+    "WrappedStream",
 ]

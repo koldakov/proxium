@@ -11,6 +11,29 @@ if TYPE_CHECKING:
     from faker import Faker
 
 
+class TestHead:
+    def test_members_returns_lowercased_members_of_every_field_with_name(self, faker: Faker) -> None:
+        # Arrange
+        first, second, third = (faker.unique.word() for _ in range(3))
+        head = RequestHead(
+            method="GET",
+            target=faker.url(),
+            version=HTTPVersion.HTTP_1_1,
+            headers=(
+                ("Connection", f"{first.upper()}, , {second}"),
+                (faker.unique.word(), faker.word()),
+                ("connection", third),
+            ),
+        )
+
+        # Act
+        members = head.members("CONNECTION")
+
+        # Assert
+        # RFC 9110, 5.6.1: empty list elements are ignored.
+        assert members == [first, second, third]
+
+
 class TestRequestHead:
     @pytest.mark.parametrize("line_end", ["\r", "\n"])
     def test_from_bytes_raises_bad_request_when_line_ends_with_bare_cr_or_lf(
