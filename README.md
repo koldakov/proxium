@@ -118,7 +118,7 @@ and an API:
 - Web admin UI and a REST API
 - Users, groups and per-action permissions, no privilege escalation
 - TLS certificates: upload, generate self-signed, import from certbot, encryption key rotation
-- Traffic per account and network
+- Traffic per account and network: a chart by day or a table
 
 ## How it works
 

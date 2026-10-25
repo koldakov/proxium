@@ -1,4 +1,7 @@
-import { Stack, Typography } from '@mui/material'
+import BarChartIcon from '@mui/icons-material/BarChart'
+import TableRowsIcon from '@mui/icons-material/TableRows'
+import { Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
+import { BarChart } from '@mui/x-charts/BarChart'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import prettyBytes from 'pretty-bytes'
@@ -35,9 +38,17 @@ const PER_PAGE_OPTIONS = [7, 30, 90]
 // Own names: they survive a reload and don't clash with other lists on the page.
 const PAGE_PARAM = 'trafficPage'
 const PER_PAGE_PARAM = 'trafficPerPage'
+const VIEW_PARAM = 'trafficView'
+const CHART_DAYS_PARAM = 'trafficDays'
+
+const VIEWS = ['chart', 'table']
+const CHART_DAYS_OPTIONS = [7, 30, 90]
 
 // UTC, like the days the proxy counts.
 const utcDaysAgo = (days: number) => new Date(Date.now() - days * DAY_MS).toISOString().slice(0, 10)
+
+const formatDay = (day: string) =>
+  new Date(day).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })
 
 interface TrafficTotalProps {
   resource: string
@@ -87,6 +98,22 @@ const useUrlPagination = () => {
     setPage: (value: number) => update({ [PAGE_PARAM]: value }),
     setPerPage: (value: number) => update({ [PER_PAGE_PARAM]: value, [PAGE_PARAM]: 1 }),
   }
+}
+
+/** One of `options` from the URL, the first by default. Replaced, not pushed, like the pagination. */
+const useUrlChoice = <T extends string | number>(param: string, options: T[]) => {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const current = new URLSearchParams(location.search).get(param)
+  const value = options.find((option) => String(option) === current) ?? options[0]
+
+  const setValue = (next: T) => {
+    const search = new URLSearchParams(location.search)
+    search.set(param, String(next))
+    navigate({ search: `?${search}` }, { replace: true })
+  }
+
+  return [value, setValue] as const
 }
 
 /**
@@ -160,14 +187,70 @@ const TrafficTable = () => {
   )
 }
 
+/** The last days, today included, oldest first. Days without traffic come as zeros, the API skips them. */
+const TrafficChart = ({ resource }: { resource: string }) => {
+  const [days, setDays] = useUrlChoice(CHART_DAYS_PARAM, CHART_DAYS_OPTIONS)
+  const since = utcDaysAgo(days - 1)
+  // At most one row per day, so one page holds them all.
+  const { data } = useGetList(
+    resource,
+    { pagination: { page: 1, perPage: days }, filter: { since } },
+    { refetchInterval: REFRESH_MS, placeholderData: keepPreviousData },
+  )
+
+  const byDay = new Map(data?.map((record) => [record.day, record]))
+  const dataset = Array.from({ length: days }, (_, index) => {
+    const day = utcDaysAgo(days - 1 - index)
+    const record = byDay.get(day)
+    return { day, bytesSent: record?.bytesSent ?? 0, bytesReceived: record?.bytesReceived ?? 0 }
+  })
+  const formatBytes = (value: number | null) => prettyBytes(value ?? 0)
+
+  return (
+    <Stack spacing={1}>
+      <ToggleButtonGroup
+        value={days}
+        exclusive
+        size="small"
+        onChange={(_, value: number | null) => value !== null && setDays(value)}
+      >
+        {CHART_DAYS_OPTIONS.map((option) => (
+          <ToggleButton key={option} value={option}>
+            {option} days
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
+      {data !== undefined && data.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">
+          No traffic in the last {days} days
+        </Typography>
+      ) : (
+        <BarChart
+          height={300}
+          loading={data === undefined}
+          dataset={dataset}
+          borderRadius={4}
+          xAxis={[{ scaleType: 'band', dataKey: 'day', valueFormatter: formatDay }]}
+          yAxis={[{ valueFormatter: formatBytes, width: 70 }]}
+          series={[
+            { dataKey: 'bytesSent', label: 'Sent', valueFormatter: formatBytes },
+            { dataKey: 'bytesReceived', label: 'Received', valueFormatter: formatBytes },
+          ]}
+        />
+      )}
+    </Stack>
+  )
+}
+
 /**
- * Traffic of the record in context: totals, then days newest first, paged through the URL.
- * Hidden without `traffic.view`: seeing a record doesn't mean seeing its traffic.
+ * Traffic of the record in context: totals, then days as a chart or as a table newest first, paged
+ * through the URL. Hidden without `traffic.view`: seeing a record doesn't mean seeing its traffic.
  */
 export const TrafficSection = () => {
   const resource = useResourceContext()
   const record = useRecordContext()
   const { canAccess } = useCanAccess({ resource: 'traffic', action: 'list' })
+  const [view, setView] = useUrlChoice(VIEW_PARAM, VIEWS)
   if (resource === undefined || record === undefined || !canAccess) {
     return null
   }
@@ -187,9 +270,26 @@ export const TrafficSection = () => {
         />
         <TrafficTotal resource={resource} id={record.id} label="All time" />
       </Stack>
-      <TrafficListBase resource={`traffic/${resource}/${record.id}`}>
-        <TrafficTable />
-      </TrafficListBase>
+      <ToggleButtonGroup
+        value={view}
+        exclusive
+        size="small"
+        onChange={(_, value: string | null) => value !== null && setView(value)}
+      >
+        <ToggleButton value="chart" aria-label="Chart">
+          <BarChartIcon fontSize="small" />
+        </ToggleButton>
+        <ToggleButton value="table" aria-label="Table">
+          <TableRowsIcon fontSize="small" />
+        </ToggleButton>
+      </ToggleButtonGroup>
+      {view === 'chart' ? (
+        <TrafficChart resource={`traffic/${resource}/${record.id}`} />
+      ) : (
+        <TrafficListBase resource={`traffic/${resource}/${record.id}`}>
+          <TrafficTable />
+        </TrafficListBase>
+      )}
     </ShowSection>
   )
 }

@@ -47,6 +47,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `ResolveTimeout` for a resolver that doesn't answer in time, `504` with `dns_timeout`.
 - `TargetRefused` error for a target that refuses the connection: `connection_refused` in `Proxy-Status`, SOCKS5
   clients get connection refused instead of host unreachable.
+- Traffic of an account or network in the admin UI is a chart by day for the last 7, 30 or 90 days, the table is
+  one click away.
 
 ### Changed
 
