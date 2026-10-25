@@ -186,6 +186,7 @@ Report vulnerabilities privately, see [SECURITY.md](SECURITY.md).
 ## Documentation
 
 - [Installation](docs/installation.md): Docker, HTTPS for the admin UI, ports and IPs, compose, from source
+- [Upgrading](docs/upgrading.md): steps between versions
 - [Configuration](docs/configuration.md): environment variables
 - [Proxy](docs/proxy.md): protocols, TLS, trusted networks, outgoing IPs, policies, settings
 - [Admin UI](docs/admin.md): users, groups and permissions
