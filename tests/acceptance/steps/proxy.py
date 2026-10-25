@@ -184,7 +184,8 @@ def _(outcome: Outcome) -> None:
     assert isinstance(outcome, httpx.ProxyError)
 
 
-@then("the proxy can't reach the website")
+@then("the proxy reports its own setup at fault")
 def _(outcome: Outcome) -> None:
     assert isinstance(outcome, httpx.Response)
-    assert outcome.status_code == httpx.codes.BAD_GATEWAY
+    assert outcome.status_code == httpx.codes.INTERNAL_SERVER_ERROR
+    assert outcome.headers["Proxy-Status"].endswith("; error=proxy_configuration_error")

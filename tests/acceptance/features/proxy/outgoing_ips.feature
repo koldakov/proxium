@@ -43,7 +43,7 @@ Feature: Outgoing IPs
     And the account goes out from a pool of an address not on this host
     And the proxy is running
     When the client requests the website over HTTP with the account credentials
-    Then the proxy can't reach the website
+    Then the proxy reports its own setup at fault
 
   Scenario: A trusted network goes out from its pool
     Given the client's network is trusted

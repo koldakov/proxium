@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import socket
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Never
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -11,7 +13,10 @@ from proxium.proxy import (
     DirectConnector,
     ForbiddenAddress,
     ListenerSourceSelector,
+    ResolveTimeout,
     SourceUnavailable,
+    TargetNotResolved,
+    TargetRefused,
     TargetTimeout,
     TargetUnreachable,
 )
@@ -23,6 +28,12 @@ if TYPE_CHECKING:
     from faker import Faker
 
     from proxium.proxy import Request, Session
+
+
+async def _hang(*_args: Any, **_kwargs: Any) -> Never:
+    """Stands in for a call that never answers: only a timeout ends it."""
+    await asyncio.Event().wait()
+    raise AssertionError()
 
 
 @pytest.fixture
@@ -112,22 +123,45 @@ class TestDirectConnector:
         with pytest.raises(ForbiddenAddress):
             await connector.connect(proxy_request, session)
 
-    async def test_connect_raises_target_timeout_when_time_runs_out(
+    async def test_connect_raises_resolve_timeout_when_resolver_hangs(
         self,
         faker: Faker,
         proxy_request_factory: Callable[..., Request],
         session: Session,
     ) -> None:
         # Arrange
-        # No time at all: runs out on the first wait, whatever the target.
-        connector = DirectConnector(timeout=0, guard=None)
-        proxy_request = proxy_request_factory(target=Address(faker.ipv4(), faker.port_number()))
+        connector = DirectConnector(timeout=0.01, guard=None)
+        proxy_request = proxy_request_factory(target=Address(faker.hostname(), faker.port_number()))
 
         # Act & Assert
-        with pytest.raises(TargetTimeout):
+        with patch.object(asyncio.get_running_loop(), "getaddrinfo", _hang), pytest.raises(ResolveTimeout):
             await connector.connect(proxy_request, session)
 
-    async def test_connect_raises_target_unreachable_when_name_not_resolved(
+    async def test_connect_raises_target_timeout_not_resolve_timeout_when_connection_hangs(
+        self,
+        faker: Faker,
+        proxy_request_factory: Callable[..., Request],
+        session: Session,
+    ) -> None:
+        # Arrange
+        connector = DirectConnector(timeout=0.01, guard=None)
+        ip = faker.ipv4()
+        port = faker.port_number()
+        proxy_request = proxy_request_factory(target=Address(ip, port))
+        infos = [(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", (ip, port))]
+
+        # Act
+        with (
+            patch.object(asyncio.get_running_loop(), "getaddrinfo", AsyncMock(return_value=infos)),
+            patch("asyncio.open_connection", _hang),
+            pytest.raises(TargetTimeout) as error_info,
+        ):
+            await connector.connect(proxy_request, session)
+
+        # Assert
+        assert not isinstance(error_info.value, ResolveTimeout)
+
+    async def test_connect_raises_target_not_resolved_when_name_not_resolved(
         self,
         faker: Faker,
         proxy_request_factory: Callable[..., Request],
@@ -139,7 +173,7 @@ class TestDirectConnector:
         proxy_request = proxy_request_factory(target=Address(f"{faker.word()}.invalid", faker.port_number()))
 
         # Act & Assert
-        with pytest.raises(TargetUnreachable):
+        with pytest.raises(TargetNotResolved):
             await connector.connect(proxy_request, session)
 
     async def test_connect_raises_target_unreachable_when_no_address_of_source_family(
@@ -156,7 +190,7 @@ class TestDirectConnector:
         with pytest.raises(TargetUnreachable, match="no IPv6 address"):
             await connector.connect(proxy_request, session)
 
-    async def test_connect_raises_target_unreachable_when_connection_refused(
+    async def test_connect_raises_target_refused_when_connection_refused(
         self,
         closed_port: int,
         proxy_request_factory: Callable[..., Request],
@@ -167,10 +201,8 @@ class TestDirectConnector:
         proxy_request = proxy_request_factory(target=Address("127.0.0.1", closed_port))
 
         # Act & Assert
-        with pytest.raises(TargetUnreachable) as error:
+        with pytest.raises(TargetRefused):
             await connector.connect(proxy_request, session)
-        # The target's fault, not the source's.
-        assert not isinstance(error.value, SourceUnavailable)
 
     async def test_connect_raises_source_unavailable_when_source_not_on_host(
         self,

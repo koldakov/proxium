@@ -19,6 +19,9 @@ if TYPE_CHECKING:
 class Timeouts:
     handshake: float = 10.0
     idle: float = 300.0
+    # How long to read what the client still sends before closing: closing with unread data resets away what the
+    # client hasn't read yet, e.g. the proxy's error (RFC 9112, 9.6).
+    linger: float = 5.0
 
 
 @dataclass(frozen=True, slots=True)

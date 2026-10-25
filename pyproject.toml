@@ -15,6 +15,7 @@ dependencies = [
     "fastapi>=0.141.1",
     "fastapi-pagination>=0.16.0",
     "greenlet>=3.5.6",
+    "h11>=0.16.0",
     "hypercorn>=0.18.0",
     "pydantic-settings>=2.15.0",
     "pydantic[email]>=2.13.5",

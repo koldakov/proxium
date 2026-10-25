@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import socket
 from typing import TYPE_CHECKING, Any
+from unittest.mock import Mock
 
 import pytest
 
@@ -16,11 +17,16 @@ from proxium.proxy import (
     Meter,
     Request,
     Session,
+    SocketStream,
     SourceSelector,
     Stream,
     Unmetered,
     Usage,
 )
+from proxium.proxy.inbound import HttpProtocol
+from proxium.proxy.inbound._http._body import RequestBody
+from proxium.proxy.inbound._http._exchange import ForwardRequest
+from proxium.proxy.inbound._http._head import HTTPVersion, RequestHead
 
 if TYPE_CHECKING:
     import ssl
@@ -52,13 +58,20 @@ def session(session_factory: Callable[[], Session]) -> Session:
 
 @pytest.fixture
 def proxy_request_factory(faker: Faker) -> Callable[..., Request]:
-    """Requests of a new identity on every call, with `target` and `claims` if given."""
+    """Requests of a new identity on every call, with `protocol`, `target`, `claims` and `payload` if given."""
 
-    def create(*, target: Address | None = None, claims: Mapping[str, Any] | None = None) -> Request:
+    def create(
+        *,
+        protocol: str | None = None,
+        target: Address | None = None,
+        claims: Mapping[str, Any] | None = None,
+        payload: bytes = b"",
+    ) -> Request:
         return Request(
-            protocol=faker.random_element(["http", "socks5"]),
+            protocol=faker.random_element(["http", "socks5"]) if protocol is None else protocol,
             target=Address(faker.hostname(), faker.port_number()) if target is None else target,
             identity=Identity(subject=faker.uuid4(), claims={} if claims is None else claims),
+            payload=payload,
         )
 
     return create
@@ -67,6 +80,58 @@ def proxy_request_factory(faker: Faker) -> Callable[..., Request]:
 @pytest.fixture
 def proxy_request(proxy_request_factory: Callable[..., Request]) -> Request:
     return proxy_request_factory()
+
+
+@pytest.fixture
+def forward_request_factory(faker: Faker, proxy_request_factory: Callable[..., Request]) -> Callable[..., Request]:
+    """Forwarded HTTP requests of `version`, their head as the target gets it with `headers` added: no body without
+    them.
+    """
+
+    def create(*, headers: Sequence[tuple[str, str]] = (), version: HTTPVersion = HTTPVersion.HTTP_1_1) -> Request:
+        head = RequestHead(
+            method="POST",
+            target="/",
+            version=version,
+            headers=(("Host", faker.hostname()), *headers),
+        )
+        request = proxy_request_factory(protocol=HttpProtocol.FORWARD, payload=head.encode())
+        return ForwardRequest(
+            protocol=request.protocol,
+            target=request.target,
+            identity=request.identity,
+            payload=request.payload,
+            head=head,
+            body=RequestBody(head),
+        )
+
+    return create
+
+
+@pytest.fixture
+def received_stream_factory() -> Callable[[bytes], Stream]:
+    """Streams whose reads give `data`, then EOF, through a real buffer: unlike `ScriptedStream`, `readuntil` works."""
+
+    def create(data: bytes, /) -> Stream:
+        reader = asyncio.StreamReader()
+        reader.feed_data(data)
+        reader.feed_eof()
+        # Never written to: the tests only read.
+        return SocketStream(reader, Mock(spec=asyncio.StreamWriter))
+
+    return create
+
+
+@pytest.fixture
+async def reset_stream() -> Stream:
+    """A stream whose reads raise `ConnectionResetError`, as if the peer reset the connection.
+
+    Async: `StreamReader` needs a running loop.
+    """
+    reader = asyncio.StreamReader()
+    reader.set_exception(ConnectionResetError())
+    # Never written to: the tests only read.
+    return SocketStream(reader, Mock(spec=asyncio.StreamWriter))
 
 
 class FailingOnceAuthenticator(Authenticator):
@@ -116,7 +181,7 @@ def unmetering_meter() -> UnmeteringMeter:
 
 
 class ScriptedStream(Stream):
-    """Reads give `chunks` one by one, then EOF, or `error` if given. Keeps what is written."""
+    """Reads give `chunks` one by one, then EOF, or `error` if given. Keeps what is written. Only `read` reads."""
 
     def __init__(self, chunks: Sequence[bytes] = (), /, *, error: OSError | None = None) -> None:
         self._chunks: list[bytes] = list(chunks)
@@ -130,6 +195,15 @@ class ScriptedStream(Stream):
             raise self._error
         return b""
 
+    async def peek(self, n: int, /) -> bytes:
+        raise NotImplementedError("ScriptedStream reads only with `read`.")
+
+    async def readexactly(self, n: int, /) -> bytes:
+        raise NotImplementedError("ScriptedStream reads only with `read`.")
+
+    async def readuntil(self, separator: bytes, /, *, limit: int) -> bytes:
+        raise NotImplementedError("ScriptedStream reads only with `read`.")
+
     def write(self, data: bytes, /) -> None:
         self.written += data
 
@@ -137,6 +211,9 @@ class ScriptedStream(Stream):
         pass
 
     def write_eof(self) -> None:
+        pass
+
+    async def close(self) -> None:
         pass
 
 
@@ -215,8 +292,8 @@ def peer_socket(socket_pair: tuple[socket.socket, socket.socket]) -> socket.sock
 
 
 @pytest.fixture
-async def stream(socket_pair: tuple[socket.socket, socket.socket]) -> AsyncIterator[Stream]:
+async def stream(socket_pair: tuple[socket.socket, socket.socket]) -> AsyncIterator[SocketStream]:
     reader, writer = await asyncio.open_connection(sock=socket_pair[0])
-    stream = Stream(reader, writer)
+    stream = SocketStream(reader, writer)
     yield stream
     await stream.close()

@@ -15,6 +15,32 @@ HTTP supports CONNECT tunnels and plain HTTP forwarding. SOCKS5 supports only CO
 targets, and only basic accounts: the protocol has username/password authentication but no tokens.
 Use `socks5h://` so the proxy resolves domains, with `socks5://` curl resolves them itself.
 
+Every HTTP response carries `Proxy-Status` ([RFC 9209](https://www.rfc-editor.org/rfc/rfc9209)). On a refusal it
+says why, e.g. `Proxy-Status: proxium; error=destination_unavailable` on a 502: a client tells a refusal of the proxy
+from a response of the target with the same status. A response of the target gets just the name, after the members of
+proxies further on, if any. A 503 over limits that can't be checked also says when to retry in `Retry-After`. With
+several instances, give each its own `PROXY_NAME`, e.g. its host name, to see which one answered.
+
+Plain HTTP forwarding carries one request per connection, as RFC 9112 and RFC 9110 have a proxy do it:
+
+- The response says `Connection: close`, the target's own connection fields don't reach the client. What a client sends
+  after its request, e.g. a pipelined one, doesn't reach the target: past a request head's size it isn't read until
+  the response ends.
+- A request whose body end is unclear gets a 400: `Transfer-Encoding` not ending in `chunked`, next to
+  `Content-Length` or in an HTTP/1.0 request, a bad or conflicting `Content-Length`, a malformed chunk.
+- A response the client could misread gets a 502 with the reason in `Proxy-Status`: a head that breaks off
+  (`http_response_incomplete`), none at all (`connection_terminated`), or one that isn't valid HTTP
+  (`http_protocol_error`), e.g. with a line ending in a bare LF or CR, folded or malformed fields, a conflicting
+  `Content-Length`, `Transfer-Encoding` on a body in answer to an HTTP/1.0 request, more than 16 interim `1xx` heads,
+  or `101 Switching Protocols`: upgrades aren't forwarded.
+- A request cut before its response, e.g. over a quota, gets the client the refusal, e.g. `429 Quota Exceeded`. Before
+  closing, the proxy reads off what the client still sends, e.g. the rest of an upload, for up to 5 seconds: closing
+  with unread data would reset the refusal away.
+- A target that sends no head until the idle timeout gets the client a 504 with `error=http_response_timeout`. A client
+  that hasn't sent its whole request by then gets a 408 instead: the target is waiting for it. Unless it sent
+  `Expect: 100-continue` and no `100 Continue` came: then it waits for the target, which gets the 504.
+- HTTP/1.0 clients get no interim `1xx` responses, they don't know them.
+
 ## TLS
 
 Clients may encrypt the connection to the proxy, on the same ports: a connection starting with a TLS handshake is

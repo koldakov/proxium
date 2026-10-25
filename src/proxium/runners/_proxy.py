@@ -173,6 +173,7 @@ class ProxyRunner:
         connection_lease: float = proxy_settings.connection_lease,
         redis_outage_timeout: float = proxy_settings.redis_outage_timeout,
         speed_batch: float = proxy_settings.speed_batch,
+        name: str = proxy_settings.name,
     ) -> None:
         self._log_level: LogLevel = log_level
         # Checked at the start: on an older Redis quotas would refuse every client once it counts as down.
@@ -193,7 +194,7 @@ class ProxyRunner:
         )
         # Kept across settings changes: they hold no settings, and caches survive.
         self._inbounds: list[Inbound] = [
-            HttpInbound(),
+            HttpInbound(proxy_name=name),
             Socks5Inbound(),
         ]
         # Kept across settings changes, so what's cached survives them. In memory: one process, nothing to share.

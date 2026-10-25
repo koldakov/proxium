@@ -53,6 +53,17 @@ class Head(ABC):
         name = name.lower()
         return next((value for key, value in self.headers if key.lower() == name), None)
 
+    def members(self, name: str, /) -> list[str]:
+        """Lowercased list members of every field with this name, empty ones ignored (RFC 9110, 5.6.1)."""
+        name = name.lower()
+        return [
+            member
+            for key, value in self.headers
+            if key.lower() == name
+            for member in (part.strip().lower() for part in value.split(","))
+            if member
+        ]
+
     def encode(self) -> bytes:
         lines = [self.start_line, *(f"{name}: {value}" for name, value in self.headers)]
         return CRLF.join(lines).encode(self._default_encoding) + HEAD_END
@@ -104,8 +115,8 @@ class RequestHead(Head):
             path = f"{path}?{parts.query}"
         host = parts.netloc.rpartition("@")[2]
 
-        listed = {name.strip().lower() for name in (self.get("connection") or "").split(",")}
-        dropped = HOP_BY_HOP | listed | {"host"} | {name.lower() for name in drop}
+        # Every `Connection` field: a second one mustn't let its names through.
+        dropped = HOP_BY_HOP | set(self.members("connection")) | {"host"} | {name.lower() for name in drop}
         headers = (
             ("Host", host),
             *((name, value) for name, value in self.headers if name.lower() not in dropped),
