@@ -60,14 +60,15 @@ lock of `proxium-manage migrate`. More on how the proxy handles Redis failures i
 One image runs everything: the proxy, the API, the admin UI, PostgreSQL and Redis. State lives in one volume.
 
 The image is `ikoldakov/proxium` on Docker Hub and `ghcr.io/koldakov/proxium` on GitHub, for amd64 and arm64.
-`latest` is the last release, a version like `0.1.0` pins it, `edge` is the current `main`, not released yet.
+`latest` is the last release, a version like `0.2.0` pins it, `edge` is the current `main`, not released yet.
 
 `edge` is for trying what's coming, not for production. It's built from every commit to `main`, and a commit may
 change what an installation needs before the release that documents how to upgrade. E.g. when Redis became required,
 an `edge` installation with its own database and no `REDIS_URL` started each container with a Redis of its own,
 which they don't share, and a source install without `REDIS_URL` stopped starting. Run a version tag in production.
 Before pulling a new `edge`, read `[Unreleased]` in the
-[changelog](https://github.com/koldakov/proxium/blob/main/CHANGELOG.md).
+[changelog](https://github.com/koldakov/proxium/blob/main/CHANGELOG.md). Moving between versions: see
+[Upgrading](upgrading.md).
 
 ### Quickstart
 

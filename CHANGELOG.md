@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-25
+
+Every limit is shared between proxy instances: run several on one database, and they work as one proxy. See
+[Upgrading](docs/upgrading.md#from-01-to-02).
+
 ### Added
 
 - Redis, `REDIS_URL`, `REDIS_PASSWORD`, `REDIS_KEY_PREFIX` and `REDIS_POOL_MAX_CONNECTIONS`: shared state of the
@@ -154,6 +159,7 @@ Your own proxy service in one `docker run`: accounts, policies, outgoing IPs and
 - Admin UI over HTTP or HTTPS with `ADMIN_TLS`: Let's Encrypt, own certificate files or an internal CA.
 - Optional superuser on first start with `SUPERUSER_CREATE`.
 
-[Unreleased]: https://github.com/koldakov/proxium/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/koldakov/proxium/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/koldakov/proxium/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/koldakov/proxium/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/koldakov/proxium/releases/tag/v0.1.0
