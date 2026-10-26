@@ -11,6 +11,7 @@ import { PROFILE_PATH, ProfilePage } from './pages/profile'
 import { SettingsPage, settingsLink } from './pages/settings'
 import { authProvider, dataProvider, queryClient } from './providers'
 import { menu, resources } from './resources'
+import { darkTheme, lightTheme } from './theme'
 
 // The API logs in by email: relabel the stock login form.
 const i18nProvider = polyglotI18nProvider(
@@ -44,6 +45,8 @@ const App = () => (
     queryClient={queryClient}
     i18nProvider={i18nProvider}
     layout={AppLayout}
+    theme={lightTheme}
+    darkTheme={darkTheme}
     requireAuth
   >
     {resources.map((resource) => (
