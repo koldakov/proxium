@@ -1,5 +1,6 @@
-import { BooleanField, DataTable, DateField, List, SelectField } from 'react-admin'
+import { DataTable, DateField, List, SelectField, TextField } from 'react-admin'
 
+import { AccountStatusChip } from '../../components/AccountStatusChip'
 import { CreatedByField } from '../../components/CreatedByField'
 import { OUTGOING_MODES } from '../../components/outgoing'
 import { QuerySearchInput } from '../../components/QuerySearchInput'
@@ -11,8 +12,12 @@ export const BasicProxyAccountList = () => (
     <DataTable rowClick="show" bulkActionButtons={false}>
       <DataTable.Col source="id" disableSort />
       <DataTable.Col source="name" disableSort />
-      <DataTable.Col source="username" disableSort />
-      <DataTable.Col source="isActive" label="Active" field={BooleanField} disableSort />
+      <DataTable.Col source="username" disableSort>
+        <TextField source="username" sx={{ fontFamily: 'monospace' }} />
+      </DataTable.Col>
+      <DataTable.Col label="Status" disableSort>
+        <AccountStatusChip />
+      </DataTable.Col>
       <DataTable.Col source="outgoingMode" label="Outgoing IP" disableSort>
         <SelectField source="outgoingMode" choices={OUTGOING_MODES} />
       </DataTable.Col>

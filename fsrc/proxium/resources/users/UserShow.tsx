@@ -1,6 +1,5 @@
 import { Grid, Stack, Typography } from '@mui/material'
 import {
-  BooleanField,
   ChipField,
   DateField,
   EditButton,
@@ -14,6 +13,7 @@ import {
   useRecordContext,
 } from 'react-admin'
 
+import { BooleanChip } from '../../components/BooleanChip'
 import { CopyableField } from '../../components/CopyableField'
 import { useMyPermissions } from '../../components/permissions'
 import { PermissionsField } from '../../components/PermissionsField'
@@ -92,11 +92,11 @@ export const UserShow = () => (
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <ShowSection title="Access">
-            <Labeled label="Active">
-              <BooleanField source="isActive" />
+            <Labeled label="Status">
+              <BooleanChip source="isActive" whenTrue="Active" whenFalse="Deactivated" />
             </Labeled>
             <Labeled label="Superuser">
-              <BooleanField source="isSuperuser" />
+              <BooleanChip source="isSuperuser" whenTrue="Yes" whenFalse="No" color="primary" />
             </Labeled>
             <Labeled label="Groups">
               <GroupsField />

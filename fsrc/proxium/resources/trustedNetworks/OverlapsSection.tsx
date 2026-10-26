@@ -1,6 +1,7 @@
 import { Stack, Typography } from '@mui/material'
-import { BooleanField, DataTable, ListBase, Pagination, useListContext } from 'react-admin'
+import { DataTable, ListBase, Pagination, useListContext } from 'react-admin'
 
+import { BooleanChip } from '../../components/BooleanChip'
 import { ShowSection } from '../../components/ShowSection'
 import { NetworkLinkField } from './NetworkLinkField'
 import { isComplete, useDebounced } from './overlaps'
@@ -25,7 +26,9 @@ const OverlapsTable = ({ title, hint }: OverlapsTableProps) => {
       <DataTable bulkActionButtons={false} rowClick={false}>
         <DataTable.Col source="network" disableSort field={NetworkLinkField} />
         <DataTable.Col source="name" disableSort />
-        <DataTable.Col source="isActive" label="Active" field={BooleanField} disableSort />
+        <DataTable.Col source="isActive" label="Status" disableSort>
+          <BooleanChip source="isActive" whenTrue="Active" whenFalse="Inactive" />
+        </DataTable.Col>
       </DataTable>
       <Pagination rowsPerPageOptions={[5, 10, 25]} />
     </ShowSection>

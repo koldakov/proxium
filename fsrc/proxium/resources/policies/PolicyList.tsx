@@ -1,5 +1,6 @@
-import { BooleanField, DataTable, DateField, List, SelectInput } from 'react-admin'
+import { DataTable, DateField, List, SelectInput } from 'react-admin'
 
+import { BooleanChip } from '../../components/BooleanChip'
 import { CreatedByField } from '../../components/CreatedByField'
 import { useDetailPage } from '../../components/detailPage'
 import { QuerySearchInput } from '../../components/QuerySearchInput'
@@ -27,11 +28,11 @@ export const PolicyList = () => {
       <DataTable rowClick={detailPage} bulkActionButtons={false}>
         <DataTable.Col source="id" disableSort />
         <DataTable.Col source="name" disableSort />
-        <DataTable.Col source="isActive" label="Active" disableSort>
-          <BooleanField source="isActive" />
+        <DataTable.Col source="isActive" label="Status" disableSort>
+          <BooleanChip source="isActive" whenTrue="Active" whenFalse="Inactive" />
         </DataTable.Col>
         <DataTable.Col source="isGlobal" label="Global" disableSort>
-          <BooleanField source="isGlobal" />
+          <BooleanChip source="isGlobal" whenTrue="Global" color="primary" />
         </DataTable.Col>
         <DataTable.Col source="createdById" label="Created by" disableSort>
           <CreatedByField />
