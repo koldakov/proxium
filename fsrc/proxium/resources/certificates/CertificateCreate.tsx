@@ -129,11 +129,9 @@ export const CertificateCreate = () => {
           )
           redirect('show', 'certificates', created.id)
         },
-        onError: (error: Error) => {
-          notify(error.message, { type: 'error' })
-          // E.g. another admin activated one meanwhile: the switch names the current one to decide again.
-          refetch()
-        },
+        // The form says why. E.g. another admin activated one meanwhile: the switch names the current one to
+        // decide again.
+        onError: () => refetch(),
       }}
     >
       {/* First certificate: activated by default, so it just works. Replacing one: only when asked. */}

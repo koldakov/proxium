@@ -18,6 +18,7 @@ import {
   useNotify,
 } from 'react-admin'
 
+import { FormErrorAlert } from '../../components/FormErrorAlert'
 import { UnsavedChangesGuard } from '../../components/UnsavedChangesGuard'
 import type { PasswordChange, Profile, ProfileChanges, ProxiumDataProvider } from '../../providers'
 
@@ -44,8 +45,12 @@ const ProfileForm = ({ profile }: { profile: Profile }) => {
       refetchIdentity()
       notify('Saved', { type: 'success' })
     } catch (error) {
-      notify((error as Error).message, { type: 'error' })
+      // Next to its input, the rest above the button.
+      return (
+        (error as HttpError).body?.errors ?? { root: { serverError: (error as Error).message } }
+      )
     }
+    return undefined
   }
 
   return (
@@ -61,6 +66,7 @@ const ProfileForm = ({ profile }: { profile: Profile }) => {
         />
         <TextInput source="name" validate={required()} />
         <TextInput source="surname" validate={required()} />
+        <FormErrorAlert />
       </CardContent>
       <Toolbar>
         <SaveButton />
@@ -84,8 +90,7 @@ const PasswordForm = () => {
       if (error instanceof HttpError && error.status === 400) {
         return { oldPassword: error.message }
       }
-      notify((error as Error).message, { type: 'error' })
-      return undefined
+      return { root: { serverError: (error as Error).message } }
     }
     setGeneration(generation + 1)
     notify('Password changed', { type: 'success' })
@@ -109,6 +114,7 @@ const PasswordForm = () => {
           label="New password again"
           validate={[required(), sameAsNew]}
         />
+        <FormErrorAlert />
       </CardContent>
       <Toolbar>
         <SaveButton label="Change password" />

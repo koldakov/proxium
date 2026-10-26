@@ -1,6 +1,7 @@
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditCalendarIcon from '@mui/icons-material/EditCalendar'
 import {
+  Alert,
   Autocomplete,
   Button,
   Chip,
@@ -40,6 +41,7 @@ import {
 import type { ProxiumDataProvider } from '../providers'
 import { useDetailPage } from './detailPage'
 import { useConfigs } from './configs'
+import { ConfirmContent } from './ConfirmContent'
 import { DATE_FORMAT } from './dates'
 import { ShowSection } from './ShowSection'
 
@@ -91,7 +93,7 @@ const Assign = ({ resource, id, onAssigned }: AssignProps) => {
     { placeholderData: keepPreviousData },
   )
 
-  const { mutate, isPending } = useMutation({
+  const { mutate, isPending, error, reset } = useMutation({
     mutationFn: (policyId: Identifier) => dataProvider.assignPolicy(resource, { id, policyId }),
     onSuccess: () => {
       setIsConfirming(false)
@@ -101,11 +103,11 @@ const Assign = ({ resource, id, onAssigned }: AssignProps) => {
       refetch()
       onAssigned()
     },
-    onError: (error: Error) => {
-      setIsConfirming(false)
-      notify(error.message, { type: 'error' })
-    },
   })
+  const closeConfirm = () => {
+    setIsConfirming(false)
+    reset()
+  }
 
   return (
     <>
@@ -144,11 +146,16 @@ const Assign = ({ resource, id, onAssigned }: AssignProps) => {
         isOpen={isConfirming}
         loading={isPending}
         title={`Assign ${picked?.name}?`}
-        content={`Its limits apply to the client along with the other policies. ${TAKES_EFFECT}`}
+        content={
+          <ConfirmContent
+            text={`Its limits apply to the client along with the other policies. ${TAKES_EFFECT}`}
+            error={error}
+          />
+        }
         confirm="Assign"
         // Not `picked!.id`: React Compiler reads it on render as a dependency, while still null.
         onConfirm={() => picked && mutate(picked.id)}
-        onClose={() => setIsConfirming(false)}
+        onClose={closeConfirm}
       />
     </>
   )
@@ -187,7 +194,8 @@ const StartsOnDialog = ({
   // Empty while the date is cleared or half-typed.
   const value = picked?.isValid() ? picked.format(DATE_FORMAT) : ''
 
-  const { mutate, isPending } = useMutation({
+  // Unmounted on close: a failure stays only while the dialog is open.
+  const { mutate, isPending, error } = useMutation({
     mutationFn: (day: string) =>
       dataProvider.setPolicyStart(resource, { id, policyId, startsOn: day }),
     onSuccess: () => {
@@ -195,7 +203,6 @@ const StartsOnDialog = ({
       onChanged()
       onClose()
     },
-    onError: (error: Error) => notify(error.message, { type: 'error' }),
   })
 
   const canSave = value !== '' && value !== startsOn && !isPending
@@ -216,6 +223,11 @@ const StartsOnDialog = ({
           autoFocus
           slotProps={{ textField: { size: 'small', fullWidth: true } }}
         />
+        {error !== null && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error.message}
+          </Alert>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
@@ -315,7 +327,12 @@ export const PoliciesSection = () => {
     { enabled: resource !== undefined && record !== undefined },
   )
 
-  const { mutate: unassign, isPending: isUnassigning } = useMutation({
+  const {
+    mutate: unassign,
+    isPending: isUnassigning,
+    error: unassignError,
+    reset: resetUnassign,
+  } = useMutation({
     mutationFn: (policyId: Identifier) =>
       dataProvider.unassignPolicy(resource!, { id: record!.id, policyId }),
     onSuccess: () => {
@@ -327,11 +344,11 @@ export const PoliciesSection = () => {
         queryKey: [`${resource}/${record!.id}/policies/available`],
       })
     },
-    onError: (error: Error) => {
-      setIsConfirming(false)
-      notify(error.message, { type: 'error' })
-    },
   })
+  const closeConfirm = () => {
+    setIsConfirming(false)
+    resetUnassign()
+  }
 
   if (resource === undefined || record === undefined) {
     return null
@@ -451,11 +468,16 @@ export const PoliciesSection = () => {
         isOpen={isConfirming}
         loading={isUnassigning}
         title={`Take off ${takingOff?.name}?`}
-        content={`Its limits stop applying to the client. ${TAKES_EFFECT}`}
+        content={
+          <ConfirmContent
+            text={`Its limits stop applying to the client. ${TAKES_EFFECT}`}
+            error={unassignError}
+          />
+        }
         confirm="Take off"
         confirmColor="warning"
         onConfirm={() => takingOff && unassign(takingOff.id)}
-        onClose={() => setIsConfirming(false)}
+        onClose={closeConfirm}
       />
     </ShowSection>
   )

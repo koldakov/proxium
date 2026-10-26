@@ -5,6 +5,7 @@ import {
   ArrayInput,
   Form,
   FormDataConsumer,
+  type HttpError,
   Loading,
   NumberInput,
   type RaRecord,
@@ -23,6 +24,7 @@ import {
   useNotify,
 } from 'react-admin'
 
+import { FormErrorAlert } from '../../components/FormErrorAlert'
 import { UnsavedChangesGuard } from '../../components/UnsavedChangesGuard'
 import { ipNetwork, toCidr } from '../../components/validators'
 import type { ProxiumDataProvider, Settings } from '../../providers'
@@ -212,7 +214,7 @@ export const SettingsPage = () => {
     queryKey: QUERY_KEY,
     queryFn: () => dataProvider.getSettings(),
   })
-  const { mutate, isPending } = useMutation({
+  const { mutateAsync, isPending } = useMutation({
     mutationFn: (form: SettingsForm) => dataProvider.updateSettings(fromForm(form)),
     onSuccess: (saved) => {
       queryClient.setQueryData(QUERY_KEY, saved)
@@ -220,8 +222,19 @@ export const SettingsPage = () => {
         type: 'success',
       })
     },
-    onError: (error: Error) => notify(error.message, { type: 'error' }),
   })
+
+  // Errors go back to the form: next to their inputs, the rest above the button.
+  const save = async (form: Partial<RaRecord>) => {
+    try {
+      await mutateAsync(form as SettingsForm)
+    } catch (error) {
+      return (
+        (error as HttpError).body?.errors ?? { root: { serverError: (error as Error).message } }
+      )
+    }
+    return undefined
+  }
 
   if (error) {
     return <Alert severity="error">{error.message}</Alert>
@@ -233,12 +246,7 @@ export const SettingsPage = () => {
   // Not a <Resource>, but inputs like SimpleFormIterator need a resource name in context.
   return (
     <ResourceContextProvider value="settings">
-      <SaveContextProvider
-        value={{
-          save: (form: Partial<RaRecord>) => mutate(form as SettingsForm),
-          saving: isPending,
-        }}
-      >
+      <SaveContextProvider value={{ save, saving: isPending }}>
         <Title title="Settings" />
         <Card sx={{ mt: 2 }}>
           {/* Remounted on save: the form starts clean from what the API stored, e.g. 10.0.0.5/32. */}
@@ -249,6 +257,7 @@ export const SettingsPage = () => {
               <GuardInputs readOnly={!canChange} />
               <TimeoutInputs readOnly={!canChange} />
               <CacheInputs readOnly={!canChange} />
+              <FormErrorAlert />
             </CardContent>
             {canChange && (
               <Toolbar>

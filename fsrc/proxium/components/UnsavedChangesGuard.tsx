@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { Confirm, SimpleForm, type SimpleFormProps, useBlocker } from 'react-admin'
 import { useFormState } from 'react-hook-form'
 
+import { FormErrorAlert } from './FormErrorAlert'
+
 /**
  * Asks before leaving a changed form, in place of react-admin's `warnWhenUnsavedChanges`,
  * which asks with the browser's own `confirm`. Render it inside the form.
@@ -53,10 +55,14 @@ export const UnsavedChangesGuard = () => {
   )
 }
 
-/** `SimpleForm` that asks before leaving it changed: for every form that saves. */
+/**
+ * `SimpleForm` that asks before leaving it changed and says why a save failed above its buttons: for every
+ * form that saves.
+ */
 export const GuardedSimpleForm = ({ children, ...props }: SimpleFormProps) => (
   <SimpleForm {...props}>
     {children}
+    <FormErrorAlert />
     <UnsavedChangesGuard />
   </SimpleForm>
 )

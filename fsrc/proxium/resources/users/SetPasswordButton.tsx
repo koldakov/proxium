@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   Button,
   Form,
+  type HttpError,
   PasswordInput,
   type RaRecord,
   SaveButton,
@@ -16,6 +17,7 @@ import {
   useRecordContext,
 } from 'react-admin'
 
+import { FormErrorAlert } from '../../components/FormErrorAlert'
 import { useMyPermissions } from '../../components/permissions'
 import type { ProxiumDataProvider } from '../../providers'
 
@@ -29,15 +31,18 @@ const SetPasswordDialog = ({ id, onClose }: { id: RaRecord['id']; onClose: () =>
   const dataProvider = useDataProvider<ProxiumDataProvider>()
   const notify = useNotify()
 
+  // Errors go back to the form: next to their inputs, the rest above the buttons.
   const save = async (values: Partial<RaRecord>) => {
     try {
       await dataProvider.setUserPassword({ id, password: values.password })
     } catch (error) {
-      notify((error as Error).message, { type: 'error' })
-      return
+      return (
+        (error as HttpError).body?.errors ?? { root: { serverError: (error as Error).message } }
+      )
     }
     onClose()
     notify('Password set', { type: 'success' })
+    return undefined
   }
 
   return (
@@ -56,6 +61,7 @@ const SetPasswordDialog = ({ id, onClose }: { id: RaRecord['id']; onClose: () =>
             label="New password again"
             validate={[required(), sameAsPassword]}
           />
+          <FormErrorAlert />
         </DialogContent>
         <DialogActions>
           <Button label="Cancel" onClick={onClose} />

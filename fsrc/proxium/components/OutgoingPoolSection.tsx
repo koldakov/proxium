@@ -1,5 +1,6 @@
 import DeleteIcon from '@mui/icons-material/Delete'
 import {
+  Alert,
   Autocomplete,
   IconButton,
   Stack,
@@ -59,7 +60,8 @@ const AddToPool = ({ resource, id, onAdded }: AddToPoolProps) => {
     { placeholderData: keepPreviousData },
   )
 
-  const { mutate, isPending } = useMutation({
+  // A failure is said under the input, until the next try.
+  const { mutate, isPending, error } = useMutation({
     mutationFn: (outgoingIpId: Identifier) =>
       dataProvider.addToOutgoingPool(resource, { id, outgoingIpId }),
     onSuccess: () => {
@@ -69,7 +71,6 @@ const AddToPool = ({ resource, id, onAdded }: AddToPoolProps) => {
       refetch()
       onAdded()
     },
-    onError: (error: Error) => notify(error.message, { type: 'error' }),
   })
 
   return (
@@ -91,6 +92,8 @@ const AddToPool = ({ resource, id, onAdded }: AddToPoolProps) => {
             {...params}
             size="small"
             label="Add an IP"
+            error={error !== null}
+            helperText={error?.message}
             // Inside a form Enter would submit it.
             onKeyDown={(event) => event.key === 'Enter' && event.preventDefault()}
           />
@@ -128,7 +131,12 @@ export const OutgoingPoolSection = () => {
     { enabled: resource !== undefined && record !== undefined, placeholderData: keepPreviousData },
   )
 
-  const { mutate: remove, isPending: isRemoving } = useMutation({
+  // A failure is said above the table, until the next try.
+  const {
+    mutate: remove,
+    isPending: isRemoving,
+    error: removeError,
+  } = useMutation({
     mutationFn: (outgoingIpId: Identifier) =>
       dataProvider.removeFromOutgoingPool(resource!, { id: record!.id, outgoingIpId }),
     onSuccess: () => {
@@ -140,7 +148,6 @@ export const OutgoingPoolSection = () => {
         refetch()
       }
     },
-    onError: (error: Error) => notify(error.message, { type: 'error' }),
   })
 
   if (resource === undefined || record === undefined) {
@@ -159,6 +166,7 @@ export const OutgoingPoolSection = () => {
       {canChange && canPick && (
         <AddToPool resource={resource} id={record.id} onAdded={() => refetch()} />
       )}
+      {removeError !== null && <Alert severity="error">{removeError.message}</Alert>}
       {total === 0 ? (
         <Typography variant="body2" color="text.secondary">
           {canChange && canPick
