@@ -1,3 +1,5 @@
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import polyglotI18nProvider from 'ra-i18n-polyglot'
 import englishMessages from 'ra-language-english'
 import type { ReactNode } from 'react'
@@ -38,25 +40,27 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
 }
 
 const App = () => (
-  <Admin
-    title="Proxium"
-    authProvider={authProvider}
-    dataProvider={dataProvider}
-    queryClient={queryClient}
-    i18nProvider={i18nProvider}
-    layout={AppLayout}
-    theme={lightTheme}
-    darkTheme={darkTheme}
-    requireAuth
-  >
-    {resources.map((resource) => (
-      <Resource key={resource.name} {...resource} />
-    ))}
-    <CustomRoutes>
-      <Route path={settingsLink.to} element={<SettingsPage />} />
-      <Route path={PROFILE_PATH} element={<ProfilePage />} />
-    </CustomRoutes>
-  </Admin>
+  <LocalizationProvider dateAdapter={AdapterDayjs}>
+    <Admin
+      title="Proxium"
+      authProvider={authProvider}
+      dataProvider={dataProvider}
+      queryClient={queryClient}
+      i18nProvider={i18nProvider}
+      layout={AppLayout}
+      theme={lightTheme}
+      darkTheme={darkTheme}
+      requireAuth
+    >
+      {resources.map((resource) => (
+        <Resource key={resource.name} {...resource} />
+      ))}
+      <CustomRoutes>
+        <Route path={settingsLink.to} element={<SettingsPage />} />
+        <Route path={PROFILE_PATH} element={<ProfilePage />} />
+      </CustomRoutes>
+    </Admin>
+  </LocalizationProvider>
 )
 
 export default App

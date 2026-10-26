@@ -74,7 +74,8 @@ export const OutgoingModeInput = ({ readOnly = false }: { readOnly?: boolean }) 
   return (
     <FormDataConsumer>
       {({ formData }) => (
-        <>
+        // One column, the pool under the mode: fits a row of inputs as well as a form.
+        <Stack sx={{ width: '100%', minWidth: 0 }}>
           <SelectInput
             source="outgoingMode"
             label="Outgoing IP"
@@ -85,7 +86,7 @@ export const OutgoingModeInput = ({ readOnly = false }: { readOnly?: boolean }) 
           />
           {formData.outgoingMode === 'pool' &&
             (isNew ? <NewPoolInput ids={formData.outgoingIpIds ?? []} /> : <OutgoingPoolSection />)}
-        </>
+        </Stack>
       )}
     </FormDataConsumer>
   )
