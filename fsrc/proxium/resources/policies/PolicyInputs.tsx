@@ -1,6 +1,5 @@
 import { Alert, Typography } from '@mui/material'
 import {
-  AddItemButton,
   ArrayInput,
   BooleanInput,
   DateInput,
@@ -17,6 +16,8 @@ import {
 import type { RaRecord } from 'react-admin'
 
 import { ConditionInputs } from './ConditionInputs'
+import { AddButton, RuleCard } from './RuleCard'
+import { ROWS_SX } from './rows'
 import {
   DIRECTIONS,
   LIMIT_SCOPES,
@@ -54,7 +55,7 @@ const UnreachableRuleWarning = () => {
     <FormDataConsumer>
       {({ formData }) =>
         (formData.rules ?? []).slice(0, index).some(appliesAlways) && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
+          <Alert severity="warning" sx={{ mt: 1 }}>
             Never applies: a rule above has no conditions and always applies first. Move this one up
             or add conditions to that one
           </Alert>
@@ -88,7 +89,14 @@ const RuleLimits = ({ readOnly }: { readOnly: boolean }) => (
     {readOnly && <NoLimits field="connectionLimits" />}
     <ArrayInput source="connectionLimits" label={false}>
       {/* The iterator holds the add and remove buttons. */}
-      <SimpleFormIterator inline disableReordering disableClear disabled={readOnly}>
+      <SimpleFormIterator
+        inline
+        disableReordering
+        disableClear
+        disabled={readOnly}
+        addButton={<AddButton label="Add connection limit" />}
+        sx={ROWS_SX}
+      >
         <ScopeInput readOnly={readOnly} />
         <NumberInput
           source="maxConnections"
@@ -105,7 +113,14 @@ const RuleLimits = ({ readOnly }: { readOnly: boolean }) => (
     </Typography>
     {readOnly && <NoLimits field="speedLimits" />}
     <ArrayInput source="speedLimits" label={false}>
-      <SimpleFormIterator inline disableReordering disableClear disabled={readOnly}>
+      <SimpleFormIterator
+        inline
+        disableReordering
+        disableClear
+        disabled={readOnly}
+        addButton={<AddButton label="Add speed limit" />}
+        sx={ROWS_SX}
+      >
         <ScopeInput readOnly={readOnly} />
         <SelectInput
           source="direction"
@@ -143,7 +158,14 @@ const RuleLimits = ({ readOnly }: { readOnly: boolean }) => (
     </Typography>
     {readOnly && <NoLimits field="trafficQuotas" />}
     <ArrayInput source="trafficQuotas" label={false}>
-      <SimpleFormIterator inline disableReordering disableClear disabled={readOnly}>
+      <SimpleFormIterator
+        inline
+        disableReordering
+        disableClear
+        disabled={readOnly}
+        addButton={<AddButton label="Add quota" />}
+        sx={ROWS_SX}
+      >
         <SelectInput
           source="direction"
           choices={QUOTA_DIRECTIONS}
@@ -225,23 +247,20 @@ export const PolicyInputs = ({ readOnly = false }: { readOnly?: boolean }) => (
       night
     </Typography>
     <ArrayInput source="rules" label={false}>
+      {/* The card draws the rule and its delete button, the iterator only adds and removes. */}
       <SimpleFormIterator
         fullWidth
         disableClear
+        disableRemove
         disabled={readOnly}
-        getItemLabel={(index) => `Rule ${index + 1}`}
-        addButton={<AddItemButton label="Add rule" />}
+        addButton={<AddButton label="Add rule" variant="outlined" />}
+        sx={{ '& .RaSimpleFormIterator-line': { borderBottom: 'none' } }}
       >
-        <TextInput
-          source="name"
-          readOnly={readOnly}
-          validate={required()}
-          helperText="E.g. Working hours"
-        />
-        <UnreachableRuleWarning />
-        <Typography variant="subtitle2">When</Typography>
-        <ConditionInputs readOnly={readOnly} />
-        <RuleLimits readOnly={readOnly} />
+        <RuleCard readOnly={readOnly} notice={<UnreachableRuleWarning />}>
+          <Typography variant="subtitle2">When</Typography>
+          <ConditionInputs readOnly={readOnly} />
+          <RuleLimits readOnly={readOnly} />
+        </RuleCard>
       </SimpleFormIterator>
     </ArrayInput>
 
