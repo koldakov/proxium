@@ -1,11 +1,12 @@
-import { Create, SimpleForm } from 'react-admin'
+import { Create } from 'react-admin'
 
+import { GuardedSimpleForm } from '../../components/UnsavedChangesGuard'
 import { toPolicyData, utcToday } from './limits'
 import { PolicyInputs } from './PolicyInputs'
 
 export const PolicyCreate = () => (
   <Create redirect="list" transform={toPolicyData}>
-    <SimpleForm
+    <GuardedSimpleForm
       defaultValues={{
         isActive: true,
         isGlobal: false,
@@ -14,6 +15,6 @@ export const PolicyCreate = () => (
       }}
     >
       <PolicyInputs />
-    </SimpleForm>
+    </GuardedSimpleForm>
   </Create>
 )

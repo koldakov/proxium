@@ -23,6 +23,7 @@ import {
   useNotify,
 } from 'react-admin'
 
+import { UnsavedChangesGuard } from '../../components/UnsavedChangesGuard'
 import { ipNetwork, toCidr } from '../../components/validators'
 import type { ProxiumDataProvider, Settings } from '../../providers'
 
@@ -243,6 +244,7 @@ export const SettingsPage = () => {
           {/* Remounted on save: the form starts clean from what the API stored, e.g. 10.0.0.5/32. */}
           {/* Read-only without `settings.change`: nothing to save. */}
           <Form key={JSON.stringify(data)} record={toForm(data)}>
+            <UnsavedChangesGuard />
             <CardContent>
               <GuardInputs readOnly={!canChange} />
               <TimeoutInputs readOnly={!canChange} />

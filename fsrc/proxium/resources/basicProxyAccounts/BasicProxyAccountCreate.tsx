@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Create, type RaRecord, SimpleForm, TextInput, required, useRedirect } from 'react-admin'
+import { Create, type RaRecord, TextInput, required, useRedirect } from 'react-admin'
 
 import { AwareDateTimeInput } from '../../components/AwareDateTimeInput'
 import { OutgoingModeInput } from '../../components/OutgoingModeInput'
 import { NewPoliciesInput } from '../../components/NewPoliciesInput'
 import { SecretDialog } from '../../components/SecretDialog'
 import { future } from '../../components/validators'
+import { GuardedSimpleForm } from '../../components/UnsavedChangesGuard'
 
 export const BasicProxyAccountCreate = () => {
   const redirect = useRedirect()
@@ -15,7 +16,7 @@ export const BasicProxyAccountCreate = () => {
   return (
     <>
       <Create mutationOptions={{ onSuccess: setCreated }}>
-        <SimpleForm defaultValues={{ outgoingMode: 'system' }}>
+        <GuardedSimpleForm defaultValues={{ outgoingMode: 'system' }}>
           <TextInput source="name" validate={required()} />
           <AwareDateTimeInput
             source="expiresAt"
@@ -25,7 +26,7 @@ export const BasicProxyAccountCreate = () => {
           />
           <OutgoingModeInput />
           <NewPoliciesInput />
-        </SimpleForm>
+        </GuardedSimpleForm>
       </Create>
       {created !== null && (
         <SecretDialog

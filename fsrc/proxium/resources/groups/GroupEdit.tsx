@@ -1,5 +1,6 @@
-import { DeleteButton, Edit, SaveButton, SimpleForm, Toolbar } from 'react-admin'
+import { DeleteButton, Edit, SaveButton, Toolbar } from 'react-admin'
 
+import { GuardedSimpleForm } from '../../components/UnsavedChangesGuard'
 import { GroupInputs } from './GroupInputs'
 
 const EditToolbar = () => (
@@ -16,8 +17,8 @@ const EditToolbar = () => (
 // Users of the group get a change with their next request.
 export const GroupEdit = () => (
   <Edit redirect="list" mutationMode="pessimistic">
-    <SimpleForm toolbar={<EditToolbar />}>
+    <GuardedSimpleForm toolbar={<EditToolbar />}>
       <GroupInputs />
-    </SimpleForm>
+    </GuardedSimpleForm>
   </Edit>
 )

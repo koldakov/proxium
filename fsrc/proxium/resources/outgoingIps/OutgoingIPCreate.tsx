@@ -1,11 +1,12 @@
-import { Create, SimpleForm } from 'react-admin'
+import { Create } from 'react-admin'
 
+import { GuardedSimpleForm } from '../../components/UnsavedChangesGuard'
 import { OutgoingIPInputs } from './OutgoingIPInputs'
 
 export const OutgoingIPCreate = () => (
   <Create redirect="list">
-    <SimpleForm>
+    <GuardedSimpleForm>
       <OutgoingIPInputs />
-    </SimpleForm>
+    </GuardedSimpleForm>
   </Create>
 )
