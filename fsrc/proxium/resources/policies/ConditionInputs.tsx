@@ -20,6 +20,7 @@ import {
   useInput,
 } from 'react-admin'
 
+import { TimePickerInput } from '../../components/PickerInputs'
 import {
   CONDITION_KINDS,
   CONDITION_MATCHES,
@@ -35,9 +36,6 @@ import {
 import { AddButton } from './RuleCard'
 import { ROWS_SX } from './rows'
 import { describeDays } from './summary'
-
-// The time input shows a placeholder of its own: the label stays above it.
-const SHRUNK_LABEL = { inputLabel: { shrink: true } }
 
 /** Whether a check is negated, as the word before it: "If" it matches or "Unless" it does. */
 const NegateInput = ({ readOnly }: { readOnly: boolean }) => {
@@ -67,6 +65,8 @@ const DAY_PRESETS = [
 
 /** Weekdays as a dropdown that reads like the summary when closed, e.g. Mon–Fri. */
 const DaysInput = ({ readOnly }: { readOnly: boolean }) => {
+  // react-hook-form's field state reads through getters of one object: React Compiler would keep the first error.
+  'use no memo'
   const {
     field,
     fieldState: { error, isTouched },
@@ -127,19 +127,17 @@ const BlockParams = ({ readOnly }: { readOnly: boolean }) => (
           return (
             <>
               <DaysInput readOnly={readOnly} />
-              <TextInput
+              <TimePickerInput
                 source="start"
-                type="time"
+                label="Start"
                 defaultValue="09:00"
-                slotProps={SHRUNK_LABEL}
                 readOnly={readOnly}
                 validate={required()}
               />
-              <TextInput
+              <TimePickerInput
                 source="end"
-                type="time"
+                label="End"
                 defaultValue="18:00"
-                slotProps={SHRUNK_LABEL}
                 readOnly={readOnly}
                 validate={required()}
                 helperText="Before the start: till the next day. Same as the start: all day"

@@ -1,4 +1,6 @@
 import AddIcon from '@mui/icons-material/Add'
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -72,7 +74,7 @@ interface RuleCardProps {
  * below. Collapses to the summary, as it starts on the read-only page. Inside the rules iterator.
  */
 export const RuleCard = ({ readOnly, notice, children }: RuleCardProps) => {
-  const { index, remove } = useSimpleFormIteratorItem()
+  const { index, total, remove, reOrder } = useSimpleFormIteratorItem()
   const [expanded, setExpanded] = useState(!readOnly)
 
   return (
@@ -105,6 +107,33 @@ export const RuleCard = ({ readOnly, notice, children }: RuleCardProps) => {
         </Box>
         <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 1 }}>
           {!expanded && <ErrorsChip index={index} />}
+          {/* Order matters: the first matching rule applies. Spans: a tooltip needs an enabled child. */}
+          {!readOnly && (
+            <>
+              <Tooltip title="Move up">
+                <span>
+                  <IconButton
+                    onClick={() => reOrder(index - 1)}
+                    disabled={index === 0}
+                    size="small"
+                  >
+                    <ArrowUpwardIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="Move down">
+                <span>
+                  <IconButton
+                    onClick={() => reOrder(index + 1)}
+                    disabled={index === total - 1}
+                    size="small"
+                  >
+                    <ArrowDownwardIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </>
+          )}
           <Tooltip title={expanded ? 'Collapse' : 'Expand'}>
             <IconButton onClick={() => setExpanded(!expanded)} size="small">
               {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}

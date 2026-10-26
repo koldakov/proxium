@@ -20,7 +20,9 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 import { keepPreviousData, useMutation, useQueryClient } from '@tanstack/react-query'
+import dayjs, { type Dayjs } from 'dayjs'
 import { useState } from 'react'
 import {
   Confirm,
@@ -38,6 +40,7 @@ import {
 import type { ProxiumDataProvider } from '../providers'
 import { useDetailPage } from './detailPage'
 import { useConfigs } from './configs'
+import { DATE_FORMAT } from './dates'
 import { ShowSection } from './ShowSection'
 
 // The API caps assigned policies at `API_POLICIES_MAX_PER_OWNER`, up to 100, the largest page:
@@ -180,7 +183,9 @@ const StartsOnDialog = ({
 }: StartsOnDialogProps) => {
   const dataProvider = useDataProvider<ProxiumDataProvider>()
   const notify = useNotify()
-  const [value, setValue] = useState(startsOn)
+  const [picked, setPicked] = useState<Dayjs | null>(dayjs(startsOn))
+  // Empty while the date is cleared or half-typed.
+  const value = picked?.isValid() ? picked.format(DATE_FORMAT) : ''
 
   const { mutate, isPending } = useMutation({
     mutationFn: (day: string) =>
@@ -193,7 +198,6 @@ const StartsOnDialog = ({
     onError: (error: Error) => notify(error.message, { type: 'error' }),
   })
 
-  // Empty while the date is cleared or half-typed.
   const canSave = value !== '' && value !== startsOn && !isPending
 
   return (
@@ -204,15 +208,13 @@ const StartsOnDialog = ({
           Periods follow one another from this UTC day, e.g. the day the client paid. Usage is
           recounted for the new period at once: a client over its quota may be cut, or let back in.
         </DialogContentText>
-        <TextField
-          type="date"
+        <DatePicker
           label="Count from"
-          size="small"
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          slotProps={{ inputLabel: { shrink: true } }}
+          format={DATE_FORMAT}
+          value={picked}
+          onChange={setPicked}
           autoFocus
-          fullWidth
+          slotProps={{ textField: { size: 'small', fullWidth: true } }}
         />
       </DialogContent>
       <DialogActions>

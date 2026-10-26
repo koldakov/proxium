@@ -2,7 +2,6 @@ import { Alert, Typography } from '@mui/material'
 import {
   ArrayInput,
   BooleanInput,
-  DateInput,
   FormDataConsumer,
   NumberInput,
   SelectInput,
@@ -15,6 +14,7 @@ import {
 } from 'react-admin'
 import type { RaRecord } from 'react-admin'
 
+import { DatePickerInput } from '../../components/PickerInputs'
 import { ConditionInputs } from './ConditionInputs'
 import { AddButton, RuleCard } from './RuleCard'
 import { ROWS_SX } from './rows'
@@ -247,11 +247,12 @@ export const PolicyInputs = ({ readOnly = false }: { readOnly?: boolean }) => (
       night
     </Typography>
     <ArrayInput source="rules" label={false}>
-      {/* The card draws the rule and its delete button, the iterator only adds and removes. */}
+      {/* The card draws the rule and its buttons, the iterator only holds the list. */}
       <SimpleFormIterator
         fullWidth
         disableClear
         disableRemove
+        disableReordering
         disabled={readOnly}
         addButton={<AddButton label="Add rule" variant="outlined" />}
         sx={{ '& .RaSimpleFormIterator-line': { borderBottom: 'none' } }}
@@ -269,7 +270,7 @@ export const PolicyInputs = ({ readOnly = false }: { readOnly?: boolean }) => (
       {({ formData }) =>
         hasQuotas(formData.rules) &&
         (formData.isGlobal ? (
-          <DateInput
+          <DatePickerInput
             source="globalStartsOn"
             label="Periods start on"
             readOnly={readOnly}

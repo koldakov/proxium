@@ -1,7 +1,8 @@
+import { Stack } from '@mui/material'
 import { useState } from 'react'
 import { Create, type RaRecord, TextInput, required, useRedirect } from 'react-admin'
 
-import { AwareDateTimeInput } from '../../components/AwareDateTimeInput'
+import { AwareDateTimeInput } from '../../components/PickerInputs'
 import { OutgoingModeInput } from '../../components/OutgoingModeInput'
 import { NewPoliciesInput } from '../../components/NewPoliciesInput'
 import { SecretDialog } from '../../components/SecretDialog'
@@ -18,13 +19,16 @@ export const TokenProxyAccountCreate = () => {
       <Create mutationOptions={{ onSuccess: setCreated }}>
         <GuardedSimpleForm defaultValues={{ outgoingMode: 'system' }}>
           <TextInput source="name" validate={required()} />
-          <AwareDateTimeInput
-            source="expiresAt"
-            label="Expires"
-            helperText="Empty: never"
-            validate={future()}
-          />
-          <OutgoingModeInput />
+          {/* Short fields side by side, on a phone one under the other. */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ width: '100%', columnGap: 2 }}>
+            <AwareDateTimeInput
+              source="expiresAt"
+              label="Expires"
+              helperText="Empty: never"
+              validate={future()}
+            />
+            <OutgoingModeInput />
+          </Stack>
           <NewPoliciesInput />
         </GuardedSimpleForm>
       </Create>
