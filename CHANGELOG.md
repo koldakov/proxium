@@ -7,6 +7,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+A new look for the admin UI: easier on the eyes, clearer to read, errors right where they happen.
+
+### Added
+
+- The admin UI asks before leaving a form with unsaved changes, on reloading or closing the tab too.
+- Rules of a policy move up and down: the first matching rule applies, order is in your hands.
+
+### Changed
+
+- The admin UI has its own light and dark themes, the light one without glaring white. The Inter font comes with
+  it, so it looks the same without internet access.
+- Policy rules are cards with a summary of when each one applies and what it limits, e.g. "Mon–Fri 09:00–18:00 and
+  unless domain github.com: 1 Mbit/s each way per account". A card collapses to its summary, as on the read-only
+  page. Conditions start with "If" or "Unless", days are picked from a list with weekdays and weekends at the top.
+- Date and time inputs are one picker in every browser, Safari included, in the browser's 12 or 24 hour clock. A
+  half-typed date is an error instead of an empty value, e.g. an account that never expires.
+- Lists show statuses as chips: an account is Active, Expired or Revoked at a glance. Usernames, keys, networks and
+  IPs are monospace.
+- Errors show where they happen: a failed save above the form's buttons, a failed action inside its dialog, which
+  stays open. Toasts only confirm what's done, at the top of the page.
+- The login page has the admin's look. A wrong email or password is said under the inputs, an ended session in the
+  page, not in toasts that go away.
+- Groups and own permissions of a superuser are locked in the user form: a superuser has every permission. They
+  apply again once Superuser is turned off.
+
+### Fixed
+
+- The traffic of an account or network keeps its height when switching the period or between chart and table: the
+  page below doesn't jump.
+
 ## [0.2.0] - 2026-10-25
 
 Every limit is shared between proxy instances: run several on one database, and they work as one proxy. See
