@@ -41,7 +41,6 @@ Where Proxium is heading. No dates, priorities may change. Ideas and use cases a
 **Operations**
 
 - Metrics
-- Documentation site
 - Upgrades of the bundled PostgreSQL to a new major version
 
 ## Exploring
