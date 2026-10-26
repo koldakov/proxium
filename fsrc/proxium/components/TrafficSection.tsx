@@ -1,6 +1,6 @@
 import BarChartIcon from '@mui/icons-material/BarChart'
 import TableRowsIcon from '@mui/icons-material/TableRows'
-import { Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
+import { Box, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material'
 import { BarChart } from '@mui/x-charts/BarChart'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
@@ -220,24 +220,20 @@ const TrafficChart = ({ resource }: { resource: string }) => {
           </ToggleButton>
         ))}
       </ToggleButtonGroup>
-      {data !== undefined && data.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
-          No traffic in the last {days} days
-        </Typography>
-      ) : (
-        <BarChart
-          height={300}
-          loading={data === undefined}
-          dataset={dataset}
-          borderRadius={4}
-          xAxis={[{ scaleType: 'band', dataKey: 'day', valueFormatter: formatDay }]}
-          yAxis={[{ valueFormatter: formatBytes, width: 70 }]}
-          series={[
-            { dataKey: 'bytesSent', label: 'Sent', valueFormatter: formatBytes },
-            { dataKey: 'bytesReceived', label: 'Received', valueFormatter: formatBytes },
-          ]}
-        />
-      )}
+      {/* Empty days are the chart's own overlay: the page keeps its height when switching days. */}
+      <BarChart
+        height={300}
+        loading={data === undefined}
+        dataset={data?.length === 0 ? [] : dataset}
+        localeText={{ noData: `No traffic in the last ${days} days` }}
+        borderRadius={4}
+        xAxis={[{ scaleType: 'band', dataKey: 'day', valueFormatter: formatDay }]}
+        yAxis={[{ valueFormatter: formatBytes, width: 70 }]}
+        series={[
+          { dataKey: 'bytesSent', label: 'Sent', valueFormatter: formatBytes },
+          { dataKey: 'bytesReceived', label: 'Received', valueFormatter: formatBytes },
+        ]}
+      />
     </Stack>
   )
 }
@@ -283,13 +279,21 @@ export const TrafficSection = () => {
           <TableRowsIcon fontSize="small" />
         </ToggleButton>
       </ToggleButtonGroup>
-      {view === 'chart' ? (
-        <TrafficChart resource={`traffic/${resource}/${record.id}`} />
-      ) : (
-        <TrafficListBase resource={`traffic/${resource}/${record.id}`}>
-          <TrafficTable />
-        </TrafficListBase>
-      )}
+      {/*
+        Both stay mounted and loaded: a view loading from scratch would shrink the page and scroll it up.
+        One grid cell, the hidden chart keeps its space: a short table is as tall as the chart, the page
+        below doesn't move when switching.
+      */}
+      <Box sx={{ display: 'grid', '& > *': { gridArea: '1 / 1', minWidth: 0 } }}>
+        <Box sx={{ visibility: view === 'chart' ? 'visible' : 'hidden' }}>
+          <TrafficChart resource={`traffic/${resource}/${record.id}`} />
+        </Box>
+        <Box sx={{ display: view === 'table' ? 'block' : 'none' }}>
+          <TrafficListBase resource={`traffic/${resource}/${record.id}`}>
+            <TrafficTable />
+          </TrafficListBase>
+        </Box>
+      </Box>
     </ShowSection>
   )
 }
