@@ -1,5 +1,6 @@
 import '@fontsource-variable/inter'
 
+import type { ChipProps } from '@mui/material'
 import { alpha, type PaletteOptions, type Theme } from '@mui/material/styles'
 import type { RaThemeOptions } from 'react-admin'
 
@@ -90,7 +91,22 @@ const base: RaThemeOptions = {
       },
     },
     MuiChip: {
-      styleOverrides: { root: { borderRadius: 6, fontWeight: 500 } },
+      styleOverrides: {
+        root: ({ theme, ownerState }: { theme: Theme; ownerState: ChipProps }) => {
+          const { color = 'default', variant = 'filled' } = ownerState
+          const base = { borderRadius: 6, fontWeight: 500 }
+          if (color === 'default' || variant !== 'filled') {
+            return base
+          }
+          // Soft: colored text on a tint of the same color instead of a solid fill.
+          const main = theme.palette[color].main
+          return {
+            ...base,
+            color: theme.palette.mode === 'light' ? theme.palette[color].dark : main,
+            backgroundColor: alpha(main, 0.16),
+          }
+        },
+      },
     },
     MuiTooltip: {
       defaultProps: { arrow: true },

@@ -1,4 +1,4 @@
-import { DataTable, DateField, List, SelectInput } from 'react-admin'
+import { DataTable, DateField, List, SelectInput, TextField } from 'react-admin'
 
 import { CreatedByField } from '../../components/CreatedByField'
 import { useDetailPage } from '../../components/detailPage'
@@ -24,7 +24,9 @@ export const OutgoingIPList = () => {
       <DataTable rowClick={detailPage} bulkActionButtons={false}>
         <DataTable.Col source="id" disableSort />
         <DataTable.Col source="name" disableSort />
-        <DataTable.Col source="ip" label="IP" disableSort />
+        <DataTable.Col source="ip" label="IP" disableSort>
+          <TextField source="ip" sx={{ fontFamily: 'monospace' }} />
+        </DataTable.Col>
         <DataTable.Col source="createdById" label="Created by" disableSort>
           <CreatedByField />
         </DataTable.Col>
