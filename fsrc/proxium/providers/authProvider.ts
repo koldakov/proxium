@@ -44,6 +44,11 @@ export interface Me {
 export const toPermission = (resource: string, action: string): string =>
   `${resource.split('/')[0].replaceAll('-', '_')}.${ACTIONS[action] ?? action}`
 
+export interface ProxiumAuthProvider extends AuthProvider {
+  // Why the last session ended, e.g. it expired: the login page says it until the next login.
+  getLogoutReason: () => string | null
+}
+
 export interface AuthProviderOptions {
   httpClient?: HttpClient
   // The one react-admin uses: a 403 re-runs its permission checks at once.
@@ -54,9 +59,10 @@ export interface AuthProviderOptions {
 export const createAuthProvider = (
   apiUrl: string,
   { httpClient = defaultHttpClient, queryClient }: AuthProviderOptions = {},
-): AuthProvider => {
+): ProxiumAuthProvider => {
   // Shared by the checks react-admin fires at once.
   let me: { promise: Promise<Me>; expiresAt: number } | null = null
+  let logoutReason: string | null = null
 
   const getMe = (): Promise<Me> => {
     if (me === null || me.expiresAt < Date.now()) {
@@ -78,6 +84,7 @@ export const createAuthProvider = (
       })
       saveTokens(json)
       me = null
+      logoutReason = null
     },
 
     logout: async () => {
@@ -92,10 +99,14 @@ export const createAuthProvider = (
     },
 
     checkError: async (error: HttpError) => {
-      // React-admin shows the API's message on logout only while the tokens are still there: `logout` clears them.
+      // Said on the login page instead of react-admin's toast. Only while the tokens are still there: a session
+      // that ended, not a request that never had one. `logout` clears them.
       if (error.status === 401) {
         me = null
-        throw error
+        if (getAccessToken() !== null) {
+          logoutReason = error.message
+        }
+        throw { message: false }
       }
       // Permissions were taken away since the UI last asked: hide what the API refuses now. Not a logout.
       if (error.status === 403) {
@@ -118,5 +129,7 @@ export const createAuthProvider = (
       const { isSuperuser, permissions } = await getMe()
       return isSuperuser || permissions.includes(toPermission(resource, action))
     },
+
+    getLogoutReason: () => logoutReason,
   }
 }

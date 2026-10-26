@@ -13,6 +13,7 @@ import {
 } from 'react-admin'
 
 import type { ProxiumDataProvider } from '../providers'
+import { ConfirmContent } from './ConfirmContent'
 
 /** Revokes the proxy account in context for good. Hidden once revoked or without `revoke`. */
 export const RevokeButton = () => {
@@ -24,15 +25,18 @@ export const RevokeButton = () => {
   const [confirming, setConfirming] = useState(false)
   const { canAccess } = useCanAccess({ resource, action: 'revoke' })
 
-  const { mutate, isPending } = useMutation({
+  const { mutate, isPending, error, reset } = useMutation({
     mutationFn: () => dataProvider.revoke(resource!, { id: record!.id }),
     onSuccess: () => {
       setConfirming(false)
       notify('Revoked', { type: 'success' })
       refresh()
     },
-    onError: (error: Error) => notify(error.message, { type: 'error' }),
   })
+  const close = () => {
+    setConfirming(false)
+    reset()
+  }
 
   if (record === undefined || !record.isActive || !canAccess) {
     return null
@@ -47,9 +51,14 @@ export const RevokeButton = () => {
         isOpen={confirming}
         loading={isPending}
         title="Revoke"
-        content="The credentials stop working right away and can't be restored."
+        content={
+          <ConfirmContent
+            text="The credentials stop working right away and can't be restored."
+            error={error}
+          />
+        }
         onConfirm={() => mutate()}
-        onClose={() => setConfirming(false)}
+        onClose={close}
       />
     </>
   )

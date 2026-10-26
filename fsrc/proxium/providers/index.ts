@@ -6,7 +6,7 @@ import { createDataProvider } from './dataProvider'
 import { queryClient } from './queryClient'
 import { refreshTokens } from './tokens'
 
-export type { Me } from './authProvider'
+export type { Me, ProxiumAuthProvider } from './authProvider'
 export type {
   Configs,
   OutgoingPoolParams,

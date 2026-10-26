@@ -9,20 +9,14 @@ import { Route } from 'react-router-dom'
 import { AppUserMenu } from './components/AppUserMenu'
 import { useConfigs } from './components/configs'
 import { GroupedMenu } from './components/GroupedMenu'
+import { LoginPage } from './pages/login'
 import { PROFILE_PATH, ProfilePage } from './pages/profile'
 import { SettingsPage, settingsLink } from './pages/settings'
 import { authProvider, dataProvider, queryClient } from './providers'
 import { menu, resources } from './resources'
 import { darkTheme, lightTheme } from './theme'
 
-// The API logs in by email: relabel the stock login form.
-const i18nProvider = polyglotI18nProvider(
-  () => ({
-    ...englishMessages,
-    ra: { ...englishMessages.ra, auth: { ...englishMessages.ra.auth, username: 'Email' } },
-  }),
-  'en',
-)
+const i18nProvider = polyglotI18nProvider(() => englishMessages, 'en')
 
 const AppMenu = () => <GroupedMenu nodes={menu} />
 
@@ -48,6 +42,7 @@ const App = () => (
       queryClient={queryClient}
       i18nProvider={i18nProvider}
       layout={AppLayout}
+      loginPage={LoginPage}
       theme={lightTheme}
       darkTheme={darkTheme}
       requireAuth

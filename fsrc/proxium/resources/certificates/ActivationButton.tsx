@@ -14,6 +14,7 @@ import {
   useRefresh,
 } from 'react-admin'
 
+import { ConfirmContent } from '../../components/ConfirmContent'
 import type { ProxiumDataProvider } from '../../providers'
 import { describeCertificate, isExpired } from './expiry'
 
@@ -34,7 +35,7 @@ export const ActivationButton = () => {
     pagination: { page: 1, perPage: 1 },
   })
 
-  const { mutate, isPending } = useMutation({
+  const { mutate, isPending, error, reset } = useMutation({
     mutationFn: () =>
       record!.isActive
         ? dataProvider.deactivate('certificates', { id: record!.id })
@@ -47,13 +48,13 @@ export const ActivationButton = () => {
       notify(record!.isActive ? 'Deactivated' : 'Activated', { type: 'success' })
       refresh()
     },
-    onError: (error: Error) => {
-      setConfirming(false)
-      notify(error.message, { type: 'error' })
-      // E.g. another admin activated one meanwhile: the page shows the current state to confirm again.
-      refresh()
-    },
+    // The dialog says why. E.g. another admin activated one meanwhile: it names the current one to confirm again.
+    onError: () => refresh(),
   })
+  const close = () => {
+    setConfirming(false)
+    reset()
+  }
 
   // The API refuses an expired certificate: don't offer it. Nor before the active one is known: the confirmation
   // names it, and the API checks it's still the same.
@@ -97,9 +98,9 @@ export const ActivationButton = () => {
         isOpen={confirming}
         loading={isPending}
         title={record.isActive ? 'Deactivate' : 'Activate'}
-        content={content}
+        content={<ConfirmContent text={content} error={error} />}
         onConfirm={() => mutate()}
-        onClose={() => setConfirming(false)}
+        onClose={close}
       />
     </>
   )

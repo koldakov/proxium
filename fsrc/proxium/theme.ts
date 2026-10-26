@@ -167,6 +167,50 @@ const base: RaThemeOptions = {
         }),
       },
     },
+    RaNotification: {
+      defaultProps: { anchorOrigin: { vertical: 'top', horizontal: 'center' } },
+      styleOverrides: {
+        // A dark pill in both modes, the kind told by a colored dot instead of a filled background.
+        root: ({ theme }: { theme: Theme }) => {
+          const isLight = theme.palette.mode === 'light'
+          const surface = { backgroundColor: isLight ? '#1f2329' : '#2a2a31', color: '#f4f5f7' }
+          const dot = (color: string) => ({
+            ...surface,
+            '& .MuiSnackbarContent-message::before': { backgroundColor: color },
+          })
+          // Under the app bar, MUI puts it at its top edge.
+          const top = { top: theme.spacing(8) }
+          return {
+            ...top,
+            [theme.breakpoints.up('sm')]: top,
+            '& .MuiSnackbarContent-root': {
+              ...surface,
+              minWidth: 0,
+              borderRadius: 10,
+              fontWeight: 500,
+              boxShadow: theme.shadows[8],
+              border: isLight ? 'none' : `1px solid ${theme.palette.divider}`,
+            },
+            '& .MuiSnackbarContent-message': {
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing(1.25),
+              '&::before': {
+                content: '""',
+                width: 8,
+                height: 8,
+                flexShrink: 0,
+                borderRadius: '50%',
+                backgroundColor: theme.palette.info.main,
+              },
+            },
+            '& .RaNotification-success': dot(theme.palette.success.main),
+            '& .RaNotification-warning': dot(theme.palette.warning.main),
+            '& .RaNotification-error': dot(theme.palette.error.main),
+          }
+        },
+      },
+    },
     RaSimpleFormIterator: {
       defaultProps: { fullWidth: true },
     },
