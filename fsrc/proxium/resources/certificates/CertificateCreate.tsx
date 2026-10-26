@@ -8,7 +8,6 @@ import {
   NumberInput,
   RadioButtonGroupInput,
   type RaRecord,
-  SimpleForm,
   SimpleFormIterator,
   TextInput,
   maxValue,
@@ -20,6 +19,7 @@ import {
 } from 'react-admin'
 import { useSearchParams } from 'react-router-dom'
 
+import { GuardedSimpleForm } from '../../components/UnsavedChangesGuard'
 import { describeCertificate } from './expiry'
 
 const SOURCES = [
@@ -137,7 +137,7 @@ export const CertificateCreate = () => {
       }}
     >
       {/* First certificate: activated by default, so it just works. Replacing one: only when asked. */}
-      <SimpleForm
+      <GuardedSimpleForm
         defaultValues={{
           source,
           names: [{ name: '' }],
@@ -166,7 +166,7 @@ export const CertificateCreate = () => {
               : `TLS clients get it within a few seconds instead of the certificate for ${describeCertificate(current)}, which is turned off. Off: added inactive, activate it later on its page`
           }
         />
-      </SimpleForm>
+      </GuardedSimpleForm>
     </Create>
   )
 }

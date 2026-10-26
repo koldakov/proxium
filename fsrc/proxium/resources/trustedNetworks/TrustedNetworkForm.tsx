@@ -1,6 +1,7 @@
 import { type ReactElement, useState } from 'react'
-import { Confirm, type RaRecord, SimpleForm, useRecordContext, useSaveContext } from 'react-admin'
+import { Confirm, type RaRecord, useRecordContext, useSaveContext } from 'react-admin'
 
+import { GuardedSimpleForm } from '../../components/UnsavedChangesGuard'
 import { isOpenToEveryone } from './everyone'
 import { TrustedNetworkInputs } from './TrustedNetworkInputs'
 
@@ -39,9 +40,9 @@ export const TrustedNetworkForm = ({ toolbar, defaultValues }: TrustedNetworkFor
 
   return (
     <>
-      <SimpleForm onSubmit={handleSubmit} toolbar={toolbar} defaultValues={defaultValues}>
+      <GuardedSimpleForm onSubmit={handleSubmit} toolbar={toolbar} defaultValues={defaultValues}>
         <TrustedNetworkInputs />
-      </SimpleForm>
+      </GuardedSimpleForm>
       <Confirm
         isOpen={pending !== null}
         title="Trust the whole internet?"

@@ -18,6 +18,7 @@ import {
   useNotify,
 } from 'react-admin'
 
+import { UnsavedChangesGuard } from '../../components/UnsavedChangesGuard'
 import type { PasswordChange, Profile, ProfileChanges, ProxiumDataProvider } from '../../providers'
 
 const QUERY_KEY = ['profile']
@@ -50,6 +51,7 @@ const ProfileForm = ({ profile }: { profile: Profile }) => {
   return (
     // Remounted on save: the form starts clean from what the API stored.
     <Form key={JSON.stringify(profile)} record={profile} onSubmit={save}>
+      <UnsavedChangesGuard />
       <CardContent>
         <Typography variant="h6">Profile</Typography>
         <TextInput
@@ -92,6 +94,7 @@ const PasswordForm = () => {
 
   return (
     <Form key={generation} onSubmit={save}>
+      <UnsavedChangesGuard />
       <CardContent>
         <Typography variant="h6">Password</Typography>
         <PasswordInput source="oldPassword" label="Current password" validate={required()} />

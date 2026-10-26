@@ -1,11 +1,12 @@
-import { Create, SimpleForm } from 'react-admin'
+import { Create } from 'react-admin'
 
+import { GuardedSimpleForm } from '../../components/UnsavedChangesGuard'
 import { GroupInputs } from './GroupInputs'
 
 export const GroupCreate = () => (
   <Create redirect="list">
-    <SimpleForm defaultValues={{ permissions: [] }}>
+    <GuardedSimpleForm defaultValues={{ permissions: [] }}>
       <GroupInputs />
-    </SimpleForm>
+    </GuardedSimpleForm>
   </Create>
 )
