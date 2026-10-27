@@ -157,6 +157,7 @@ instance knows its own.
 | `PROXY_BACKLOG` | Connections waiting to be accepted per listening socket, default `1024`. Raise it if bursts of new connections stall. Takes effect on restart, see below |
 | `PROXY_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` or `CRITICAL`, default `INFO` |
 | `PROXY_SETTINGS_POLL_INTERVAL` | Seconds between lookups of the [settings](proxy.md#settings) from the admin UI, default `5` |
+| `PROXY_HEARTBEAT_INTERVAL` | Seconds between reports of each instance to the database, default `30`. An instance that misses three in a row shows as unknown |
 | `PROXY_CONNECTION_LEASE` | Seconds a crashed instance's connections keep counting toward connection limits, and its unwritten traffic toward quotas, default `30`, at least `3 + REDIS_SOCKET_CONNECT_TIMEOUT + REDIS_SOCKET_TIMEOUT`, `7` by default, see [Connection limits](#connection-limits) and [Traffic quotas](#traffic-quotas) |
 | `PROXY_REDIS_OUTAGE_TIMEOUT` | Seconds connection limits and quotas are counted in each instance alone while Redis is down, default `30`. At least the two Redis timeouts together, see [Connection limits](#connection-limits) and [Traffic quotas](#traffic-quotas) |
 | `PROXY_SPEED_BATCH` | Seconds of a speed limit's rate an instance takes from Redis at once, default `0.1`. Each instance may go over a limit by one batch, see [Speed limits](#speed-limits) |
