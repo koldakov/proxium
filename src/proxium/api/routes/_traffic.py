@@ -5,12 +5,18 @@ from fastapi.security import HTTPAuthorizationCredentials  # noqa: TC002, FastAP
 from fastapi_pagination import Page  # noqa: TC002, FastAPI reads signatures at runtime.
 
 from proxium.api.services.traffic import (
+    GetBasicProxyAccountQuotasResponse,
+    GetBasicProxyAccountQuotasService,
     GetBasicProxyAccountTrafficTotalRequest,
     GetBasicProxyAccountTrafficTotalResponse,
     GetBasicProxyAccountTrafficTotalService,
+    GetTokenProxyAccountQuotasResponse,
+    GetTokenProxyAccountQuotasService,
     GetTokenProxyAccountTrafficTotalRequest,
     GetTokenProxyAccountTrafficTotalResponse,
     GetTokenProxyAccountTrafficTotalService,
+    GetTrustedNetworkQuotasResponse,
+    GetTrustedNetworkQuotasService,
     GetTrustedNetworkTrafficTotalRequest,
     GetTrustedNetworkTrafficTotalResponse,
     GetTrustedNetworkTrafficTotalService,
@@ -122,6 +128,51 @@ async def get_basic_proxy_account_traffic_total(
 
 
 @traffic_router.get(
+    "/basic-proxy-accounts/{account_id}/quotas",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_200_OK: {
+            "description": (
+                "Every quota with its usage in the current period, empty without quotas. `live` is false while Redis "
+                "doesn't answer: only the written traffic counts."
+            ),
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `traffic.view`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Account not found.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "The account id is not an integer.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def get_basic_proxy_account_quotas(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    account_id: int,
+) -> GetBasicProxyAccountQuotasResponse:
+    """Traffic quotas of a username and password proxy account and how much of each is used.
+
+    From the active policies assigned to the account and the active global ones. Usage is of the current period, by
+    UTC days, including what the proxy hasn't written yet.
+    """
+    service: GetBasicProxyAccountQuotasService = GetBasicProxyAccountQuotasService(
+        token=credentials.credentials,
+        id=account_id,
+    )
+    return await service()
+
+
+@traffic_router.get(
     "/token-proxy-accounts/{account_id}",
     status_code=status.HTTP_200_OK,
     responses={
@@ -209,6 +260,51 @@ async def get_token_proxy_account_traffic_total(
 
 
 @traffic_router.get(
+    "/token-proxy-accounts/{account_id}/quotas",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_200_OK: {
+            "description": (
+                "Every quota with its usage in the current period, empty without quotas. `live` is false while Redis "
+                "doesn't answer: only the written traffic counts."
+            ),
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `traffic.view`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Account not found.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "The account id is not an integer.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def get_token_proxy_account_quotas(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    account_id: int,
+) -> GetTokenProxyAccountQuotasResponse:
+    """Traffic quotas of a token proxy account and how much of each is used.
+
+    From the active policies assigned to the account and the active global ones. Usage is of the current period, by
+    UTC days, including what the proxy hasn't written yet.
+    """
+    service: GetTokenProxyAccountQuotasService = GetTokenProxyAccountQuotasService(
+        token=credentials.credentials,
+        id=account_id,
+    )
+    return await service()
+
+
+@traffic_router.get(
     "/trusted-networks/{network_id}",
     status_code=status.HTTP_200_OK,
     responses={
@@ -291,5 +387,50 @@ async def get_trusted_network_traffic_total(
         token=credentials.credentials,
         id=network_id,
         data=data,
+    )
+    return await service()
+
+
+@traffic_router.get(
+    "/trusted-networks/{network_id}/quotas",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_200_OK: {
+            "description": (
+                "Every quota with its usage in the current period, empty without quotas. `live` is false while Redis "
+                "doesn't answer: only the written traffic counts."
+            ),
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `traffic.view`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Network not found.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "The network id is not an integer.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def get_trusted_network_quotas(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    network_id: int,
+) -> GetTrustedNetworkQuotasResponse:
+    """Traffic quotas of clients from a trusted network and how much of each is used.
+
+    From the active policies assigned to the network and the active global ones. Usage is of the current period, by
+    UTC days, including what the proxy hasn't written yet.
+    """
+    service: GetTrustedNetworkQuotasService = GetTrustedNetworkQuotasService(
+        token=credentials.credentials,
+        id=network_id,
     )
     return await service()

@@ -3,8 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
-from proxium.db import QuotaPeriod
-from proxium.policies import period_start
+from proxium.policies import DayPeriod, MonthPeriod, TotalPeriod
 
 if TYPE_CHECKING:
     from faker import Faker
@@ -18,7 +17,7 @@ class TestPeriodStart:
         today = anchor + timedelta(days=faker.pyint(min_value=0, max_value=3650))
 
         # Act
-        start = period_start(anchor, today, QuotaPeriod.DAY, length=length)
+        start = DayPeriod().start(anchor, today, length=length)
 
         # Assert
         assert (start - anchor).days % length == 0
@@ -31,7 +30,7 @@ class TestPeriodStart:
         anchor = today + timedelta(days=faker.pyint(min_value=1, max_value=3650))
 
         # Act
-        start = period_start(anchor, today, QuotaPeriod.DAY, length=length)
+        start = DayPeriod().start(anchor, today, length=length)
 
         # Assert
         assert (anchor - start).days % length == 0
@@ -40,28 +39,28 @@ class TestPeriodStart:
     # Fixed dates: month ends are the case, a random day rarely hits them.
     def test_period_start_returns_month_end_when_anchor_day_missing_in_month(self) -> None:
         # Act
-        start = period_start(date(2027, 1, 31), date(2027, 3, 15), QuotaPeriod.MONTH)
+        start = MonthPeriod().start(date(2027, 1, 31), date(2027, 3, 15))
 
         # Assert
         assert start == date(2027, 2, 28)
 
     def test_period_start_returns_anchor_day_again_when_month_long_enough(self) -> None:
         # Act
-        start = period_start(date(2027, 1, 31), date(2027, 3, 31), QuotaPeriod.MONTH)
+        start = MonthPeriod().start(date(2027, 1, 31), date(2027, 3, 31))
 
         # Assert
         assert start == date(2027, 3, 31)
 
     def test_period_start_returns_previous_start_when_day_before_boundary(self) -> None:
         # Act
-        start = period_start(date(2026, 1, 15), date(2026, 4, 14), QuotaPeriod.MONTH, length=3)
+        start = MonthPeriod().start(date(2026, 1, 15), date(2026, 4, 14), length=3)
 
         # Assert
         assert start == date(2026, 1, 15)
 
     def test_period_start_returns_new_start_when_on_boundary(self) -> None:
         # Act
-        start = period_start(date(2026, 1, 15), date(2026, 4, 15), QuotaPeriod.MONTH, length=3)
+        start = MonthPeriod().start(date(2026, 1, 15), date(2026, 4, 15), length=3)
 
         # Assert
         assert start == date(2026, 4, 15)
@@ -72,7 +71,7 @@ class TestPeriodStart:
         today = anchor + timedelta(days=faker.pyint(min_value=0, max_value=3650))
 
         # Act
-        start = period_start(anchor, today, QuotaPeriod.TOTAL)
+        start = TotalPeriod().start(anchor, today)
 
         # Assert
         assert start == anchor
