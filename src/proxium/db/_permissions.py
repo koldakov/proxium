@@ -57,6 +57,9 @@ class Permission(StrEnum):
     POLICIES_CHANGE = "policies.change"
     POLICIES_DELETE = "policies.delete"
 
+    PROXY_INSTANCES_VIEW = "proxy_instances.view"
+    PROXY_INSTANCES_DEREGISTER = "proxy_instances.deregister"
+
     SETTINGS_VIEW = "settings.view"
     SETTINGS_CHANGE = "settings.change"
 
