@@ -59,6 +59,13 @@ class ProxySettings(BaseSettings):
             gt=0,
         ),
     ] = 5.0
+    # Seconds between reports of this instance to the database, for the admin. Three missed in a row, it's unknown.
+    heartbeat_interval: Annotated[
+        float,
+        Field(
+            gt=0,
+        ),
+    ] = 30.0
     # Seconds an open connection stays counted in Redis without being renewed, renewed every third of it.
     # A crashed instance's connections stop counting after it, its unwritten traffic toward quotas too. That one is
     # renewed every TRAFFIC_SYNC_INTERVAL. At least three renewals and one slow Redis command, see `Settings`.

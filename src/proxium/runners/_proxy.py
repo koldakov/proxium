@@ -25,11 +25,13 @@ from proxium.counters import (
 )
 from proxium.db import (
     BasicProxyAccountTrafficModel,
+    ProxyInstanceStatus,
     TokenProxyAccountTrafficModel,
     TrustedNetworkTrafficModel,
     redis_manager,
     session_manager,
 )
+from proxium.instances import InstanceHeartbeat
 from proxium.observers import SharedTrafficTotals, TrafficObserver, TrafficShareUnavailable
 from proxium.policies import InvalidPolicyError, RuleSetBuilder, RuleSetPolicy
 from proxium.proxy import (
@@ -174,8 +176,11 @@ class ProxyRunner:
         redis_outage_timeout: float = proxy_settings.redis_outage_timeout,
         speed_batch: float = proxy_settings.speed_batch,
         name: str = proxy_settings.name,
+        heartbeat_interval: float = proxy_settings.heartbeat_interval,
     ) -> None:
         self._log_level: LogLevel = log_level
+        # Needs the loop to report, so the runner starts and closes it.
+        self._heartbeat: InstanceHeartbeat = InstanceHeartbeat(name=name, interval=heartbeat_interval)
         # Checked at the start: on an older Redis quotas would refuse every client once it counts as down.
         self._traffic_share: RedisTrafficShare = RedisTrafficShare(lease=connection_lease)
         # Needs the loop to flush and sync, so the runner starts and closes it. Unwritten traffic is shared with other
@@ -376,6 +381,8 @@ class ProxyRunner:
         """Read the settings and policies, then listen. Returns once listening, `close` stops. Raise
         `UnsupportedRedisError` if Redis is too old for quotas.
         """
+        # First: a start that fails or hangs shows as pending, then unknown.
+        self._heartbeat.start()
         # A Redis that doesn't answer, or refuses for another reason, e.g. a replica, is an outage, as later: the proxy
         # starts, quotas count alone for a while.
         try:
@@ -387,6 +394,7 @@ class ProxyRunner:
         self._connection_leases.start()
         self._speed_batches.start()
         await self._watchers.start()
+        self._heartbeat.set_status(ProxyInstanceStatus.RUNNING)
 
     async def close(self) -> None:
         """Stop listening, wait for open connections up to the graceful timeout, flush their traffic.
@@ -400,6 +408,8 @@ class ProxyRunner:
         await self._traffic_observer.close()
         await self._connection_leases.close()
         await self._speed_batches.close()
+        # Last: running while open connections finish, stopped once nothing is left.
+        await self._heartbeat.close()
 
     async def _serve(self) -> None:
         self._on_signal(self._stop.set)
