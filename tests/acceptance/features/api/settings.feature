@@ -73,3 +73,4 @@ Feature: Settings in the API
     When the admin sends GET "/api/configs"
     Then the API answers 200
     And the answer has "policiesMaxPerOwner"
+    And the answer has "globalPoliciesMax"

@@ -10,10 +10,13 @@ import {
   maxValue,
   minValue,
   required,
+  useGetList,
+  useRecordContext,
   useSimpleFormIteratorItem,
 } from 'react-admin'
 import type { RaRecord } from 'react-admin'
 
+import { useConfigs } from '../../components/configs'
 import { DatePickerInput } from '../../components/PickerInputs'
 import { ConditionInputs } from './ConditionInputs'
 import { AddButton, RuleCard } from './RuleCard'
@@ -213,6 +216,40 @@ const RuleLimits = ({ readOnly }: { readOnly: boolean }) => (
 const hasQuotas = (rules: RaRecord[] | undefined) =>
   (rules ?? []).some((rule) => rule?.trafficQuotas?.length > 0)
 
+const GLOBAL_HINT =
+  'Applies to every client. Otherwise assign it on the page of an account or network'
+
+/**
+ * The Global switch. Once there are as many global policies as the API allows, making one more global would be
+ * refused: the switch is off and says why. A policy already global stays switchable, also past the cap.
+ */
+const GlobalInput = ({ readOnly }: { readOnly: boolean }) => {
+  const record = useRecordContext()
+  const max = useConfigs()?.globalPoliciesMax
+  // Only the count: the total of a one-item page.
+  const { total } = useGetList(
+    'policies',
+    { filter: { isGlobal: true }, pagination: { page: 1, perPage: 1 } },
+    { enabled: !readOnly },
+  )
+  const isFull =
+    !readOnly && !record?.isGlobal && max !== undefined && total !== undefined && total >= max
+
+  return (
+    <BooleanInput
+      source="isGlobal"
+      label="Global"
+      readOnly={readOnly}
+      disabled={isFull}
+      helperText={
+        isFull
+          ? `There are ${max} global policies, the most allowed: delete one or make it not global first`
+          : GLOBAL_HINT
+      }
+    />
+  )
+}
+
 /**
  * The fields of a policy, shared by create and edit, read-only on the show page. Edits the policy as
  * `toFormPolicy` gives it: each rule's condition split into form fields.
@@ -231,12 +268,7 @@ export const PolicyInputs = ({ readOnly = false }: { readOnly?: boolean }) => (
       readOnly={readOnly}
       helperText="Off: the policy applies to no one"
     />
-    <BooleanInput
-      source="isGlobal"
-      label="Global"
-      readOnly={readOnly}
-      helperText="Applies to every client. Otherwise assign it on the page of an account or network"
-    />
+    <GlobalInput readOnly={readOnly} />
 
     <Typography variant="subtitle1" sx={{ mt: 2 }}>
       Rules

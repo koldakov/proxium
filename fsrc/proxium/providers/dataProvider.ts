@@ -88,6 +88,7 @@ export interface Settings {
 // Read-only, from the API's environment.
 export interface Configs {
   policiesMaxPerOwner: number
+  globalPoliciesMax: number
 }
 
 /** CRUD plus the actions some resources have on top of it. */

@@ -317,6 +317,15 @@ class ApiSettings(BaseSettings):
             le=100,
         ),
     ] = 32
+    # Global policies at most, turned off ones too: each applies to every connection of every client.
+    # Up to 100, as per owner: an account's quotas, its own and global, then fit in one answer.
+    global_policies_max: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=100,
+        ),
+    ] = 32
 
     model_config = SettingsConfigDict(
         env_prefix="api_",

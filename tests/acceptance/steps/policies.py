@@ -5,11 +5,13 @@ import base64
 import re
 from datetime import timedelta
 from typing import TYPE_CHECKING, Final
+from unittest.mock import patch
 
 import httpx
 from pytest_bdd import given, parsers, then
 from sqlalchemy import update
 
+from proxium.core import api_settings
 from proxium.db import (
     BasicProxyAccountPolicyModel,
     Direction,
@@ -29,6 +31,7 @@ from ._async import async_step
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    import pytest
     from faker import Faker
 
     from proxium.db import UserModel
@@ -182,6 +185,14 @@ async def _(faker: Faker, stored_user: UserModel, trusted_network_id: int, rule:
 async def _(faker: Faker, stored_user: UserModel, rule: PolicyRuleModel) -> int:
     policy = await _create_policy(faker, stored_user, rule, is_global=True)
     return policy.id
+
+
+@given(parsers.parse("the API allows {count:d} global policies at most"))
+def _(request: pytest.FixtureRequest, count: int) -> None:
+    """For the rest of the scenario: the API reads the cap on each request."""
+    patcher = patch.object(api_settings, "global_policies_max", count)
+    patcher.start()
+    request.addfinalizer(patcher.stop)
 
 
 @given("the policy is turned off")

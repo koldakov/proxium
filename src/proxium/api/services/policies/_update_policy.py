@@ -8,6 +8,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import selectinload
 
 from proxium.api.services import BaseUserAuthenticatedService
+from proxium.core import api_settings
 from proxium.db import (
     Direction,
     LimitScope,
@@ -510,7 +511,8 @@ class UpdatePolicyService(BaseUserAuthenticatedService[UpdatePolicyResponse]):
     the ones left out are deleted.
 
     Keep the ids of what stays: a connection limit changed in place keeps counting the connections open under it.
-    The proxy gets the change with its next lookup.
+    The proxy gets the change with its next lookup. Making a policy global is capped, global ones past the cap, e.g.
+    after lowering it, still change.
     """
 
     required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.POLICIES_CHANGE})
@@ -536,6 +538,20 @@ class UpdatePolicyService(BaseUserAuthenticatedService[UpdatePolicyResponse]):
             statement = statement.with_for_update()
 
         return statement
+
+    @property
+    def _count_global_policies_statement(self) -> Select[tuple[int]]:
+        return select(func.count()).select_from(PolicyModel).where(PolicyModel.is_global.is_(True))
+
+    async def _check_global_policies(self) -> None:
+        # Counted after the change. A known race, left on purpose: two made global at once may both pass, one over the
+        # cap. Not critical, the cap guards against many global policies, not against one more.
+        result: Result[tuple[int]] = await self.session.execute(self._count_global_policies_statement)
+        if result.scalars().one() > api_settings.global_policies_max:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Too many global policies, at most {api_settings.global_policies_max}.",
+            )
 
     def _check_known(self, what: str, ids: Iterable[int | None], known: Iterable[int], /) -> None:
         unknown = {id_ for id_ in ids if id_ is not None} - set(known)
@@ -713,7 +729,11 @@ class UpdatePolicyService(BaseUserAuthenticatedService[UpdatePolicyResponse]):
         if self.data.is_active is not None:
             policy.is_active = self.data.is_active
         if self.data.is_global is not None:
+            made_global = self.data.is_global and not policy.is_global
             policy.is_global = self.data.is_global
+            if made_global:
+                await self.session.flush()
+                await self._check_global_policies()
         if self.data.global_starts_on is not None:
             policy.global_starts_on = self.data.global_starts_on
         if self.data.rules is not None:

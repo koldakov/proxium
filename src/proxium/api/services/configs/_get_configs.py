@@ -8,6 +8,7 @@ from proxium.helpers import BaseSchema
 
 class GetConfigsResponse(BaseSchema):
     policies_max_per_owner: int
+    global_policies_max: int
 
 
 class GetConfigsService(BaseUserAuthenticatedService[GetConfigsResponse]):
@@ -18,4 +19,5 @@ class GetConfigsService(BaseUserAuthenticatedService[GetConfigsResponse]):
     async def process(self, *args, **kwargs) -> GetConfigsResponse:
         return GetConfigsResponse(
             policies_max_per_owner=api_settings.policies_max_per_owner,
+            global_policies_max=api_settings.global_policies_max,
         )
