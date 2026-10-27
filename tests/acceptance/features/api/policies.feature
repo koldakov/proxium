@@ -198,3 +198,84 @@ Feature: Policies in the API
     And the answer doesn't list "plan"
     When the admin sends GET "/api/policies/${plan.id}"
     Then the API answers 404
+
+  Scenario: A global policy past the cap is refused
+    Given the API allows 1 global policies at most
+    And the admin added "everyone" at "/api/policies":
+      """
+      {"name": "Everyone", "isGlobal": true}
+      """
+    When the admin sends POST "/api/policies" with:
+      """
+      {"name": "Everyone too", "isGlobal": true}
+      """
+    Then the API answers 409
+    And the answer has:
+      """
+      {"detail": "Too many global policies, at most 1."}
+      """
+
+  Scenario: Turned off global policies count against the cap
+    Given the API allows 1 global policies at most
+    And the admin added "everyone" at "/api/policies":
+      """
+      {"name": "Everyone", "isGlobal": true, "isActive": false}
+      """
+    When the admin sends POST "/api/policies" with:
+      """
+      {"name": "Everyone too", "isGlobal": true}
+      """
+    Then the API answers 409
+
+  Scenario: Making a policy global past the cap is refused
+    Given the API allows 1 global policies at most
+    And the admin added "everyone" at "/api/policies":
+      """
+      {"name": "Everyone", "isGlobal": true}
+      """
+    And the admin added "plan" at "/api/policies":
+      """
+      {"name": "Plan"}
+      """
+    When the admin sends PATCH "/api/policies/${plan.id}" with:
+      """
+      {"isGlobal": true}
+      """
+    Then the API answers 409
+    When the admin sends GET "/api/policies/${plan.id}"
+    Then the answer has:
+      """
+      {"isGlobal": false}
+      """
+
+  Scenario: Global policies past a lowered cap stay editable
+    Given the admin added "everyone" at "/api/policies":
+      """
+      {"name": "Everyone", "isGlobal": true}
+      """
+    And the admin added "nights" at "/api/policies":
+      """
+      {"name": "Nights", "isGlobal": true}
+      """
+    And the API allows 1 global policies at most
+    When the admin sends PATCH "/api/policies/${everyone.id}" with:
+      """
+      {"name": "Everyone always", "isGlobal": true}
+      """
+    Then the API answers 200
+    And the answer has:
+      """
+      {"name": "Everyone always", "isGlobal": true}
+      """
+
+  Scenario: Policies that aren't global aren't capped
+    Given the API allows 1 global policies at most
+    And the admin added "everyone" at "/api/policies":
+      """
+      {"name": "Everyone", "isGlobal": true}
+      """
+    When the admin sends POST "/api/policies" with:
+      """
+      {"name": "Plan"}
+      """
+    Then the API answers 201

@@ -1,11 +1,13 @@
 from datetime import UTC, date, datetime, time
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Final, Literal, Self
 
+from fastapi import HTTPException, status
 from pydantic import Field, IPvAnyNetwork, StringConstraints, model_validator
-from sqlalchemy import Result, Select, select
+from sqlalchemy import Result, Select, func, select
 from sqlalchemy.orm import selectinload
 
 from proxium.api.services import BaseUserAuthenticatedService
+from proxium.core import api_settings
 from proxium.db import (
     Direction,
     LimitScope,
@@ -478,7 +480,7 @@ class CreatePolicyResponse(BaseSchema):
 
 
 class CreatePolicyService(BaseUserAuthenticatedService[CreatePolicyResponse]):
-    """A global policy applies to every client at once, an other one once assigned."""
+    """A global policy applies to every client at once, an other one once assigned. Global ones are capped."""
 
     required_permissions: ClassVar[frozenset[Permission]] = frozenset({Permission.POLICIES_ADD})
 
@@ -497,6 +499,20 @@ class CreatePolicyService(BaseUserAuthenticatedService[CreatePolicyResponse]):
             )
             .execution_options(populate_existing=True)
         )
+
+    @property
+    def _count_global_policies_statement(self) -> Select[tuple[int]]:
+        return select(func.count()).select_from(PolicyModel).where(PolicyModel.is_global.is_(True))
+
+    async def _check_global_policies(self) -> None:
+        # Counted after the insert. A known race, left on purpose: two created at once may both pass, one over the
+        # cap. Not critical, the cap guards against many global policies, not against one more.
+        result: Result[tuple[int]] = await self.session.execute(self._count_global_policies_statement)
+        if result.scalars().one() > api_settings.global_policies_max:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Too many global policies, at most {api_settings.global_policies_max}.",
+            )
 
     def _create_rule(self, position: int, rule: CreatePolicyRuleRequest, /) -> PolicyRuleModel:
         return PolicyRuleModel(
@@ -541,6 +557,10 @@ class CreatePolicyService(BaseUserAuthenticatedService[CreatePolicyResponse]):
             rules=[self._create_rule(position, rule) for position, rule in enumerate(self.data.rules)],
         )
         self.session.add(policy)
+        if policy.is_global:
+            await self.session.flush()
+            await self._check_global_policies()
+
         await self.session.commit()
 
         # Ids and timestamps come from the database.

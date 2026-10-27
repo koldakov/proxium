@@ -36,6 +36,7 @@ async def get_configs(
     """Configs set in the environment, read-only, for any active user. They change only with a restart.
 
     - `policiesMaxPerOwner`: policies assigned to one account or trusted network at most, global ones aside.
+    - `globalPoliciesMax`: global policies at most, turned off ones too.
     """
     service: GetConfigsService = GetConfigsService(token=credentials.credentials)
     return await service()

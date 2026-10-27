@@ -41,6 +41,9 @@ policies_router: APIRouter = APIRouter(
         status.HTTP_403_FORBIDDEN: {
             "description": "The user lacks `policies.add`.",
         },
+        status.HTTP_409_CONFLICT: {
+            "description": "The policy is global and there are `API_GLOBAL_POLICIES_MAX` global policies already.",
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "The body is malformed, e.g. the name is empty or a limit isn't positive.",
         },
@@ -58,7 +61,8 @@ async def create_policy(
 ) -> CreatePolicyResponse:
     """Create a policy: rules on how clients may use the proxy.
 
-    - `isGlobal`: applies to every client, otherwise only to the accounts and networks it's assigned to.
+    - `isGlobal`: applies to every client, otherwise only to the accounts and networks it's assigned to. At most
+      `API_GLOBAL_POLICIES_MAX` policies are global, turned off ones too.
     - `rules`: in order, the first whose condition matches applies all its limits.
     - `condition`: a tree of blocks by `kind`, `always` by default. Open tunnels switch rules when it changes,
       e.g. at night:
@@ -192,6 +196,11 @@ async def get_policy(
         status.HTTP_404_NOT_FOUND: {
             "description": "Policy not found.",
         },
+        status.HTTP_409_CONFLICT: {
+            "description": (
+                "The policy is made global and there are `API_GLOBAL_POLICIES_MAX` global policies already."
+            ),
+        },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": (
                 "The policy id is not an integer or the body is malformed, e.g. an id of a rule or limit "
@@ -213,6 +222,7 @@ async def update_policy(
 ) -> UpdatePolicyResponse:
     """Change a policy. Only the given fields change.
 
+    - `isGlobal`: as on create. A policy already global stays changeable past the cap, e.g. after lowering it.
     - `rules`: the whole new list, in order. A rule or limit with an `id` changes in place, without one is added,
       left out is deleted. Keep the ids of what stays: a connection limit changed in place keeps counting
       the connections already open.
