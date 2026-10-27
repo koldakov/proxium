@@ -7,6 +7,7 @@ from ._groups import groups_router
 from ._outgoing_ips import outgoing_ips_router
 from ._permissions import permissions_router
 from ._policies import policies_router
+from ._proxy_instances import proxy_instances_router
 from ._settings import settings_router
 from ._token_proxy_accounts import token_proxy_accounts_router
 from ._tokens import tokens_router
@@ -32,3 +33,4 @@ api_router.include_router(policies_router)
 api_router.include_router(certificates_router)
 api_router.include_router(settings_router)
 api_router.include_router(configs_router)
+api_router.include_router(proxy_instances_router)
