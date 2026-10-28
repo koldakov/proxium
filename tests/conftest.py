@@ -14,6 +14,7 @@ pytest_plugins = [
     "tests.fixtures.clients",
     "tests.fixtures.counters",
     "tests.fixtures.database",
+    "tests.fixtures.instances",
     "tests.fixtures.management",
     "tests.fixtures.observers",
     "tests.fixtures.policies",
@@ -27,5 +28,6 @@ pytest_plugins = [
     "tests.acceptance.steps.outgoing_ips",
     "tests.acceptance.steps.policies",
     "tests.acceptance.steps.proxy",
+    "tests.acceptance.steps.proxy_instances",
     "tests.acceptance.steps.trusted_networks",
 ]
