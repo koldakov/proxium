@@ -4,6 +4,21 @@ Read the release's section in the [changelog](https://github.com/koldakov/proxiu
 it lists every change a client or an installation may notice. Releases that need more than pulling the new version
 get a section here.
 
+## Every upgrade
+
+Database migrations come with the new version and must run before it serves:
+
+- **Docker image**: every start of a container with the proxy or the API applies them before those start, nothing
+  to do. Several containers starting at once migrate one at a time, see
+  [Management commands](management.md).
+- **From source**: run them after each `uv sync` of a new version, before restarting the proxy and the API:
+
+  ```bash
+  uv run --env-file .env proxium-manage migrate
+  ```
+
+  Run it every time, even when the changelog mentions no schema change: with nothing new it does nothing.
+
 ## From 0.1 to 0.2
 
 0.2 shares every limit between proxy instances through Redis: connections, speed and traffic quotas. Several
