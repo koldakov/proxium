@@ -20,12 +20,13 @@ from proxium.proxy import (
 from proxium.proxy import Direction as ProxyDirection
 
 from ._conditions import DEFAULT_CONDITION_PARSER, InvalidConditionError
-from ._quotas import Anchor, AssignmentAnchor, FixedAnchor, PeriodMeter
+from ._quotas import DEFAULT_PERIODS, Anchor, AssignmentAnchor, FixedAnchor, PeriodMeter
 from ._rule_sets import Rule, RuleSet
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
+    from proxium.db import QuotaPeriod
     from proxium.proxy import ConnectionCounter, Policy, Scope, SpeedBucket
     from proxium.watchers import (
         ConnectionLimitSnapshot,
@@ -36,11 +37,15 @@ if TYPE_CHECKING:
     )
 
     from ._conditions import ConditionParser
-    from ._quotas import PeriodUsage
+    from ._quotas import Period, PeriodUsage
 
 
 class UnknownScopeError(Exception):
     """A limit has a scope the builder has no `Scope` for."""
+
+
+class UnknownPeriodError(Exception):
+    """A quota has a period the builder has no `Period` for."""
 
 
 class UnsupportedQuotaScopeError(Exception):
@@ -97,7 +102,7 @@ class RuleSetBuilder:
     old limit. Quotas keep no state: `usage` counts the traffic, they measure it.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         usage: PeriodUsage,
         /,
@@ -106,12 +111,14 @@ class RuleSetBuilder:
         buckets: Callable[[str], SpeedBucket],
         conditions: ConditionParser = DEFAULT_CONDITION_PARSER,
         scopes: Mapping[LimitScope, Scope] = DEFAULT_SCOPES,
+        periods: Mapping[QuotaPeriod, Period] = DEFAULT_PERIODS,
     ) -> None:
         self._usage: PeriodUsage = usage
         self._counters: Callable[[str], ConnectionCounter] = counters
         self._buckets: Callable[[str], SpeedBucket] = buckets
         self._conditions: ConditionParser = conditions
         self._scopes: dict[LimitScope, Scope] = dict(scopes)
+        self._periods: dict[QuotaPeriod, Period] = dict(periods)
         # An edited limit is the same policy, its open connections get the change. Weakly: one lives as long as a rule
         # set holds it, the current one or one of an open connection, which may switch to its rule any time, e.g. at
         # night. Memory is bounded by them.
@@ -124,6 +131,12 @@ class RuleSetBuilder:
             return self._scopes[scope]
         except KeyError as err:
             raise UnknownScopeError(f"No scope for {scope}.") from err
+
+    def _get_period(self, period: QuotaPeriod, /) -> Period:
+        try:
+            return self._periods[period]
+        except KeyError as err:
+            raise UnknownPeriodError(f"No period for {period}.") from err
 
     def _create_counter(self, limit: ConnectionLimitSnapshot, /) -> ConnectionCounter:
         if limit.scope == LimitScope.CONNECTION:
@@ -183,7 +196,7 @@ class RuleSetBuilder:
             PeriodMeter(
                 self._usage,
                 anchor,
-                period=quota.period,
+                period=self._get_period(quota.period),
                 length=quota.period_length,
             ),
             limit=quota.max_bytes,
@@ -221,6 +234,7 @@ class RuleSetBuilder:
             except (
                 InvalidConditionError,
                 UnknownScopeError,
+                UnknownPeriodError,
                 UnsupportedQuotaScopeError,
                 InvalidSpeedLimitError,
             ) as err:

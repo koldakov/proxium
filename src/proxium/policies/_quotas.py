@@ -3,7 +3,8 @@ from __future__ import annotations
 import calendar
 from abc import ABC, abstractmethod
 from datetime import UTC, date, datetime, timedelta
-from typing import TYPE_CHECKING
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Final
 
 from proxium.db import QuotaPeriod
 from proxium.proxy import Meter
@@ -11,6 +12,8 @@ from proxium.proxy import Meter
 from ._claims import POLICIES_CLAIM
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from proxium.proxy import Identity, Request, Session, Usage
 
 
@@ -32,22 +35,93 @@ def _months_since(anchor: date, today: date, /) -> int:
     return months
 
 
-def period_start(anchor: date, today: date, period: QuotaPeriod, /, *, length: int = 1) -> date:
-    """The first day of the period `today` is in: periods of `length` days or months follow one another from `anchor`.
+class EndlessPeriodError(Exception):
+    """The period never resets: there is no next one."""
 
-    The grid goes both ways: with `anchor` in the future, today is in a period before it. A `TOTAL` period never
-    resets: it starts on `anchor`, nothing is counted before.
+
+class Period(ABC):
+    """How quota periods of `length` units follow one another from `anchor`, by UTC days.
+
+    The grid goes both ways: with `anchor` in the future, today is in a period before it.
     """
-    if length < 1:
-        raise ValueError("A period is at least one day or month long.")
 
-    match period:
-        case QuotaPeriod.DAY:
-            return anchor + timedelta(days=(today - anchor).days // length * length)
-        case QuotaPeriod.MONTH:
-            return _add_months(anchor, _months_since(anchor, today) // length * length)
-        case QuotaPeriod.TOTAL:
-            return anchor
+    @staticmethod
+    def _check_length(length: int, /) -> None:
+        if length < 1:
+            raise ValueError("A period is at least one unit long.")
+
+    @abstractmethod
+    def _get_start(self, anchor: date, today: date, length: int, /) -> date:
+        pass
+
+    @abstractmethod
+    def _get_next_start(self, anchor: date, today: date, length: int, /) -> date:
+        pass
+
+    def start(self, anchor: date, today: date, /, *, length: int = 1) -> date:
+        """The first day of the period `today` is in."""
+        self._check_length(length)
+        return self._get_start(anchor, today, length)
+
+    def next_start(self, anchor: date, today: date, /, *, length: int = 1) -> date:
+        """The first day of the period after the one `today` is in: the day the usage resets. Raise
+        `EndlessPeriodError` if it never does.
+        """
+        self._check_length(length)
+        return self._get_next_start(anchor, today, length)
+
+
+class DayPeriod(Period):
+    """Units of `days` days, e.g. 7 for weeks."""
+
+    def __init__(self, *, days: int = 1) -> None:
+        self._days: int = days
+
+    def _get_start(self, anchor: date, today: date, length: int, /) -> date:
+        step = self._days * length
+        return anchor + timedelta(days=(today - anchor).days // step * step)
+
+    def _get_next_start(self, anchor: date, today: date, length: int, /) -> date:
+        return self._get_start(anchor, today, length) + timedelta(days=self._days * length)
+
+
+class MonthPeriod(Period):
+    """Units of `months` months, e.g. 12 for years. Counted from `anchor`, not from a period's start: with Jan 31,
+    periods start on Feb 28, then Mar 31.
+    """
+
+    def __init__(self, *, months: int = 1) -> None:
+        self._months: int = months
+
+    def _get_index(self, anchor: date, today: date, length: int, /) -> int:
+        """Of the period `today` is in, from 0 for the one starting on `anchor`."""
+        return _months_since(anchor, today) // (self._months * length)
+
+    def _get_start(self, anchor: date, today: date, length: int, /) -> date:
+        return _add_months(anchor, self._get_index(anchor, today, length) * self._months * length)
+
+    def _get_next_start(self, anchor: date, today: date, length: int, /) -> date:
+        return _add_months(anchor, (self._get_index(anchor, today, length) + 1) * self._months * length)
+
+
+class TotalPeriod(Period):
+    """Never resets: one allowance since `anchor`, nothing is counted before. `length` is ignored."""
+
+    def _get_start(self, anchor: date, today: date, length: int, /) -> date:
+        return anchor
+
+    def _get_next_start(self, anchor: date, today: date, length: int, /) -> date:
+        raise EndlessPeriodError()
+
+
+# Every period, as the admin describes it.
+DEFAULT_PERIODS: Final[Mapping[QuotaPeriod, Period]] = MappingProxyType(
+    {
+        QuotaPeriod.DAY: DayPeriod(),
+        QuotaPeriod.MONTH: MonthPeriod(),
+        QuotaPeriod.TOTAL: TotalPeriod(),
+    },
+)
 
 
 class Anchor(ABC):
@@ -94,7 +168,7 @@ class PeriodUsage(ABC):
 
 
 class PeriodMeter(Meter):
-    """Usage in the current period: `length` days or months from the client's `anchor`, by UTC days."""
+    """Usage in the current period: `length` units of `period` from the client's `anchor`, by UTC days."""
 
     def __init__(
         self,
@@ -102,19 +176,18 @@ class PeriodMeter(Meter):
         anchor: Anchor,
         /,
         *,
-        period: QuotaPeriod,
+        period: Period,
         length: int = 1,
     ) -> None:
         self._usage: PeriodUsage = usage
         self._anchor: Anchor = anchor
-        self._period: QuotaPeriod = period
+        self._period: Period = period
         self._length: int = length
 
     async def measure(self, request: Request, session: Session, /) -> Usage:
-        since = period_start(
+        since = self._period.start(
             self._anchor.starts_on(request),
             datetime.now(UTC).date(),
-            self._period,
             length=self._length,
         )
         return await self._usage.used_since(request.identity, since)
