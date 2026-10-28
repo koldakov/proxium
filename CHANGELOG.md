@@ -11,6 +11,10 @@ A new look for the admin UI: easier on the eyes, clearer to read, errors right w
 
 ### Added
 
+- The Proxy instances page shows every running proxy and its health at a glance: running, pending, stopped or
+  unknown, with host, version, uptime and when it last reported. Proxies report themselves, nothing to set up, a
+  crashed or hung one turns unknown within a minute and a half. Removed servers are deregistered with one click.
+  `PROXY_HEARTBEAT_INTERVAL` sets how often proxies report, `30` seconds by default.
 - The admin UI asks before leaving a form with unsaved changes, on reloading or closing the tab too.
 - Rules of a policy move up and down: the first matching rule applies, order is in your hands.
 - `API_GLOBAL_POLICIES_MAX`: at most this many global policies, `32` by default, turned off ones too. Each global
