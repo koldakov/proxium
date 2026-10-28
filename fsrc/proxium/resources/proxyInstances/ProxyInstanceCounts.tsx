@@ -1,25 +1,20 @@
 import { Card, CardActionArea, CardContent, Stack, Typography } from '@mui/material'
-import { useQuery } from '@tanstack/react-query'
-import { useDataProvider, useListContext } from 'react-admin'
 
-import type { ProxiumDataProvider } from '../../providers'
-import { REFRESH_MS, STATUSES, type ProxyInstanceStatus } from './statuses'
+import { STATUSES, type ProxyInstanceStatus } from './statuses'
+import { useProxyInstanceCounts } from './useProxyInstanceCounts'
 
-/** How many instances are in each status, atop the list. A card filters the list by its status, again clears it. */
-export const ProxyInstanceCounts = () => {
-  const dataProvider = useDataProvider<ProxiumDataProvider>()
-  const { filterValues, setFilters } = useListContext()
-  const { data } = useQuery({
-    queryKey: ['proxy-instances', 'getProxyInstanceCounts'],
-    queryFn: () => dataProvider.getProxyInstanceCounts(),
-    refetchInterval: REFRESH_MS,
-  })
+interface ProxyInstanceCountsProps {
+  // Its card stands out, e.g. the status the list is filtered by.
+  selected?: ProxyInstanceStatus
+  onSelect: (status: ProxyInstanceStatus) => void
+}
 
-  const toggle = (status: ProxyInstanceStatus) =>
-    setFilters(filterValues.status === status ? {} : { status })
+/** How many instances are in each status, a card per status. */
+export const ProxyInstanceCounts = ({ selected, onSelect }: ProxyInstanceCountsProps) => {
+  const data = useProxyInstanceCounts()
 
   return (
-    <Stack direction="row" spacing={2} sx={{ p: 2, flexWrap: 'wrap' }} useFlexGap>
+    <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }} useFlexGap>
       {(Object.keys(STATUSES) as ProxyInstanceStatus[]).map((status) => {
         const count = data?.[status]
         const { label, color, description } = STATUSES[status]
@@ -34,10 +29,10 @@ export const ProxyInstanceCounts = () => {
             sx={{
               minWidth: 160,
               flex: '1 1 160px',
-              borderColor: filterValues.status === status || isAlarming ? highlight : undefined,
+              borderColor: selected === status || isAlarming ? highlight : undefined,
             }}
           >
-            <CardActionArea onClick={() => toggle(status)} title={description}>
+            <CardActionArea onClick={() => onSelect(status)} title={description}>
               <CardContent>
                 <Typography variant="body2" color="text.secondary">
                   {label}

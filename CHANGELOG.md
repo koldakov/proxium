@@ -11,9 +11,10 @@ A new look for the admin UI: easier on the eyes, clearer to read, errors right w
 
 ### Added
 
-- The Proxy instances page shows every running proxy and its health at a glance: running, pending, stopped or
-  unknown, with host, version, uptime and when it last reported. Proxies report themselves, nothing to set up, a
-  crashed or hung one turns unknown within a minute and a half. Removed servers are deregistered with one click.
+- The Overview, the new start page of the admin UI, shows the health of every proxy at a glance: how many are
+  running, pending, stopped or unknown, and which ones went silent. The Proxy instances page under it lists them all
+  with host, version, uptime and when each last reported. Proxies report themselves, nothing to set up, a crashed or
+  hung one turns unknown within a minute and a half. Removed servers are deregistered with one click.
   `PROXY_HEARTBEAT_INTERVAL` sets how often proxies report, `30` seconds by default.
 - The admin UI asks before leaving a form with unsaved changes, on reloading or closing the tab too.
 - Rules of a policy move up and down: the first matching rule applies, order is in your hands.
@@ -26,6 +27,8 @@ A new look for the admin UI: easier on the eyes, clearer to read, errors right w
 
 - The admin UI has its own light and dark themes, the light one without glaring white. The Inter font comes with
   it, so it looks the same without internet access.
+- The sidebar starts with the Overview, set apart from what you configure below it. Users who can't see the
+  Overview land on the first page open to them, as before.
 - Policy rules are cards with a summary of when each one applies and what it limits, e.g. "Mon–Fri 09:00–18:00 and
   unless domain github.com: 1 Mbit/s each way per account". A card collapses to its summary, as on the read-only
   page. Conditions start with "If" or "Unless", days are picked from a list with weekdays and weekends at the top.

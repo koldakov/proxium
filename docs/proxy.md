@@ -257,8 +257,9 @@ A second signal stops immediately.
 
 ## Instances
 
-The Proxy instances page of the admin UI shows every proxy and whether it works, refreshed every few seconds. Each
-proxy reports itself to the database every `PROXY_HEARTBEAT_INTERVAL` seconds, nothing to set up:
+The Overview, the start page of the admin UI, counts proxies by status and lists the unknown ones. Its All instances
+link, or the menu under Overview, opens the Proxy instances page with every proxy. Both refresh every few seconds.
+Each proxy reports itself to the database every `PROXY_HEARTBEAT_INTERVAL` seconds, nothing to set up:
 
 - Running: serving clients.
 - Pending: starting, not serving yet.
@@ -269,8 +270,8 @@ A proxy is told apart by its machine and host name: a restart, a restart without
 In Docker the host name is the container's, so a recreated container is a new instance, and the old one turns
 stopped. Two proxies on one machine with one host name, e.g. containers with `--network host`, share a row.
 
-Deregister takes a stopped or unknown instance off the page, e.g. a removed server. If its proxy reports again,
-it's back. It needs `proxy_instances.deregister`, the page `proxy_instances.view`.
+Deregister on the Proxy instances page takes a stopped or unknown instance off it, e.g. a removed server. If its
+proxy reports again, it's back. It needs `proxy_instances.deregister`, seeing instances `proxy_instances.view`.
 
 ## Restart without downtime
 
