@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 import socket
 from datetime import UTC, datetime, timedelta
+from ipaddress import ip_address
 from typing import TYPE_CHECKING, Final
+from unittest.mock import patch
 
 from sqlalchemy import func, select, update
 
@@ -11,6 +13,10 @@ from proxium.db import ProxyInstanceModel, ProxyInstanceStatus, session_manager
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from ipaddress import IPv4Address, IPv6Address
+
+    import ifaddr
+    from faker import Faker
 
     from proxium.instances import InstanceHeartbeat
 
@@ -201,3 +207,28 @@ class TestInstanceHeartbeat:
 
         # Assert
         assert instance.is_deleted is False
+
+    def test_report_replaces_ips_with_current_ones(
+        self,
+        faker: Faker,
+        loop_runner: asyncio.Runner,
+        heartbeat_factory: Callable[[datetime], InstanceHeartbeat],
+        adapter_factory: Callable[[list[IPv4Address | IPv6Address]], ifaddr.Adapter],
+    ) -> None:
+        # Arrange
+        old_ip, new_ip = ip_address(faker.unique.ipv4()), ip_address(faker.unique.ipv6())
+        heartbeat = heartbeat_factory(datetime.now(UTC))
+        # The interfaces as the OS lists them, read anew on each report.
+        with patch("proxium.instances._heartbeat.ifaddr.get_adapters") as get_adapters:
+            get_adapters.return_value = [adapter_factory([old_ip])]
+            loop_runner.run(_start(heartbeat))
+            loop_runner.run(_wait_for(lambda instance: instance.status == ProxyInstanceStatus.PENDING))
+
+            # Act
+            # An IP replaced on the server, reported with the next status.
+            get_adapters.return_value = [adapter_factory([new_ip])]
+            heartbeat.set_status(ProxyInstanceStatus.RUNNING)
+            instance = loop_runner.run(_wait_for(lambda instance: instance.status == ProxyInstanceStatus.RUNNING))
+
+        # Assert
+        assert instance.ips == [new_ip]

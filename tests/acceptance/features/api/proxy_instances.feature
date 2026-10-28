@@ -98,3 +98,48 @@ Feature: Proxy instances in the API
     Given a user with "proxy_instances.deregister" logged in to the API
     When the user sends POST "/api/proxy-instances/${stopped.id}/deregister"
     Then the API answers 204
+
+  Scenario: The admin lists the IPs of an instance, IPv4 first
+    Given a running proxy instance "multi" with IPs "2001:db8::1, 203.0.113.11, 203.0.113.10"
+    When the admin sends GET "/api/proxy-instances/${multi.id}/ips"
+    Then the API answers 200
+    And the answer has:
+      """
+      {"items": [{"ip": "203.0.113.10"}, {"ip": "203.0.113.11"}, {"ip": "2001:db8::1"}], "total": 3}
+      """
+
+  Scenario: The admin lists the IPs of an instance page by page
+    Given a running proxy instance "multi" with IPs "2001:db8::1, 203.0.113.11, 203.0.113.10"
+    When the admin sends GET "/api/proxy-instances/${multi.id}/ips?page=2&size=1"
+    Then the API answers 200
+    And the answer has:
+      """
+      {"items": [{"ip": "203.0.113.11"}], "total": 3}
+      """
+
+  Scenario: An instance that reported no IPs has an empty list
+    When the admin sends GET "/api/proxy-instances/${running.id}/ips"
+    Then the API answers 200
+    And the answer has:
+      """
+      {"items": [], "total": 0}
+      """
+
+  Scenario: A deregistered instance has no IPs to list
+    Given the admin sent POST "/api/proxy-instances/${stopped.id}/deregister"
+    When the admin sends GET "/api/proxy-instances/${stopped.id}/ips"
+    Then the API answers 404
+
+  Scenario: A missing instance has no IPs to list
+    When the admin sends GET "/api/proxy-instances/0/ips"
+    Then the API answers 404
+
+  Scenario: The IPs of an instance need the permission to view instances
+    Given a user with "outgoing_ips.view" logged in to the API
+    When the user sends GET "/api/proxy-instances/${running.id}/ips"
+    Then the API answers 403
+
+  Scenario: A user with the permission to view instances lists their IPs
+    Given a user with "proxy_instances.view" logged in to the API
+    When the user sends GET "/api/proxy-instances/${running.id}/ips"
+    Then the API answers 200
