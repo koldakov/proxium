@@ -1,5 +1,5 @@
-import { Alert } from '@mui/material'
-import { DataTable, List, SelectInput } from 'react-admin'
+import { Alert, Box } from '@mui/material'
+import { DataTable, List, SelectInput, useListContext } from 'react-admin'
 
 import { DeregisterButton } from './DeregisterButton'
 import { ProxyInstanceCounts } from './ProxyInstanceCounts'
@@ -8,6 +8,20 @@ import { SinceField } from './SinceField'
 import { REFRESH_MS, STATUS_CHOICES } from './statuses'
 
 const filters = [<SelectInput key="status" source="status" choices={STATUS_CHOICES} alwaysOn />]
+
+// Atop the list: a card filters the list by its status, again clears it.
+const ListCounts = () => {
+  const { filterValues, setFilters } = useListContext()
+
+  return (
+    <Box sx={{ p: 2 }}>
+      <ProxyInstanceCounts
+        selected={filterValues.status}
+        onSelect={(status) => setFilters(filterValues.status === status ? {} : { status })}
+      />
+    </Box>
+  )
+}
 
 export const ProxyInstanceList = () => (
   <>
@@ -21,7 +35,7 @@ export const ProxyInstanceList = () => (
       // Statuses change on their own: the page follows them without a reload.
       queryOptions={{ refetchInterval: REFRESH_MS }}
     >
-      <ProxyInstanceCounts />
+      <ListCounts />
       <DataTable bulkActionButtons={false}>
         <DataTable.Col source="hostname" label="Host" disableSort />
         <DataTable.Col source="name" disableSort />

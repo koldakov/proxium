@@ -10,6 +10,7 @@ import { AppUserMenu } from './components/AppUserMenu'
 import { useConfigs } from './components/configs'
 import { GroupedMenu } from './components/GroupedMenu'
 import { LoginPage } from './pages/login'
+import { OverviewPage } from './pages/overview'
 import { PROFILE_PATH, ProfilePage } from './pages/profile'
 import { SettingsPage, settingsLink } from './pages/settings'
 import { authProvider, dataProvider, queryClient } from './providers'
@@ -19,6 +20,8 @@ import { darkTheme, lightTheme } from './theme'
 const i18nProvider = polyglotI18nProvider(() => englishMessages, 'en')
 
 const AppMenu = () => <GroupedMenu nodes={menu} />
+
+const AppDashboard = () => <OverviewPage menu={menu} />
 
 const AppAppBar = () => <AppBar userMenu={<AppUserMenu profilePath={PROFILE_PATH} />} />
 
@@ -42,6 +45,7 @@ const App = () => (
       queryClient={queryClient}
       i18nProvider={i18nProvider}
       layout={AppLayout}
+      dashboard={AppDashboard}
       loginPage={LoginPage}
       theme={lightTheme}
       darkTheme={darkTheme}

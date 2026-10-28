@@ -3,6 +3,7 @@ import VpnKeyIcon from '@mui/icons-material/VpnKey'
 import type { ResourceProps } from 'react-admin'
 
 import type { MenuNode } from '../components/GroupedMenu'
+import { overviewLink } from '../pages/overview'
 import { settingsLink } from '../pages/settings'
 import { basicProxyAccounts } from './basicProxyAccounts'
 import { certificates } from './certificates'
@@ -27,8 +28,9 @@ export const resources: ResourceProps[] = [
   groups,
 ]
 
-// The sidebar, in order.
+// The sidebar, in order. Proxy instances are under the overview, the rest is what the admin configures.
 export const menu: MenuNode[] = [
+  overviewLink,
   {
     label: 'Proxy accounts',
     icon: VpnKeyIcon,
@@ -41,7 +43,6 @@ export const menu: MenuNode[] = [
   outgoingIps.name,
   policies.name,
   certificates.name,
-  proxyInstances.name,
   {
     label: 'Access',
     icon: AdminPanelSettingsIcon,
