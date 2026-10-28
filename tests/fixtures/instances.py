@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from ipaddress import IPv4Address
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+import ifaddr
 import pytest
 
 from proxium.instances import InstanceHeartbeat
@@ -11,6 +13,28 @@ if TYPE_CHECKING:
     import asyncio
     from collections.abc import Callable, Iterator
     from datetime import datetime
+    from ipaddress import IPv6Address
+
+    from faker import Faker
+
+
+@pytest.fixture
+def adapter_factory(faker: Faker) -> Callable[[list[IPv4Address | IPv6Address]], ifaddr.Adapter]:
+    """A network interface with the IPs, as `ifaddr.get_adapters` returns it."""
+
+    def create(ips: list[IPv4Address | IPv6Address]) -> ifaddr.Adapter:
+        name = faker.unique.slug()
+        # IPv6 comes as (address, flow info, scope id), with a prefix as long as the address: a host route.
+        return ifaddr.Adapter(
+            name,
+            name,
+            [
+                ifaddr.IP(str(ip), 32, name) if isinstance(ip, IPv4Address) else ifaddr.IP((str(ip), 0, 0), 128, name)
+                for ip in ips
+            ],
+        )
+
+    return create
 
 
 @pytest.fixture
