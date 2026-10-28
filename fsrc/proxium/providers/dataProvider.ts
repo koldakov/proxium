@@ -17,6 +17,18 @@ export interface DeactivateParams {
   id: Identifier
 }
 
+export interface DeregisterParams {
+  id: Identifier
+}
+
+// Proxy instances by status, deregistered ones left out.
+export interface ProxyInstanceCounts {
+  pending: number
+  running: number
+  stopped: number
+  unknown: number
+}
+
 // UTC days as `YYYY-MM-DD`, both inclusive. All time without them.
 export interface TrafficTotalParams {
   id: Identifier
@@ -96,6 +108,8 @@ export interface ProxiumDataProvider extends DataProvider {
   revoke: (resource: string, params: RevokeParams) => Promise<void>
   activate: (resource: string, params: ActivateParams) => Promise<void>
   deactivate: (resource: string, params: DeactivateParams) => Promise<void>
+  deregister: (resource: string, params: DeregisterParams) => Promise<void>
+  getProxyInstanceCounts: () => Promise<ProxyInstanceCounts>
   getTrafficTotal: (resource: string, params: TrafficTotalParams) => Promise<TrafficTotal>
   addToOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
   removeFromOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
@@ -186,6 +200,15 @@ export const createDataProvider = (
 
     deactivate: async (resource, { id }) => {
       await httpClient(resourceUrl(resource, id, 'deactivate'), { method: 'POST' })
+    },
+
+    deregister: async (resource, { id }) => {
+      await httpClient(resourceUrl(resource, id, 'deregister'), { method: 'POST' })
+    },
+
+    getProxyInstanceCounts: async () => {
+      const { json } = await httpClient(resourceUrl('proxy-instances', 'counts'))
+      return json
     },
 
     getTrafficTotal: async (resource, { id, ...range }) => {

@@ -15,6 +15,7 @@ export type {
   Profile,
   ProfileChanges,
   ProxiumDataProvider,
+  ProxyInstanceCounts,
   Settings,
   TrafficTotal,
 } from './dataProvider'

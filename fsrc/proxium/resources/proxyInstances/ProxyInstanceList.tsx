@@ -1,0 +1,44 @@
+import { Alert } from '@mui/material'
+import { DataTable, List, SelectInput } from 'react-admin'
+
+import { DeregisterButton } from './DeregisterButton'
+import { ProxyInstanceCounts } from './ProxyInstanceCounts'
+import { ProxyInstanceStatusChip } from './ProxyInstanceStatusChip'
+import { SinceField } from './SinceField'
+import { REFRESH_MS, STATUS_CHOICES } from './statuses'
+
+const filters = [<SelectInput key="status" source="status" choices={STATUS_CHOICES} alwaysOn />]
+
+export const ProxyInstanceList = () => (
+  <>
+    <Alert severity="info" sx={{ mb: 2 }}>
+      Every proxy reports here on its own: a new one shows up once it starts, a restarted one keeps
+      its row. One that stops reporting turns unknown.
+    </Alert>
+    <List
+      filters={filters}
+      exporter={false}
+      // Statuses change on their own: the page follows them without a reload.
+      queryOptions={{ refetchInterval: REFRESH_MS }}
+    >
+      <ProxyInstanceCounts />
+      <DataTable bulkActionButtons={false}>
+        <DataTable.Col source="hostname" label="Host" disableSort />
+        <DataTable.Col source="name" disableSort />
+        <DataTable.Col label="Status" disableSort>
+          <ProxyInstanceStatusChip />
+        </DataTable.Col>
+        <DataTable.Col source="version" disableSort />
+        <DataTable.Col source="startedAt" label="Started" disableSort>
+          <SinceField source="startedAt" />
+        </DataTable.Col>
+        <DataTable.Col source="lastSeenAt" label="Last seen" disableSort>
+          <SinceField source="lastSeenAt" />
+        </DataTable.Col>
+        <DataTable.Col disableSort>
+          <DeregisterButton />
+        </DataTable.Col>
+      </DataTable>
+    </List>
+  </>
+)

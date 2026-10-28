@@ -255,6 +255,23 @@ curl -x http://USERNAME:PASSWORD@127.0.0.1:8080 https://ifconfig.me
 `Ctrl+C` (SIGINT) or SIGTERM stops accepting and waits up to `PROXY_GRACEFUL_TIMEOUT` for open connections.
 A second signal stops immediately.
 
+## Instances
+
+The Proxy instances page of the admin UI shows every proxy and whether it works, refreshed every few seconds. Each
+proxy reports itself to the database every `PROXY_HEARTBEAT_INTERVAL` seconds, nothing to set up:
+
+- Running: serving clients.
+- Pending: starting, not serving yet.
+- Unknown: missed three reports in a row, e.g. crashed, hung or cut off from the database. Worth a look.
+- Stopped: shut down gracefully.
+
+A proxy is told apart by its machine and host name: a restart, a restart without downtime included, keeps its row.
+In Docker the host name is the container's, so a recreated container is a new instance, and the old one turns
+stopped. Two proxies on one machine with one host name, e.g. containers with `--network host`, share a row.
+
+Deregister takes a stopped or unknown instance off the page, e.g. a removed server. If its proxy reports again,
+it's back. It needs `proxy_instances.deregister`, the page `proxy_instances.view`.
+
 ## Restart without downtime
 
 Two proxies can listen on the same ports at once, Linux spreads new connections between them. To upgrade, start
