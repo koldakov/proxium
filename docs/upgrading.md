@@ -19,6 +19,78 @@ Database migrations come with the new version and must run before it serves:
 
   Run it every time, even when the changelog mentions no schema change: with nothing new it does nothing.
 
+## From 0.2 to 0.3
+
+0.3 shows every proxy instance in the admin UI: the new Overview start page and Proxy instances. Proxies report
+themselves to the database, so the schema changes: migrations add the instances table and their permissions. They
+run on start as on every upgrade and take a second.
+
+### What to check first
+
+- **Back up the database.** Going back to 0.2 isn't a plain restart this time: 0.2's `migrate` doesn't know the
+  new migrations and stops, and the Docker image doesn't start the proxy and the API without it. See
+  [Going back](#going-back).
+- **Admins who aren't superusers.** The Overview and Proxy instances need the new `proxy_instances.view`, deregistering
+  an instance `proxy_instances.deregister`. Existing groups don't get them: add them where needed. Until then such
+  users land on the first page open to them, as before.
+- **Docker bridge networking.** Proxies report the IPs of their interfaces, in bridge networking the container's.
+  Outgoing IPs of the host show as "Not on the proxy" there: a proxy can't connect from them in bridge networking
+  anyway, run it with `--network host`, see [Ports and IPs](installation.md#ports-and-ips).
+- **Global policies.** At most `API_GLOBAL_POLICIES_MAX` of them, `32` by default. Having more keeps them working,
+  only making one more global is refused.
+
+### Docker image
+
+```bash
+docker pull ikoldakov/proxium:0.3.0
+docker stop --time 40 proxium && docker rm proxium
+docker run -d --name proxium ... ikoldakov/proxium:0.3.0
+```
+
+Use the same `-p`, `-v` and `-e` as before.
+
+### Compose
+
+Nothing new in the compose example: pin the image to `ikoldakov/proxium:0.3.0` or keep `latest`, then:
+
+```bash
+docker compose -f docker/compose.yaml pull
+docker compose -f docker/compose.yaml up -d
+```
+
+### From source
+
+```bash
+git fetch --tags && git checkout v0.3.0
+uv sync
+uv run --env-file .env proxium-manage migrate
+```
+
+and restart the proxy and the API. New variables in `.env.template` have working defaults, none has to be set.
+
+### Without downtime
+
+The 0.3 proxy starts next to the 0.2 one as in [Restart without downtime](proxy.md#restart-without-downtime), and
+they share every limit through Redis. A 0.2 proxy doesn't report itself: the Overview shows only the 0.3 ones.
+
+### Going back
+
+Restore the backup made before the upgrade and run 0.2.0: what was written since, e.g. traffic, is lost. With the
+image's own database, the backup is a copy of the volume while the container is stopped:
+
+```bash
+docker stop --time 40 proxium
+docker run --rm -v proxium:/data -v "$PWD":/backup debian tar czf /backup/proxium-0.2.tar.gz -C /data .
+```
+
+Back:
+
+```bash
+docker rm -f proxium
+docker run --rm -v proxium:/data -v "$PWD":/backup debian sh -c "find /data -mindepth 1 -delete && tar xzf /backup/proxium-0.2.tar.gz -C /data"
+docker run -d --name proxium ... ikoldakov/proxium:0.2.0
+```
+
 ## From 0.1 to 0.2
 
 0.2 shares every limit between proxy instances through Redis: connections, speed and traffic quotas. Several
