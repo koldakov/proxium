@@ -1,5 +1,6 @@
 import { DeleteButton, Edit, SaveButton, Toolbar } from 'react-admin'
 
+import { IPAvailabilityAlert } from '../../components/IPAvailabilityAlert'
 import { GuardedSimpleForm } from '../../components/UnsavedChangesGuard'
 import { OutgoingIPInputs } from './OutgoingIPInputs'
 
@@ -18,6 +19,7 @@ const EditToolbar = () => (
 export const OutgoingIPEdit = () => (
   <Edit redirect="list" mutationMode="pessimistic">
     <GuardedSimpleForm toolbar={<EditToolbar />}>
+      <IPAvailabilityAlert />
       <OutgoingIPInputs />
     </GuardedSimpleForm>
   </Edit>

@@ -6,6 +6,8 @@ import { OutgoingIPShow } from './OutgoingIPShow'
 import { OutgoingIPEdit } from './OutgoingIPEdit'
 import { OutgoingIPCreate } from './OutgoingIPCreate'
 
+export { OutgoingIPsOverview } from './OutgoingIPsOverview'
+
 // The show page is the edit form, read-only.
 export const outgoingIps: ResourceProps = {
   name: 'outgoing-ips',

@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 
+import { OutgoingIPsOverview } from '../../resources/outgoingIps'
 import { ProxyInstancesOverview } from '../../resources/proxyInstances'
 
 export interface OverviewWidget {
@@ -11,4 +12,5 @@ export interface OverviewWidget {
 // The overview, in order: a new block is one more entry here.
 export const WIDGETS: OverviewWidget[] = [
   { resource: 'proxy-instances', component: ProxyInstancesOverview },
+  { resource: 'outgoing-ips', component: OutgoingIPsOverview },
 ]

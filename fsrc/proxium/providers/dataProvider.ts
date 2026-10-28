@@ -29,6 +29,18 @@ export interface ProxyInstanceCounts {
   unknown: number
 }
 
+// A page of the IPs on the interfaces of the instance `id`.
+export interface ProxyInstanceIPsParams {
+  id: Identifier
+  page: number
+  perPage: number
+}
+
+export interface ProxyInstanceIPs {
+  ips: string[]
+  total: number
+}
+
 // UTC days as `YYYY-MM-DD`, both inclusive. All time without them.
 export interface TrafficTotalParams {
   id: Identifier
@@ -110,6 +122,8 @@ export interface ProxiumDataProvider extends DataProvider {
   deactivate: (resource: string, params: DeactivateParams) => Promise<void>
   deregister: (resource: string, params: DeregisterParams) => Promise<void>
   getProxyInstanceCounts: () => Promise<ProxyInstanceCounts>
+  // Bare IPs, not records: no ids.
+  getProxyInstanceIps: (params: ProxyInstanceIPsParams) => Promise<ProxyInstanceIPs>
   getTrafficTotal: (resource: string, params: TrafficTotalParams) => Promise<TrafficTotal>
   addToOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
   removeFromOutgoingPool: (resource: string, params: OutgoingPoolParams) => Promise<void>
@@ -209,6 +223,12 @@ export const createDataProvider = (
     getProxyInstanceCounts: async () => {
       const { json } = await httpClient(resourceUrl('proxy-instances', 'counts'))
       return json
+    },
+
+    getProxyInstanceIps: async ({ id, page, perPage }) => {
+      const query = new URLSearchParams({ page: String(page), size: String(perPage) })
+      const { json } = await httpClient(`${resourceUrl('proxy-instances', id, 'ips')}?${query}`)
+      return { ips: json.items.map(({ ip }: { ip: string }) => ip), total: json.total }
     },
 
     getTrafficTotal: async (resource, { id, ...range }) => {
