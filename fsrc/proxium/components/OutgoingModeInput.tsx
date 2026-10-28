@@ -3,7 +3,6 @@ import ipaddr from 'ipaddr.js'
 import {
   AutocompleteArrayInput,
   FormDataConsumer,
-  type RaRecord,
   ReferenceArrayInput,
   SelectInput,
   required,
@@ -13,7 +12,7 @@ import {
 } from 'react-admin'
 
 import { AddOutgoingIPLink } from './AddOutgoingIPLink'
-import { OUTGOING_MODES } from './outgoing'
+import { OUTGOING_MODES, outgoingIpText } from './outgoing'
 import { OutgoingPoolSection } from './OutgoingPoolSection'
 
 const MODE_HELP: Record<string, string> = {
@@ -24,8 +23,6 @@ const MODE_HELP: Record<string, string> = {
 
 // An empty query is refused by the API: no filter lists every IP.
 const toQuery = (query: string) => (query ? { query } : {})
-
-const ipText = (record: RaRecord) => `${record.ip} · ${record.name}`
 
 /** The pool of a record being created: IPs of one family, the first one picked sets it. */
 const NewPoolInput = ({ ids }: { ids: number[] }) => {
@@ -42,7 +39,7 @@ const NewPoolInput = ({ ids }: { ids: number[] }) => {
       >
         <AutocompleteArrayInput
           label="Pool"
-          optionText={ipText}
+          optionText={outgoingIpText}
           filterToQuery={toQuery}
           validate={required()}
           // Leaves the form data with the input: another mode sends no pool.

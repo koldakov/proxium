@@ -1,7 +1,9 @@
 from datetime import datetime
 from enum import StrEnum
+from ipaddress import IPv4Address, IPv6Address
 
-from sqlalchemy import TEXT, VARCHAR, DateTime
+from sqlalchemy import ARRAY, TEXT, VARCHAR, DateTime
+from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ._base import BaseTimestampModel
@@ -65,6 +67,16 @@ class ProxyInstanceModel(BaseTimestampModel):
     # The next report is due by then. Past it and not stopped, the instance is unknown: crashed, hung or cut off.
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+    )
+    # IPs on the instance's interfaces as of the last report: the outgoing IPs it can connect from. Inside Docker
+    # bridge networking these are the container's, not the host's. Part of the instance's state like `version`,
+    # replaced on each report, so a column, not rows.
+    ips: Mapped[list[IPv4Address | IPv6Address]] = mapped_column(
+        ARRAY(
+            INET(),
+        ),
+        default=list,
+        server_default="{}",
     )
     # Deregistered by an admin. A report of the process registers it again: it's alive after all.
     is_deleted: Mapped[bool] = mapped_column(

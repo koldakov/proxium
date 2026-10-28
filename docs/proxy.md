@@ -157,10 +157,17 @@ the mode first to empty it. An IP in a pool can't be deleted, and an IP's addres
 family. A pool holds up to `API_OUTGOING_POOL_MAX_SIZE` IPs.
 
 The proxy binds the outgoing socket to the IP before connecting, so the IP must be on the server's interfaces,
-e.g. `ip addr add 203.0.113.11/32 dev eth0`, and routed to it. Nothing checks that on saving, the API may run on
-another host: a connection from an IP that isn't there fails with "not on this host or loopback" in the log, and
-so does one from loopback, e.g. `listener` on `127.0.0.1`. Nothing falls back to another IP. Behind cloud NAT,
-use the private IPs the public ones map to. IPs of different providers need policy routing (`ip rule`) in the OS.
+e.g. `ip addr add 203.0.113.11/32 dev eth0`, and routed to it. A connection from an IP that isn't there fails with
+"not on this host or loopback" in the log, and so does one from loopback, e.g. `listener` on `127.0.0.1`. Nothing
+falls back to another IP. Behind cloud NAT, use the private IPs the public ones map to. IPs of different providers
+need policy routing (`ip rule`) in the OS.
+
+Each proxy reports the IPs of its interfaces with its [heartbeat](#instances), so the admin UI flags an outgoing IP
+that a running or pending proxy doesn't have: "Not on 1 of 3 proxies" in the list of outgoing IPs, in pools and
+on the IP's page, and the Overview lists such IPs. Saving one isn't refused: the IP may be added to the servers
+later, a new IP shows up within one heartbeat. In Docker bridge networking a proxy sees only the container's IPs,
+so every host IP is flagged, rightly: it takes `--network host`. With `net.ipv4.ip_nonlocal_bind` the proxy can
+bind IPs it doesn't have, the flag may then be wrong.
 
 ## Policies
 
@@ -269,6 +276,9 @@ Each proxy reports itself to the database every `PROXY_HEARTBEAT_INTERVAL` secon
 A proxy is told apart by its machine and host name: a restart, a restart without downtime included, keeps its row.
 In Docker the host name is the container's, so a recreated container is a new instance, and the old one turns
 stopped. Two proxies on one machine with one host name, e.g. containers with `--network host`, share a row.
+
+A row on the Proxy instances page opens the IPs of the proxy's interfaces, the [outgoing IPs](#outgoing-ips) it can
+connect from.
 
 Deregister on the Proxy instances page takes a stopped or unknown instance off it, e.g. a removed server. If its
 proxy reports again, it's back. It needs `proxy_instances.deregister`, seeing instances `proxy_instances.view`.

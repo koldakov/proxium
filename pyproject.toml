@@ -17,6 +17,7 @@ dependencies = [
     "greenlet>=3.5.6",
     "h11>=0.16.0",
     "hypercorn>=0.18.0",
+    "ifaddr>=0.2.0",
     "pydantic-settings>=2.15.0",
     "pydantic[email]>=2.13.5",
     "pyjwt>=2.15.0",

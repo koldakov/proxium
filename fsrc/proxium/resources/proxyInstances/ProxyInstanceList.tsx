@@ -3,6 +3,7 @@ import { DataTable, List, SelectInput, useListContext } from 'react-admin'
 
 import { DeregisterButton } from './DeregisterButton'
 import { ProxyInstanceCounts } from './ProxyInstanceCounts'
+import { ProxyInstanceIPs } from './ProxyInstanceIPs'
 import { ProxyInstanceStatusChip } from './ProxyInstanceStatusChip'
 import { SinceField } from './SinceField'
 import { REFRESH_MS, STATUS_CHOICES } from './statuses'
@@ -36,7 +37,8 @@ export const ProxyInstanceList = () => (
       queryOptions={{ refetchInterval: REFRESH_MS }}
     >
       <ListCounts />
-      <DataTable bulkActionButtons={false}>
+      {/* A row opens its IPs. */}
+      <DataTable bulkActionButtons={false} expand={<ProxyInstanceIPs />}>
         <DataTable.Col source="hostname" label="Host" disableSort />
         <DataTable.Col source="name" disableSort />
         <DataTable.Col label="Status" disableSort>

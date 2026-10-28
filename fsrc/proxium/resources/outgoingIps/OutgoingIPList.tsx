@@ -1,6 +1,7 @@
 import { DataTable, DateField, List, SelectInput, TextField } from 'react-admin'
 
 import { CreatedByField } from '../../components/CreatedByField'
+import { IPAvailabilityChip } from '../../components/IPAvailabilityChip'
 import { useDetailPage } from '../../components/detailPage'
 import { QuerySearchInput } from '../../components/QuerySearchInput'
 
@@ -12,6 +13,16 @@ const filters = [
     choices={[
       { id: 4, name: 'IPv4' },
       { id: 6, name: 'IPv6' },
+    ]}
+  />,
+  // Against the pending and running proxies.
+  <SelectInput
+    key="missing"
+    source="missing"
+    label="Proxies"
+    choices={[
+      { id: 'true', name: 'Missing on some' },
+      { id: 'false', name: 'On every one' },
     ]}
   />,
 ]
@@ -26,6 +37,9 @@ export const OutgoingIPList = () => {
         <DataTable.Col source="name" disableSort />
         <DataTable.Col source="ip" label="IP" disableSort>
           <TextField source="ip" sx={{ fontFamily: 'monospace' }} />
+        </DataTable.Col>
+        <DataTable.Col label="Proxies" disableSort>
+          <IPAvailabilityChip showOk />
         </DataTable.Col>
         <DataTable.Col source="createdById" label="Created by" disableSort>
           <CreatedByField />

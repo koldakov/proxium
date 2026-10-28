@@ -16,7 +16,7 @@ export const OutgoingIPInputs = ({ readOnly = false }: { readOnly?: boolean }) =
       label="IP"
       readOnly={readOnly}
       validate={[required(), ipAddress()]}
-      helperText="An address of the proxy server, e.g. 203.0.113.10. Not checked: a wrong one fails its connections"
+      helperText="An address of the proxy servers, e.g. 203.0.113.10. Proxies without it fail its connections"
     />
   </>
 )

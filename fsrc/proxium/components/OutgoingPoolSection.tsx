@@ -18,7 +18,7 @@ import { keepPreviousData, useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
   type Identifier,
-  type RaRecord,
+  RecordContextProvider,
   useCanAccess,
   useDataProvider,
   useGetList,
@@ -29,14 +29,14 @@ import {
 
 import type { ProxiumDataProvider } from '../providers'
 import { AddOutgoingIPLink } from './AddOutgoingIPLink'
+import { IPAvailabilityChip } from './IPAvailabilityChip'
+import { outgoingIpText } from './outgoing'
 import { ShowSection } from './ShowSection'
 
 const PER_PAGE_OPTIONS = [10, 25, 50]
 
 // Options shown while typing: the search narrows them, the rest stay out of the request.
 const OPTIONS_LIMIT = 20
-
-const ipText = (record: RaRecord) => `${record.ip} · ${record.name}`
 
 interface AddToPoolProps {
   resource: string
@@ -77,7 +77,7 @@ const AddToPool = ({ resource, id, onAdded }: AddToPoolProps) => {
     <Stack spacing={0.5}>
       <Autocomplete
         options={options}
-        getOptionLabel={ipText}
+        getOptionLabel={outgoingIpText}
         filterOptions={(items) => items}
         loading={isFetching}
         disabled={isPending}
@@ -180,6 +180,7 @@ export const OutgoingPoolSection = () => {
               <TableRow>
                 <TableCell>IP</TableCell>
                 <TableCell>Name</TableCell>
+                <TableCell />
                 {canChange && <TableCell />}
               </TableRow>
             </TableHead>
@@ -188,6 +189,11 @@ export const OutgoingPoolSection = () => {
                 <TableRow key={outgoingIp.id}>
                   <TableCell>{outgoingIp.ip}</TableCell>
                   <TableCell>{outgoingIp.name}</TableCell>
+                  <TableCell>
+                    <RecordContextProvider value={outgoingIp}>
+                      <IPAvailabilityChip />
+                    </RecordContextProvider>
+                  </TableCell>
                   {canChange && (
                     <TableCell align="right">
                       <Tooltip

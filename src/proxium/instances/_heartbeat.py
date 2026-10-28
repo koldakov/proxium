@@ -6,9 +6,11 @@ import hashlib
 import logging
 import socket
 from datetime import UTC, datetime, timedelta
+from ipaddress import IPv4Address, IPv6Address, ip_address
 from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
+import ifaddr
 from sqlalchemy import func, or_
 from sqlalchemy.dialects.postgresql import insert
 
@@ -17,6 +19,8 @@ from proxium.db import ProxyInstanceModel, ProxyInstanceStatus, session_manager
 from proxium.utils import metadata
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from sqlalchemy.dialects.postgresql import Insert
 
 logger = logging.getLogger(__name__)
@@ -46,13 +50,26 @@ def _get_instance_key(machine_id: str, hostname: str, /) -> str:
     return hashlib.sha256(f"{machine_id}\n{hostname}".encode()).hexdigest()
 
 
+def read_interface_ips() -> list[IPv4Address | IPv6Address]:
+    """IPs on the interfaces of this machine, or of the container in Docker bridge networking: the ones a socket can
+    bind to. Without the zone of link-local IPv6, sorted, each once.
+    """
+    ips: set[IPv4Address | IPv6Address] = set()
+    for adapter in ifaddr.get_adapters():
+        for ip in adapter.ips:
+            # IPv6 comes as (address, flow info, scope id).
+            ips.add(ip_address(ip.ip if isinstance(ip.ip, str) else ip.ip[0]))
+    return sorted(ips, key=lambda ip: (ip.version, ip))
+
+
 class InstanceHeartbeat:
     """Reports this instance to `proxy_instances` every `interval` seconds, and at once when its status changes.
     The instance is the machine and the host name: a restart reports to the same row.
 
     Each report says the next is due within `spare_reports` missed ones: past that the admin shows the instance as
-    unknown. A report is one statement off the connection path, cut after `timeout` seconds: a slow database delays
-    nothing but the report. A failed one is logged and the next retries.
+    unknown. Each one carries the IPs `read_ips` returns, read anew in a thread: an IP added to the server shows up
+    without a restart. A report is one statement off the connection path, cut after `timeout` seconds: a slow
+    database delays nothing but the report. A failed one is logged and the next retries.
 
     Call `start` in the running loop, `set_status` as the process goes, `close` last: it reports the stop.
     """
@@ -64,6 +81,7 @@ class InstanceHeartbeat:
         interval: float = proxy_settings.heartbeat_interval,
         spare_reports: int = 2,
         timeout: float = 5.0,
+        read_ips: Callable[[], list[IPv4Address | IPv6Address]] = read_interface_ips,
     ) -> None:
         if spare_reports < 0:
             raise ValueError("Spare reports can't be negative.")
@@ -77,6 +95,7 @@ class InstanceHeartbeat:
         # The report on time plus the spare ones.
         self._lease: timedelta = timedelta(seconds=interval * (spare_reports + 1))
         self._timeout: float = timeout
+        self._read_ips: Callable[[], list[IPv4Address | IPv6Address]] = read_ips
         self._status: ProxyInstanceStatus = ProxyInstanceStatus.PENDING
         # Set on a status change: reported at once, not on the next tick.
         self._wake: asyncio.Event = asyncio.Event()
@@ -84,7 +103,12 @@ class InstanceHeartbeat:
         self._is_failing: bool = False
         self._task: asyncio.Task[None] | None = None
 
-    def _get_report_instance_statement(self, status: ProxyInstanceStatus, /) -> Insert:
+    def _get_report_instance_statement(
+        self,
+        status: ProxyInstanceStatus,
+        ips: list[IPv4Address | IPv6Address],
+        /,
+    ) -> Insert:
         # The database's time: clocks of instances don't matter.
         now = func.now()
         statement = insert(ProxyInstanceModel).values(
@@ -94,6 +118,7 @@ class InstanceHeartbeat:
             name=self._name,
             version=self._version,
             status=status,
+            ips=ips,
             last_seen_at=now,
             expires_at=now + self._lease,
         )
@@ -105,6 +130,7 @@ class InstanceHeartbeat:
                 "name": statement.excluded.name,
                 "version": statement.excluded.version,
                 "status": statement.excluded.status,
+                "ips": statement.excluded.ips,
                 "last_seen_at": statement.excluded.last_seen_at,
                 "expires_at": statement.excluded.expires_at,
                 # Deregistered by an admin, yet alive.
@@ -121,9 +147,12 @@ class InstanceHeartbeat:
         )
 
     async def _write(self, status: ProxyInstanceStatus, /) -> None:
-        async with asyncio.timeout(self._timeout), session_manager.session() as session:
-            await session.execute(self._get_report_instance_statement(status))
-            await session.commit()
+        async with asyncio.timeout(self._timeout):
+            # A thread: a server with many IPs takes a while to list them, connections don't wait for it.
+            ips = await asyncio.to_thread(self._read_ips)
+            async with session_manager.session() as session:
+                await session.execute(self._get_report_instance_statement(status, ips))
+                await session.commit()
 
     async def _report(self, status: ProxyInstanceStatus, /) -> None:
         try:

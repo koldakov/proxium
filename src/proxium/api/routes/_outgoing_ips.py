@@ -59,7 +59,8 @@ async def create_outgoing_ip(
 ) -> CreateOutgoingIPResponse:
     """Add an IP of the proxy server to go out from. Owned by the logged-in user.
 
-    Not checked against the server: an IP that isn't on it fails every connection of the pools with it.
+    Not refused if a proxy doesn't have it, the IP may be added to the servers later: `instancesWithoutIp` of the
+    list and the IP's page tells. Connections from it fail on proxies without it.
     """
     service: CreateOutgoingIPService = CreateOutgoingIPService(token=credentials.credentials, data=data)
     return await service()
@@ -97,6 +98,10 @@ async def list_outgoing_ips(
 
     - `query`: search by name or IP.
     - `version`: only IPv4 or only IPv6, `4` or `6`.
+    - `missing`: `true` only IPs that some pending or running proxy instance doesn't have, connections from them
+      fail there; `false` only IPs that every one of them has.
+
+    `liveInstances` counts pending and running instances, `instancesWithoutIp` those of them without the IP.
     """
     service: ListOutgoingIPsService = ListOutgoingIPsService(token=credentials.credentials, data=data)
     return await service()
@@ -132,7 +137,9 @@ async def get_outgoing_ip(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     outgoing_ip_id: int,
 ) -> GetOutgoingIPResponse:
-    """Get an outgoing IP."""
+    """Get an outgoing IP. `liveInstances` counts pending and running proxy instances, `instancesWithoutIp` those of
+    them without the IP: connections from it fail there.
+    """
     service: GetOutgoingIPService = GetOutgoingIPService(token=credentials.credentials, id=outgoing_ip_id)
     return await service()
 

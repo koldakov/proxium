@@ -8,6 +8,8 @@ from proxium.api.services.proxy_instances import (
     DeregisterProxyInstanceService,
     GetProxyInstanceCountsResponse,
     GetProxyInstanceCountsService,
+    ListProxyInstanceIPsResponse,
+    ListProxyInstanceIPsService,
     ListProxyInstancesRequest,
     ListProxyInstancesResponse,
     ListProxyInstancesService,
@@ -86,6 +88,46 @@ async def get_proxy_instance_counts(
 ) -> GetProxyInstanceCountsResponse:
     """Count proxy instances by status, deregistered ones left out."""
     service: GetProxyInstanceCountsService = GetProxyInstanceCountsService(token=credentials.credentials)
+    return await service()
+
+
+@proxy_instances_router.get(
+    "/{proxy_instance_id}/ips",
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_200_OK: {
+            "description": "A page of the instance's IPs.",
+        },
+        status.HTTP_401_UNAUTHORIZED: {
+            "description": (
+                "The access token is missing, invalid or expired, or the user is inactive or has a new password."
+            ),
+        },
+        status.HTTP_403_FORBIDDEN: {
+            "description": "The user lacks `proxy_instances.view`.",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Proxy instance not found, or deregistered.",
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "The proxy instance id is not an integer, or the page size is out of range.",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Unexpected server error.",
+        },
+    },
+)
+async def list_proxy_instance_ips(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
+    proxy_instance_id: int,
+) -> Page[ListProxyInstanceIPsResponse]:
+    """List IPs on the interfaces of a proxy instance as of its last report, IPv4 first: the outgoing IPs it can
+    connect from. In Docker bridge networking these are the container's IPs, not the host's.
+    """
+    service: ListProxyInstanceIPsService = ListProxyInstanceIPsService(
+        token=credentials.credentials,
+        id=proxy_instance_id,
+    )
     return await service()
 
 
