@@ -1,6 +1,6 @@
 [project]
 name = "proxium"
-version = "0.2.0"
+version = "0.3.0"
 description = "Self-hosted HTTP/SOCKS5 proxy gateway with accounts, ACLs, TLS, outgoing IP pools and an admin UI."
 readme = "README.md"
 license = "MIT"

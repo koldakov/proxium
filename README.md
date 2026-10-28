@@ -48,10 +48,12 @@ database, separate containers and running from source: see [Installation](docs/i
 
 ## Admin panel
 
-Everything is managed in the browser: accounts, networks, policies, certificates, admins.
+Everything is managed in the browser: accounts, networks, policies, certificates, admins, and every proxy in sight.
 
-| An account: outgoing IP, policies, daily traffic | A read-only group: permissions per section and action |
+| The Overview: proxies at a glance, outgoing IPs they lack | Proxy instances: status, version, IPs of each |
 |---|---|
+| ![Overview](docs/images/overview.png) | ![Proxy instances](docs/images/proxy-instances.png) |
+| **An account: outgoing IP, policies, daily traffic** | **A read-only group: permissions per section and action** |
 | ![Proxy account page](docs/images/account-page.png) | ![Group permissions](docs/images/group-permissions.png) |
 
 ## Own domains and HTTPS

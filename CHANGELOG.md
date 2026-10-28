@@ -7,7 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-A new look for the admin UI: easier on the eyes, clearer to read, errors right where they happen.
+## [0.3.0] - 2026-10-28
+
+Every proxy instance in sight: the new Overview shows which ones run and which outgoing IPs they lack. And a new
+look for the admin UI: easier on the eyes, clearer to read, errors right where they happen. See
+[Upgrading](docs/upgrading.md#from-02-to-03).
 
 ### Added
 
@@ -203,7 +207,8 @@ Your own proxy service in one `docker run`: accounts, policies, outgoing IPs and
 - Admin UI over HTTP or HTTPS with `ADMIN_TLS`: Let's Encrypt, own certificate files or an internal CA.
 - Optional superuser on first start with `SUPERUSER_CREATE`.
 
-[Unreleased]: https://github.com/koldakov/proxium/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/koldakov/proxium/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/koldakov/proxium/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/koldakov/proxium/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/koldakov/proxium/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/koldakov/proxium/releases/tag/v0.1.0
