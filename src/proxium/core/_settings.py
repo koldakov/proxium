@@ -43,6 +43,14 @@ class ProxySettings(BaseSettings):
     ] = 30.0
     # Lets a new proxy listen on the same ports before the old one stops: restarts without downtime.
     reuse_port: bool = True
+    # Proxy processes listening on the same ports, the kernel spreads connections between them: one per CPU core.
+    # Needs `reuse_port`, see `ProxyWorkers`.
+    workers: Annotated[
+        int,
+        Field(
+            ge=1,
+        ),
+    ] = 1
     # Connections waiting to be accepted per socket, beyond them a burst is dropped or stalls.
     # The kernel caps it at net.core.somaxconn.
     backlog: Annotated[

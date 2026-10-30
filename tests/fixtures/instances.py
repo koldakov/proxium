@@ -42,16 +42,17 @@ def heartbeat_factory(
     loop_runner: asyncio.Runner,
     database: None,
 ) -> Iterator[Callable[[datetime], InstanceHeartbeat]]:
-    """Heartbeats of processes started at the given time. All of them run on this machine, so they report to one
-    row. A report a minute: within a test only status changes write. Closed after the test.
+    """Heartbeats of processes started at the given time, of one worker unless `workers` says more. All of them run
+    on this machine, so they report to one row. A report a minute: within a test only changes write. Closed after
+    the test.
     """
     heartbeats: list[InstanceHeartbeat] = []
 
-    def create(started_at: datetime) -> InstanceHeartbeat:
+    def create(started_at: datetime, /, *, workers: int = 1) -> InstanceHeartbeat:
         # The process start is read once, when the heartbeat is made.
         with patch("proxium.instances._heartbeat.datetime") as clock:
             clock.now.return_value = started_at
-            heartbeat = InstanceHeartbeat(interval=60.0)
+            heartbeat = InstanceHeartbeat(interval=60.0, workers=workers)
         heartbeats.append(heartbeat)
         return heartbeat
 

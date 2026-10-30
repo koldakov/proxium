@@ -116,8 +116,9 @@ ENV PATH="/usr/local/bin:/app/.venv/bin:/usr/lib/postgresql/$POSTGRES_VERSION/bi
     S6_BEHAVIOUR_IF_STAGE2_FAILS=2 \
     # Start steps wait as long as they need: migrations wait for the database themselves.
     S6_CMD_WAIT_FOR_SERVICES_MAXTIME=0 \
-    # Open proxy connections get PROXY_GRACEFUL_TIMEOUT (30s by default) to finish on stop.
-    S6_SERVICES_GRACETIME=35000
+    # Open proxy connections get PROXY_GRACEFUL_TIMEOUT (30s by default) to finish on stop, then the proxy writes its
+    # last traffic and reports the stop, up to 10s more: else the admin shows it unknown.
+    S6_SERVICES_GRACETIME=45000
 
 VOLUME /var/lib/proxium
 

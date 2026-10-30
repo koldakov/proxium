@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- One proxy now uses every CPU core: `PROXY_WORKERS=4` or `proxium --workers 4` runs four processes on the same
+  ports, and Linux spreads new connections between them. Limits and quotas hold across workers. The admin still
+  shows one proxy, and its new Workers column tells how many serve, e.g. `3 / 4` while a crashed one restarts, in a
+  second. One worker by default, restarted on a crash just the same. See [Workers](docs/proxy.md#workers).
+
 ## [0.3.0] - 2026-10-28
 
 Every proxy instance in sight: the new Overview shows which ones run and which outgoing IPs they lack. And a new

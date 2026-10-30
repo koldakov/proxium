@@ -107,6 +107,46 @@ class TestInstanceHeartbeat:
         (instance,) = loop_runner.run(_read_instances())
         assert instance.status == ProxyInstanceStatus.STOPPED
 
+    def test_set_running_workers_reports_without_waiting_for_interval(
+        self,
+        faker: Faker,
+        loop_runner: asyncio.Runner,
+        heartbeat_factory: Callable[..., InstanceHeartbeat],
+    ) -> None:
+        # Arrange
+        workers = faker.pyint(min_value=2, max_value=64)
+        running_workers = faker.pyint(min_value=1, max_value=workers)
+        heartbeat = heartbeat_factory(datetime.now(UTC), workers=workers)
+        loop_runner.run(_start(heartbeat))
+        loop_runner.run(_wait_for(lambda instance: instance.status == ProxyInstanceStatus.PENDING))
+
+        # Act
+        # The interval is a minute: only a report at once makes it in time.
+        heartbeat.set_running_workers(running_workers)
+        instance = loop_runner.run(_wait_for(lambda instance: instance.running_workers == running_workers))
+
+        # Assert
+        assert instance.workers == workers
+
+    def test_close_reports_no_running_workers(
+        self,
+        faker: Faker,
+        loop_runner: asyncio.Runner,
+        heartbeat_factory: Callable[..., InstanceHeartbeat],
+    ) -> None:
+        # Arrange
+        workers = faker.pyint(min_value=1, max_value=64)
+        heartbeat = heartbeat_factory(datetime.now(UTC), workers=workers)
+        loop_runner.run(_start(heartbeat))
+        heartbeat.set_running_workers(workers)
+
+        # Act
+        loop_runner.run(heartbeat.close())
+
+        # Assert
+        (instance,) = loop_runner.run(_read_instances())
+        assert instance.running_workers == 0
+
     def test_restart_reports_to_same_row(
         self,
         loop_runner: asyncio.Runner,

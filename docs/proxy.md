@@ -268,8 +268,8 @@ The Overview, the start page of the admin UI, counts proxies by status and lists
 link, or the menu under Overview, opens the Proxy instances page with every proxy. Both refresh every few seconds.
 Each proxy reports itself to the database every `PROXY_HEARTBEAT_INTERVAL` seconds, nothing to set up:
 
-- Running: serving clients.
-- Pending: starting, not serving yet.
+- Running: serving clients, on at least one of its [workers](#workers).
+- Pending: starting, not serving yet, or every worker is restarting.
 - Unknown: missed three reports in a row, e.g. crashed, hung or cut off from the database. Worth a look.
 - Stopped: shut down gracefully.
 
@@ -283,6 +283,42 @@ connect from.
 Deregister on the Proxy instances page takes a stopped or unknown instance off it, e.g. a removed server. If its
 proxy reports again, it's back. It needs `proxy_instances.deregister`, seeing instances `proxy_instances.view`.
 
+## Workers
+
+One proxy process uses one CPU core. To use more, run several workers on the same ports, one per core:
+
+```bash
+proxium --workers 4                      # or PROXY_WORKERS=4
+docker run -e PROXY_WORKERS=4 ... ikoldakov/proxium
+```
+
+Linux spreads new connections between the workers. Connection limits, speed limits and quotas hold across them
+through Redis, as across instances. In the admin they are one proxy instance, its Workers column says how many
+serve, e.g. `3 / 4` while one restarts. Each worker has its own database and
+Redis pools (`DATABASE_POOL_*` and `REDIS_POOL_MAX_CONNECTIONS` apply to each), client caches and settings lookups:
+those grow with the count, connections don't get slower. Several workers need `PROXY_REUSE_PORT=true`. On macOS
+the kernel doesn't balance them: several workers are for Linux.
+
+A master process runs the workers, one by default, and reports the proxy to the admin. SIGINT or SIGTERM goes to
+every worker, each finishes its open connections, a second signal stops at once. A worker that crashes is restarted
+in a second, one that keeps crashing waits twice as long each time, up to 30 seconds. One that fails its first
+start, e.g. on an invalid policy or a taken port, stops the whole proxy with exit code 1. A restart that fails, e.g.
+while the database is down, is a crash like any other: the rest keep serving.
+
+A connection lives in the worker that accepted it: if that worker crashes or is killed, its open connections are
+cut, and clients reconnect to the others. No other worker can take them over, their TLS and tunnel state was in the
+gone process. A SIGTERM loses nothing: the worker finishes them first.
+
+Connections waiting to be accepted are queued per worker, and reset with it too. On Linux 5.14 and newer the kernel
+can move them to another worker's queue instead:
+
+```bash
+sysctl -w net.ipv4.tcp_migrate_req=1                    # on the host, e.g. in /etc/sysctl.d/
+docker run --sysctl net.ipv4.tcp_migrate_req=1 ...      # in a container, not with --network host
+```
+
+It covers [restarts without downtime](#restart-without-downtime) too: the old proxy's queue goes to the new one.
+
 ## Restart without downtime
 
 Two proxies can listen on the same ports at once, Linux spreads new connections between them. To upgrade, start
@@ -291,7 +327,8 @@ the same user, else Linux refuses the port. With `PROXY_REUSE_PORT=false` a seco
 start instead of taking a share of the clients. Available since 0.1.1: a 0.1.0 proxy doesn't share its ports, so
 upgrading from it is a plain restart.
 
-The old proxy's connections waiting to be accepted at the moment it stops are reset, clients retry them.
+The old proxy's connections waiting to be accepted at the moment it stops are reset, clients retry them. With
+`net.ipv4.tcp_migrate_req=1` they go to the new proxy instead, see [Workers](#workers).
 
 In Docker it takes `--network host` (two containers can't publish one port with `-p`), a database and Redis outside
 the container, with `PROXIUM_SERVICES=proxy`. Both proxies must use the same Redis: with the bundled one each
@@ -300,11 +337,12 @@ container counts limits and quotas alone.
 ```bash
 docker run -d --name proxium-new --network host -e PROXIUM_SERVICES=proxy \
   -e DATABASE_URL=... -e REDIS_URL=... -e ENCRYPTION_KEY=... -e PROXY_LISTEN=... ikoldakov/proxium:NEW
-docker stop --time 40 proxium-old
+docker stop --time 50 proxium-old
 ```
 
-Leave `--time` a few seconds over `PROXY_GRACEFUL_TIMEOUT`: closing connections release their places in Redis, and
-the last traffic goes to the database and Redis, each Redis step up to the two Redis timeouts.
+Leave `--time` about 20 seconds over `PROXY_GRACEFUL_TIMEOUT`: closing connections release their places in Redis,
+the last traffic goes to the database and Redis, each Redis step up to the two Redis timeouts, and the proxy reports
+its stop to the admin.
 
 Connection limits, speed limits and quotas are shared by both proxies through Redis. If a release changes how quotas
 keep traffic in Redis, or the old proxy is from before quotas were shared, the release notes say so: meanwhile the

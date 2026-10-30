@@ -25,6 +25,15 @@ Feature: Proxy instances in the API
       }
       """
 
+  Scenario: The admin sees how many workers of an instance serve
+    Given a running proxy instance "workers" with 3 of 4 workers serving
+    When the admin sends GET "/api/proxy-instances?status=running"
+    Then the API answers 200
+    And the answer has:
+      """
+      {"items": [{"id": ${workers.id}, "workers": 4, "runningWorkers": 3}, {"id": ${running.id}}]}
+      """
+
   Scenario Outline: The admin lists <status> instances
     When the admin sends GET "/api/proxy-instances?status=<status>"
     Then the API answers 200
