@@ -71,12 +71,16 @@ class InstanceHeartbeat:
     without a restart. A report is one statement off the connection path, cut after `timeout` seconds: a slow
     database delays nothing but the report. A failed one is logged and the next retries.
 
-    Call `start` in the running loop, `set_status` as the process goes, `close` last: it reports the stop.
+    `workers` is how many proxy processes the instance runs, `set_running_workers` how many of them serve.
+
+    Call `start` in the running loop, `set_status` and `set_running_workers` as the process goes, `close` last: it
+    reports the stop.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
+        workers: int,
         name: str = proxy_settings.name,
         interval: float = proxy_settings.heartbeat_interval,
         spare_reports: int = 2,
@@ -85,6 +89,8 @@ class InstanceHeartbeat:
     ) -> None:
         if spare_reports < 0:
             raise ValueError("Spare reports can't be negative.")
+        if workers < 1:
+            raise ValueError(f"Workers must be at least 1, got {workers}.")
 
         self._hostname: str = socket.gethostname()
         self._key: str = _get_instance_key(_read_machine_id(), self._hostname)
@@ -96,7 +102,9 @@ class InstanceHeartbeat:
         self._lease: timedelta = timedelta(seconds=interval * (spare_reports + 1))
         self._timeout: float = timeout
         self._read_ips: Callable[[], list[IPv4Address | IPv6Address]] = read_ips
+        self._workers: int = workers
         self._status: ProxyInstanceStatus = ProxyInstanceStatus.PENDING
+        self._running_workers: int = 0
         # Set on a status change: reported at once, not on the next tick.
         self._wake: asyncio.Event = asyncio.Event()
         # Logged once per outage, not on every report.
@@ -106,6 +114,7 @@ class InstanceHeartbeat:
     def _get_report_instance_statement(
         self,
         status: ProxyInstanceStatus,
+        running_workers: int,
         ips: list[IPv4Address | IPv6Address],
         /,
     ) -> Insert:
@@ -118,6 +127,8 @@ class InstanceHeartbeat:
             name=self._name,
             version=self._version,
             status=status,
+            workers=self._workers,
+            running_workers=running_workers,
             ips=ips,
             last_seen_at=now,
             expires_at=now + self._lease,
@@ -130,6 +141,8 @@ class InstanceHeartbeat:
                 "name": statement.excluded.name,
                 "version": statement.excluded.version,
                 "status": statement.excluded.status,
+                "workers": statement.excluded.workers,
+                "running_workers": statement.excluded.running_workers,
                 "ips": statement.excluded.ips,
                 "last_seen_at": statement.excluded.last_seen_at,
                 "expires_at": statement.excluded.expires_at,
@@ -146,17 +159,17 @@ class InstanceHeartbeat:
             ),
         )
 
-    async def _write(self, status: ProxyInstanceStatus, /) -> None:
+    async def _write(self, status: ProxyInstanceStatus, running_workers: int, /) -> None:
         async with asyncio.timeout(self._timeout):
             # A thread: a server with many IPs takes a while to list them, connections don't wait for it.
             ips = await asyncio.to_thread(self._read_ips)
             async with session_manager.session() as session:
-                await session.execute(self._get_report_instance_statement(status, ips))
+                await session.execute(self._get_report_instance_statement(status, running_workers, ips))
                 await session.commit()
 
-    async def _report(self, status: ProxyInstanceStatus, /) -> None:
+    async def _report(self, status: ProxyInstanceStatus, running_workers: int, /) -> None:
         try:
-            await self._write(status)
+            await self._write(status, running_workers)
         except Exception:
             if not self._is_failing:
                 logger.warning("Can't report the instance, retrying every %s s", self._interval, exc_info=True)
@@ -169,10 +182,10 @@ class InstanceHeartbeat:
 
     async def _run(self) -> None:
         while True:
-            # Cleared before the status is read: a change during the report wakes the next one at once.
+            # Cleared before the state is read: a change during the report wakes the next one at once.
             self._wake.clear()
             status = self._status
-            await self._report(status)
+            await self._report(status, self._running_workers)
             if status is ProxyInstanceStatus.STOPPED:
                 return
 
@@ -187,8 +200,16 @@ class InstanceHeartbeat:
         self._status = status
         self._wake.set()
 
+    def set_running_workers(self, count: int, /) -> None:
+        if not 0 <= count <= self._workers:
+            raise ValueError(f"Running workers must be from 0 to {self._workers}, got {count}.")
+
+        self._running_workers = count
+        self._wake.set()
+
     async def close(self) -> None:
         """Report the stop and quit. Takes up to two `timeout`s: a report in progress, then the stop."""
+        self._running_workers = 0
         self.set_status(ProxyInstanceStatus.STOPPED)
         if self._task is not None:
             await self._task

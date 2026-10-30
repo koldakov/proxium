@@ -28,11 +28,31 @@ class TestInstanceHeartbeat:
 
         # Act
         with pytest.raises(ValueError, match="Spare reports can't be negative"):
-            InstanceHeartbeat(spare_reports=spare_reports)
+            InstanceHeartbeat(workers=1, spare_reports=spare_reports)
+
+    def test_init_raises_value_error_on_less_than_one_worker(self, faker: Faker) -> None:
+        # Arrange
+        workers = faker.pyint(min_value=-10, max_value=0)
+
+        # Act
+        with pytest.raises(ValueError, match="Workers must be at least 1"):
+            InstanceHeartbeat(workers=workers)
+
+    @pytest.mark.parametrize("is_above", [False, True])
+    def test_set_running_workers_raises_value_error_outside_zero_to_workers(self, faker: Faker, is_above: bool) -> None:
+        # Arrange
+        workers = faker.pyint(min_value=1, max_value=64)
+        heartbeat = InstanceHeartbeat(workers=workers)
+        # Just above every worker, or just below none.
+        count = workers + 1 if is_above else -1
+
+        # Act
+        with pytest.raises(ValueError, match="Running workers must be from 0"):
+            heartbeat.set_running_workers(count)
 
     async def test_close_returns_and_warns_once_when_database_fails(self, caplog: pytest.LogCaptureFixture) -> None:
         # Arrange
-        heartbeat = InstanceHeartbeat(interval=60.0)
+        heartbeat = InstanceHeartbeat(workers=1, interval=60.0)
 
         # Act
         # Every report fails as if the database were down: the proxy still shuts down.

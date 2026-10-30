@@ -7,6 +7,7 @@ import { ProxyInstanceIPs } from './ProxyInstanceIPs'
 import { ProxyInstanceStatusChip } from './ProxyInstanceStatusChip'
 import { SinceField } from './SinceField'
 import { REFRESH_MS, STATUS_CHOICES } from './statuses'
+import { WorkersField } from './WorkersField'
 
 const filters = [<SelectInput key="status" source="status" choices={STATUS_CHOICES} alwaysOn />]
 
@@ -43,6 +44,9 @@ export const ProxyInstanceList = () => (
         <DataTable.Col source="name" disableSort />
         <DataTable.Col label="Status" disableSort>
           <ProxyInstanceStatusChip />
+        </DataTable.Col>
+        <DataTable.Col label="Workers" disableSort>
+          <WorkersField />
         </DataTable.Col>
         <DataTable.Col source="version" disableSort />
         <DataTable.Col source="startedAt" label="Started" disableSort>

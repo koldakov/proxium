@@ -35,6 +35,9 @@ class ListProxyInstancesResponse(BaseSchema):
     name: str
     version: str
     status: ListProxyInstanceStatus
+    # As of the last report: of an unknown instance it may be stale.
+    workers: int
+    running_workers: int
     started_at: datetime
     last_seen_at: datetime
     created_at: datetime

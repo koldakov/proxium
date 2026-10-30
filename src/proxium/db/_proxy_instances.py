@@ -78,6 +78,16 @@ class ProxyInstanceModel(BaseTimestampModel):
         default=list,
         server_default="{}",
     )
+    # `PROXY_WORKERS`: the proxy processes the instance runs, and how many of them serve as of the last report.
+    # Defaults for rows of proxies from before workers, which don't write them: one process, serving.
+    workers: Mapped[int] = mapped_column(
+        default=1,
+        server_default="1",
+    )
+    running_workers: Mapped[int] = mapped_column(
+        default=1,
+        server_default="1",
+    )
     # Deregistered by an admin. A report of the process registers it again: it's alive after all.
     is_deleted: Mapped[bool] = mapped_column(
         default=False,
