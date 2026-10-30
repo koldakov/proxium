@@ -109,6 +109,8 @@ COPY docker/rootfs/ /
 
 # /usr/local/bin first: its proxium-manage wraps the one in the venv for `docker exec`.
 ENV PATH="/usr/local/bin:/app/.venv/bin:/usr/lib/postgresql/$POSTGRES_VERSION/bin:/command:$PATH" \
+    # s6-setuidgid keeps root's /root, and asyncpg over TCP fails reading ~/.postgresql there.
+    HOME=/home/proxium \
     PYTHONUNBUFFERED=1 \
     PGDATA=/var/lib/proxium/postgres \
     PROXY_LISTEN=0.0.0.0:8080 \
