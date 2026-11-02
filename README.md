@@ -88,6 +88,15 @@ and an API:
   accounts, an accountant sees traffic, neither touches TLS.
 - **One port for everything.** HTTP, SOCKS5 and TLS on the same port, detected automatically.
 
+## Benchmark
+
+![Download speed through the proxy: 3proxy 92, Squid 81, Proxium 60, Dante 22 Gbit/s](docs/images/benchmark-throughput.svg)
+
+Proxium fills a 10 Gbit/s link six times over on 4 cores, opens 16,000 new tunnels a second, outruns Dante on
+SOCKS5 and uses half the memory of Squid. Need more: add workers and servers, limits and quotas hold across all of
+them. And it's the only one of the four you manage in a browser. Method, all results and the configs of the
+contenders: [Benchmark](docs/benchmark.md).
+
 ## Features
 
 **Proxy**
@@ -193,6 +202,7 @@ Report vulnerabilities privately, see [SECURITY.md](SECURITY.md).
 - [Proxy](docs/proxy.md): protocols, TLS, trusted networks, outgoing IPs, policies, settings
 - [Admin UI](docs/admin.md): users, groups and permissions
 - [Management commands](docs/management.md): superusers, migrations, certificates, key rotation
+- [Benchmark](docs/benchmark.md): Proxium against Squid, 3proxy and Dante
 - [Changelog](CHANGELOG.md) and [Roadmap](ROADMAP.md)
 
 ## Contributing

@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="380" viewBox="0 0 820 380" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif">
+<style>
+.card{fill:#fff;stroke:#dde3e7}.fg{fill:#16212a}.muted{fill:#5d6b76}.bar{fill:#b9c4cc}.ours{fill:#0b7a83}
+.band{fill:#e3f3f4}.grid{stroke:#e8edf0}.limit{stroke:#c2410c}.limit-t{fill:#c2410c}
+.line{fill:none;stroke:#b9c4cc;stroke-width:2}.line-ours{fill:none;stroke:#0b7a83;stroke-width:3}
+.dot{fill:#b9c4cc;stroke:#fff;stroke-width:2}.dot-ours{fill:#0b7a83;stroke:#fff;stroke-width:2}
+.pill{fill:#0b7a83}.pill-t{fill:#fff}
+@media (prefers-color-scheme:dark){
+.card{fill:#151f26;stroke:#26333c}.fg{fill:#e3eaee}.muted{fill:#8d9ba5}.bar{fill:#3a4852}.ours{fill:#3cc3cc}
+.band{fill:#153138}.grid{stroke:#22303a}.limit{stroke:#fb923c}.limit-t{fill:#fb923c}
+.line{stroke:#4a5964}.line-ours{stroke:#3cc3cc}.dot{fill:#4a5964;stroke:#151f26}.dot-ours{fill:#3cc3cc;stroke:#151f26}
+.pill{fill:#3cc3cc}.pill-t{fill:#0f161b}}
+</style>
+<rect class="card" x="0.5" y="0.5" width="819" height="379" rx="10"/>
+<text class="fg" x="24" y="38" font-size="19" font-weight="600">New connections a second</text>
+<text class="muted" x="24" y="62" font-size="13">A small page through a new connection each time. Higher is better.</text>
+<text class="fg" x="60" y="86" font-size="14" font-weight="600">HTTP CONNECT</text>
+<line class="grid" x1="60" y1="310.0" x2="322" y2="310.0"/>
+<text class="muted" x="52" y="314.0" font-size="11" text-anchor="end">0k</text>
+<line class="grid" x1="60" y1="240.0" x2="322" y2="240.0"/>
+<text class="muted" x="52" y="244.0" font-size="11" text-anchor="end">5k</text>
+<line class="grid" x1="60" y1="170.0" x2="322" y2="170.0"/>
+<text class="muted" x="52" y="174.0" font-size="11" text-anchor="end">10k</text>
+<line class="grid" x1="60" y1="100.0" x2="322" y2="100.0"/>
+<text class="muted" x="52" y="104.0" font-size="11" text-anchor="end">15k</text>
+<text class="muted" x="72.0" y="328" font-size="11" text-anchor="middle">50</text>
+<text class="muted" x="191.0" y="328" font-size="11" text-anchor="middle">200</text>
+<text class="muted" x="310.0" y="328" font-size="11" text-anchor="middle">500</text>
+<text class="muted" x="191.0" y="346" font-size="11" text-anchor="middle">clients at once</text>
+<polyline class="line" points="72.0,170.3 191.0,171.6 310.0,173.0"/>
+<circle class="dot" cx="72.0" cy="170.3" r="5"/>
+<circle class="dot" cx="191.0" cy="171.6" r="5"/>
+<circle class="dot" cx="310.0" cy="173.0" r="5"/>
+<polyline class="line" points="72.0,118.6 191.0,137.1 310.0,140.8"/>
+<circle class="dot" cx="72.0" cy="118.6" r="5"/>
+<circle class="dot" cx="191.0" cy="137.1" r="5"/>
+<circle class="dot" cx="310.0" cy="140.8" r="5"/>
+<polyline class="line-ours" points="72.0,268.5 191.0,268.6 310.0,268.7"/>
+<circle class="dot-ours" cx="72.0" cy="268.5" r="5"/>
+<circle class="dot-ours" cx="191.0" cy="268.6" r="5"/>
+<circle class="dot-ours" cx="310.0" cy="268.7" r="5"/>
+<text class="fg" x="320.0" y="144.8" font-size="12" font-weight="500">3proxy 12.1k</text>
+<text class="fg" x="320.0" y="177.0" font-size="12" font-weight="500">Squid 9.8k</text>
+<text class="fg" x="320.0" y="272.7" font-size="12" font-weight="700">Proxium 2.9k</text>
+<text class="fg" x="447" y="86" font-size="14" font-weight="600">SOCKS5</text>
+<line class="grid" x1="447" y1="310.0" x2="709" y2="310.0"/>
+<text class="muted" x="439" y="314.0" font-size="11" text-anchor="end">0k</text>
+<line class="grid" x1="447" y1="240.0" x2="709" y2="240.0"/>
+<text class="muted" x="439" y="244.0" font-size="11" text-anchor="end">5k</text>
+<line class="grid" x1="447" y1="170.0" x2="709" y2="170.0"/>
+<text class="muted" x="439" y="174.0" font-size="11" text-anchor="end">10k</text>
+<line class="grid" x1="447" y1="100.0" x2="709" y2="100.0"/>
+<text class="muted" x="439" y="104.0" font-size="11" text-anchor="end">15k</text>
+<text class="muted" x="459.0" y="328" font-size="11" text-anchor="middle">50</text>
+<text class="muted" x="578.0" y="328" font-size="11" text-anchor="middle">200</text>
+<text class="muted" x="697.0" y="328" font-size="11" text-anchor="middle">500</text>
+<text class="muted" x="578.0" y="346" font-size="11" text-anchor="middle">clients at once</text>
+<polyline class="line" points="459.0,139.6 578.0,146.6 697.0,150.2"/>
+<circle class="dot" cx="459.0" cy="139.6" r="5"/>
+<circle class="dot" cx="578.0" cy="146.6" r="5"/>
+<circle class="dot" cx="697.0" cy="150.2" r="5"/>
+<polyline class="line" points="459.0,268.0 578.0,261.4 697.0,268.3"/>
+<circle class="dot" cx="459.0" cy="268.0" r="5"/>
+<circle class="dot" cx="578.0" cy="261.4" r="5"/>
+<circle class="dot" cx="697.0" cy="268.3" r="5"/>
+<polyline class="line-ours" points="459.0,269.9 578.0,269.2 697.0,269.2"/>
+<circle class="dot-ours" cx="459.0" cy="269.9" r="5"/>
+<circle class="dot-ours" cx="578.0" cy="269.2" r="5"/>
+<circle class="dot-ours" cx="697.0" cy="269.2" r="5"/>
+<text class="fg" x="707.0" y="154.2" font-size="12" font-weight="500">3proxy 11.4k</text>
+<text class="fg" x="707.0" y="272.3" font-size="12" font-weight="500">Dante 3.0k</text>
+<text class="fg" x="707.0" y="288.3" font-size="12" font-weight="700">Proxium 2.9k</text>
+<text class="muted" x="24" y="366" font-size="11">AMD Ryzen 5 PRO 4650U, Linux, every proxy on the same 2 cores (4 threads) with password auth. Medians of 3 runs.</text>
+</svg>

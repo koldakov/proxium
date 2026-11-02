@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="296" viewBox="0 0 820 296" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif">
+<style>
+.card{fill:#fff;stroke:#dde3e7}.fg{fill:#16212a}.muted{fill:#5d6b76}.bar{fill:#b9c4cc}.ours{fill:#0b7a83}
+.band{fill:#e3f3f4}.grid{stroke:#e8edf0}.limit{stroke:#c2410c}.limit-t{fill:#c2410c}
+.line{fill:none;stroke:#b9c4cc;stroke-width:2}.line-ours{fill:none;stroke:#0b7a83;stroke-width:3}
+.dot{fill:#b9c4cc;stroke:#fff;stroke-width:2}.dot-ours{fill:#0b7a83;stroke:#fff;stroke-width:2}
+.pill{fill:#0b7a83}.pill-t{fill:#fff}
+@media (prefers-color-scheme:dark){
+.card{fill:#151f26;stroke:#26333c}.fg{fill:#e3eaee}.muted{fill:#8d9ba5}.bar{fill:#3a4852}.ours{fill:#3cc3cc}
+.band{fill:#153138}.grid{stroke:#22303a}.limit{stroke:#fb923c}.limit-t{fill:#fb923c}
+.line{stroke:#4a5964}.line-ours{stroke:#3cc3cc}.dot{fill:#4a5964;stroke:#151f26}.dot-ours{fill:#3cc3cc;stroke:#151f26}
+.pill{fill:#3cc3cc}.pill-t{fill:#0f161b}}
+</style>
+<rect class="card" x="0.5" y="0.5" width="819" height="295" rx="10"/>
+<text class="fg" x="24" y="38" font-size="19" font-weight="600">Memory under load</text>
+<text class="muted" x="24" y="62" font-size="13">Peak memory of the proxy, 200 new connections at once. Shorter is better.</text>
+<text class="muted" x="132" y="84" font-size="12" font-weight="600">MiB</text>
+<text class="fg" x="120" y="116" font-size="14" font-weight="500" text-anchor="end">Squid 6.13</text>
+<rect class="bar" x="132" y="100" width="568.0" height="22" rx="4"/>
+<text class="fg" x="708.0" y="116" font-size="14" font-weight="500">805</text>
+<text class="fg" x="120" y="156" font-size="14" font-weight="700" text-anchor="end">Proxium</text>
+<rect class="ours" x="132" y="140" width="289.4" height="22" rx="4"/>
+<text class="fg" x="429.4" y="156" font-size="14" font-weight="700">410</text>
+<text class="fg" x="120" y="196" font-size="14" font-weight="500" text-anchor="end">Dante 1.4.3</text>
+<rect class="bar" x="132" y="180" width="227.5" height="22" rx="4"/>
+<text class="fg" x="367.5" y="196" font-size="14" font-weight="500">323</text>
+<text class="fg" x="120" y="236" font-size="14" font-weight="500" text-anchor="end">3proxy 1.0.2</text>
+<rect class="bar" x="132" y="220" width="37.4" height="22" rx="4"/>
+<text class="fg" x="177.4" y="236" font-size="14" font-weight="500">53</text>
+<text class="muted" x="24" y="282" font-size="11">Apple M4, Docker Desktop, every proxy on the same 4 cores with password auth.</text>
+</svg>
