@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="408" viewBox="0 0 820 408" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif">
+<style>
+.card{fill:#fff;stroke:#dde3e7}.fg{fill:#16212a}.muted{fill:#5d6b76}.bar{fill:#b9c4cc}.ours{fill:#0b7a83}
+.band{fill:#e3f3f4}.grid{stroke:#e8edf0}.limit{stroke:#c2410c}.limit-t{fill:#c2410c}
+.line{fill:none;stroke:#b9c4cc;stroke-width:2}.line-ours{fill:none;stroke:#0b7a83;stroke-width:3}
+.dot{fill:#b9c4cc;stroke:#fff;stroke-width:2}.dot-ours{fill:#0b7a83;stroke:#fff;stroke-width:2}
+.pill{fill:#0b7a83}.pill-t{fill:#fff}
+@media (prefers-color-scheme:dark){
+.card{fill:#151f26;stroke:#26333c}.fg{fill:#e3eaee}.muted{fill:#8d9ba5}.bar{fill:#3a4852}.ours{fill:#3cc3cc}
+.band{fill:#153138}.grid{stroke:#22303a}.limit{stroke:#fb923c}.limit-t{fill:#fb923c}
+.line{stroke:#4a5964}.line-ours{stroke:#3cc3cc}.dot{fill:#4a5964;stroke:#151f26}.dot-ours{fill:#3cc3cc;stroke:#151f26}
+.pill{fill:#3cc3cc}.pill-t{fill:#0f161b}}
+</style>
+<rect class="card" x="0.5" y="0.5" width="819" height="407" rx="10"/>
+<text class="fg" x="24" y="38" font-size="19" font-weight="600">Time to load a small page, ms</text>
+<text class="muted" x="24" y="62" font-size="13">From connecting to the proxy to the last byte, 200 clients at once. Shorter is better.</text>
+<line class="grid" x1="172.0" y1="106" x2="172.0" y2="342"/>
+<text class="muted" x="172.0" y="98" font-size="11" text-anchor="middle">0 ms</text>
+<line class="grid" x1="283.6" y1="106" x2="283.6" y2="342"/>
+<text class="muted" x="283.6" y="98" font-size="11" text-anchor="middle">10 ms</text>
+<line class="grid" x1="395.2" y1="106" x2="395.2" y2="342"/>
+<text class="muted" x="395.2" y="98" font-size="11" text-anchor="middle">20 ms</text>
+<line class="grid" x1="506.8" y1="106" x2="506.8" y2="342"/>
+<text class="muted" x="506.8" y="98" font-size="11" text-anchor="middle">30 ms</text>
+<line class="grid" x1="618.4" y1="106" x2="618.4" y2="342"/>
+<text class="muted" x="618.4" y="98" font-size="11" text-anchor="middle">40 ms</text>
+<line class="grid" x1="730.0" y1="106" x2="730.0" y2="342"/>
+<text class="muted" x="730.0" y="98" font-size="11" text-anchor="middle">50 ms</text>
+<text class="fg" x="160" y="127" font-size="14" font-weight="700" text-anchor="end">Proxium <tspan class="muted" font-weight="400" font-size="12">CONNECT</tspan></text>
+<rect class="ours" x="268.0" y="120" width="366.0" height="4" rx="2"/>
+<circle class="dot-ours" cx="268.0" cy="122" r="6"/>
+<rect class="ours" x="632.5" y="114" width="3" height="16" rx="1.5"/>
+<text class="fg" x="642.0" y="126" font-size="12">8.6 / 41</text>
+<text class="fg" x="160" y="167" font-size="14" font-weight="500" text-anchor="end">Squid <tspan class="muted" font-weight="400" font-size="12">CONNECT</tspan></text>
+<rect class="bar" x="224.5" y="160" width="34.6" height="4" rx="2"/>
+<circle class="dot" cx="224.5" cy="162" r="6"/>
+<rect class="bar" x="257.5" y="154" width="3" height="16" rx="1.5"/>
+<text class="fg" x="267.0" y="166" font-size="12">4.7 / 8</text>
+<text class="fg" x="160" y="207" font-size="14" font-weight="500" text-anchor="end">3proxy <tspan class="muted" font-weight="400" font-size="12">CONNECT</tspan></text>
+<rect class="bar" x="233.4" y="200" width="94.9" height="4" rx="2"/>
+<circle class="dot" cx="233.4" cy="202" r="6"/>
+<rect class="bar" x="326.7" y="194" width="3" height="16" rx="1.5"/>
+<text class="fg" x="336.2" y="206" font-size="12">5.5 / 14</text>
+<text class="fg" x="160" y="247" font-size="14" font-weight="700" text-anchor="end">Proxium <tspan class="muted" font-weight="400" font-size="12">SOCKS5</tspan></text>
+<rect class="ours" x="263.5" y="240" width="388.4" height="4" rx="2"/>
+<circle class="dot-ours" cx="263.5" cy="242" r="6"/>
+<rect class="ours" x="650.4" y="234" width="3" height="16" rx="1.5"/>
+<text class="fg" x="659.9" y="246" font-size="12">8.2 / 43</text>
+<text class="fg" x="160" y="287" font-size="14" font-weight="500" text-anchor="end">3proxy <tspan class="muted" font-weight="400" font-size="12">SOCKS5</tspan></text>
+<rect class="bar" x="239.0" y="280" width="91.5" height="4" rx="2"/>
+<circle class="dot" cx="239.0" cy="282" r="6"/>
+<rect class="bar" x="329.0" y="274" width="3" height="16" rx="1.5"/>
+<text class="fg" x="338.5" y="286" font-size="12">6 / 14</text>
+<text class="fg" x="160" y="327" font-size="14" font-weight="500" text-anchor="end">Dante <tspan class="muted" font-weight="400" font-size="12">SOCKS5</tspan></text>
+<rect class="bar" x="426.4" y="320" width="132.8" height="4" rx="2"/>
+<circle class="dot" cx="426.4" cy="322" r="6"/>
+<rect class="bar" x="557.8" y="314" width="3" height="16" rx="1.5"/>
+<text class="fg" x="567.3" y="326" font-size="12">22.8 / 35</text>
+<text class="muted" x="172" y="362" font-size="12">● median   | 99% of requests faster than this</text>
+<text class="muted" x="24" y="394" font-size="11">Apple M4, Docker Desktop, every proxy on the same 4 cores with password auth.</text>
+</svg>
