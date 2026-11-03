@@ -7,12 +7,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-03
+
+One proxy, every CPU core: run it as several workers on the same ports, limits and quotas hold across all of them.
+And a benchmark against Squid, 3proxy and Dante. See [Upgrading](docs/upgrading.md#from-03-to-04).
+
 ### Added
 
 - One proxy now uses every CPU core: `PROXY_WORKERS=4` or `proxium --workers 4` runs four processes on the same
   ports, and Linux spreads new connections between them. Limits and quotas hold across workers. The admin still
   shows one proxy, and its new Workers column tells how many serve, e.g. `3 / 4` while a crashed one restarts, in a
   second. One worker by default, restarted on a crash just the same. See [Workers](docs/proxy.md#workers).
+- [Benchmark](docs/benchmark.md): download speed, new connections a second, latency and memory against Squid,
+  3proxy and Dante on Apple M4 and on a Linux server, with the method and the configs of the contenders.
+
+### Changed
+
+- A stopping proxy gets 10 seconds more after `PROXY_GRACEFUL_TIMEOUT` to write its last traffic and report the
+  stop: the Docker image waits 45 seconds for it, the compose example's `stop_grace_period` is `50s`. Stop the
+  container with `docker stop --time 50`, else the admin may show the proxy unknown.
+
+### Fixed
+
+- The Docker image connects to your own PostgreSQL set by `DATABASE_URL`: it failed with `Permission denied` on
+  `~/.postgresql`.
 
 ## [0.3.0] - 2026-10-28
 
@@ -214,7 +232,8 @@ Your own proxy service in one `docker run`: accounts, policies, outgoing IPs and
 - Admin UI over HTTP or HTTPS with `ADMIN_TLS`: Let's Encrypt, own certificate files or an internal CA.
 - Optional superuser on first start with `SUPERUSER_CREATE`.
 
-[Unreleased]: https://github.com/koldakov/proxium/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/koldakov/proxium/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/koldakov/proxium/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/koldakov/proxium/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/koldakov/proxium/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/koldakov/proxium/compare/v0.1.0...v0.1.1
