@@ -146,7 +146,7 @@ with `--network host`. Run proxium without Docker there, see [From source](#from
 | Own keys | `-e ENCRYPTION_KEY=... -e API_SECRET_KEY=...`, else generated once and kept in the volume |
 
 Every variable from [Configuration](configuration.md) works with `-e`, Docker-only ones are under [Docker](configuration.md#docker).
-Give `docker stop` time for open connections: `--stop-timeout 40`. Leave a few seconds over
+Give `docker stop` time for open connections: `--stop-timeout 50`. Leave a few seconds over
 `PROXY_GRACEFUL_TIMEOUT`: closing connections release their places in Redis, up to the two Redis timeouts.
 
 ### Separate containers
