@@ -47,7 +47,8 @@ def _get_key_owner(key: _TotalKey, /) -> Owner:
     return key[0], key[1]
 
 
-def _get_share_key(owner: Owner, /) -> str:
+def get_share_key(owner: Owner, /) -> str:
+    """The owner's name in the share, e.g. `basic_proxy_account_traffic:42`: readers outside the proxy use it too."""
     model, owner_id = owner
     return f"{model.__tablename__}:{owner_id}"
 
@@ -317,7 +318,7 @@ class SharedTrafficTotals(TrafficTotals):
 
     async def _read_shared(self, owners: Collection[Owner], /) -> dict[Owner, SharedTraffic]:
         """What other processes haven't written for `owners`. Raise `TrafficShareUnavailable` if the share fails."""
-        by_key = {_get_share_key(owner): owner for owner in owners}
+        by_key = {get_share_key(owner): owner for owner in owners}
         shared = await self._share.read(list(by_key))
         return {by_key[key]: traffic for key, traffic in shared.items()}
 
@@ -493,7 +494,7 @@ class SharedTrafficTotals(TrafficTotals):
         """The unwritten bytes. Written ones aren't, even unannounced: each publish announces all of them at once, see
         `_publish`.
         """
-        return {_get_share_key(owner): owner_days for owner, owner_days in self._get_unwritten().items()}
+        return {get_share_key(owner): owner_days for owner, owner_days in self._get_unwritten().items()}
 
     async def _publish(self) -> None:
         """Publish the unwritten bytes and announce the written ones. Raise `TrafficShareUnavailable` if the share
@@ -505,7 +506,7 @@ class SharedTrafficTotals(TrafficTotals):
             try:
                 await self._share.publish(
                     self._get_published(),
-                    written=[_get_share_key(owner) for owner in announcing],
+                    written=[get_share_key(owner) for owner in announcing],
                 )
             except BaseException:
                 # Failed or cancelled: announced next time. Lost, the others would miss these bytes until another
